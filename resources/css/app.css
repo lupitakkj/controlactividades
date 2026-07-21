@@ -1,0 +1,385 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@keyframes rotateGlow {
+    0% {
+        transform: translate(-50%, -50%) rotate(0deg);
+    }
+
+    100% {
+        transform: translate(-50%, -50%) rotate(360deg);
+    }
+}
+
+.login-glow {
+    position: relative;
+    overflow: hidden;
+    border-radius: 24px;
+}
+
+.login-glow::before {
+    content: "";
+    position: absolute;
+
+    width: 250%;
+    height: 250%;
+
+    top: 50%;
+    left: 50%;
+
+    background: conic-gradient(transparent 0deg,
+            transparent 330deg,
+            #60a5fa 345deg,
+            #ffffff 350deg,
+            #60a5fa 355deg,
+            transparent 360deg);
+
+    animation: rotateGlow 3s linear infinite;
+    filter: blur(2px);
+
+    transform: translate(-50%, -50%);
+}
+
+.login-glow::after {
+    content: "";
+    position: absolute;
+    inset: 3px;
+    border-radius: 22px;
+    background: rgba(15, 23, 42, 0.95);
+    backdrop-filter: blur(12px);
+    z-index: 1;
+}
+
+.login-content {
+    position: relative;
+    z-index: 2;
+}
+
+.dots-glow {
+    background-image:
+        radial-gradient(circle, rgba(96,165,250,1) 1px, transparent 2px);
+
+    background-size: 35px 35px;
+
+    opacity: 0.8;
+
+    filter:
+        drop-shadow(0 0 4px #60a5fa)
+        drop-shadow(0 0 8px #2563eb)
+        drop-shadow(0 0 12px #2563eb);
+}
+
+.login-glow:hover {
+    transform: translateY(-5px);
+    transition: all 0.3s ease;
+}
+
+
+/*==========================
+    KANBAN
+==========================*/
+
+.kanban-column-dark{
+
+    background:#1e293b;
+
+    border-radius:24px;
+
+    padding:20px;
+
+    min-height:650px;
+
+    border-top:5px solid;
+
+    box-shadow:
+        0 10px 30px rgba(0,0,0,.35);
+
+    transition:.30s;
+}
+
+.kanban-column-dark:hover{
+
+    transform:translateY(-3px);
+
+    box-shadow:
+        0 20px 40px rgba(0,0,0,.45);
+
+}
+
+.border-pendientes{
+
+    border-color:#3b82f6;
+
+}
+
+.border-proceso{
+
+    border-color:#06b6d4;
+
+}
+
+.border-pausa{
+
+    border-color:#f59e0b;
+
+}
+
+.border-terminado{
+
+    border-color:#10b981;
+
+}
+
+/* ==========================================================
+   KANBAN
+========================================================== */
+
+.kanban-column{
+
+    display:flex;
+    flex-direction:column;
+
+    height:78vh;
+
+    border-radius:18px;
+
+    overflow:hidden;
+
+    border:1px solid #22324b;
+
+    background:#0d1628;
+
+}
+
+.kanban-column:hover{
+    border-color:#365a86;
+}
+
+.kanban-header{
+
+    padding:18px 22px;
+
+    background:linear-gradient(
+        180deg,
+        rgb(66, 102, 179) 0%,
+        rgb(57, 83, 138) 100%
+    );
+
+    border-bottom:1px solid rgba(255,255,255,.05);
+
+}
+
+.kanban-body{
+
+    flex:1;
+
+    padding:22px;
+
+    display:flex;
+
+    flex-direction:column;
+
+    gap:16px;
+
+    overflow-y:auto;
+
+    background:linear-gradient(
+        180deg,
+        #0f182d 0%,
+        #0b1323 100%
+    );
+
+}
+
+.kanban-body::-webkit-scrollbar{
+
+    width:8px;
+
+}
+
+.kanban-body::-webkit-scrollbar-thumb{
+
+    background:#2d405f;
+
+    border-radius:999px;
+
+}
+.kanban-title{
+
+    display:flex;
+
+    align-items:center;
+
+    gap:10px;
+
+    font-size:17px;
+
+    font-weight:600;
+
+    color:#ffffff;
+
+}
+
+.kanban-title i{
+
+    color:#5ea0ff;
+
+    font-size:15px;
+
+}
+
+.kanban-subtitle{
+
+    margin-top:4px;
+
+    color:#94a3b8;
+
+    font-size:.85rem;
+
+}
+
+.kanban-card{
+
+    background:#111827;
+
+    border:1px solid #2b3c57;
+
+    border-radius:18px;
+
+    transition:.25s;
+
+    box-shadow:
+        0 5px 18px rgba(0,0,0,.25);
+
+}
+
+.kanban-card:hover{
+
+    transform:translateY(-4px);
+
+    border-color:#3b82f6;
+
+    box-shadow:
+        0 15px 30px rgba(59,130,246,.15);
+
+}
+
+.kanban-count{
+
+    margin-top:7px;
+
+    margin-left:25px;
+
+    font-size:13px;
+
+    color:#8ea0bc;
+
+}
+
+.kanban-empty{
+
+    flex:1;
+
+    display:flex;
+
+    justify-content:center;
+
+    align-items:center;
+
+    flex-direction:column;
+
+    text-align:center;
+
+    color:#6f7f96;
+}
+
+.complejidad-card{
+
+    flex:1;
+
+    display:flex;
+    flex-direction:column;
+    justify-content:center;
+    align-items:center;
+
+    min-height:120px;
+
+    padding:16px;
+
+    border:2px solid #d1d5db;
+    border-radius:14px;
+
+    background:#ffffff;
+
+    cursor:pointer;
+
+    transition:all .25s ease;
+}
+
+.complejidad-card:hover{
+
+    transform:translateY(-3px);
+
+    border-color:#3b82f6;
+
+    box-shadow:0 10px 20px rgba(37,99,235,.15);
+}
+
+.complejidad-card.active{
+
+    background:linear-gradient(180deg,#3b82f6,#2563eb);
+
+    border-color:#2563eb;
+
+    color:#fff;
+
+    box-shadow:0 12px 25px rgba(37,99,235,.35);
+}
+
+.complejidad-card h4{
+
+    margin:0 0 6px;
+
+    font-size:18px;
+    font-weight:700;
+}
+
+.complejidad-card p{
+
+    margin:0;
+
+    font-size:14px;
+
+    color:#6b7280;
+}
+
+.complejidad-card span{
+
+    margin-top:8px;
+
+    font-size:13px;
+
+    font-weight:600;
+
+    color:#2563eb;
+}
+
+
+.complejidad-card.active p,
+.complejidad-card.active span,
+.complejidad-card.active h4{
+
+    color:#fff !important;
+
+}
+
+.complejidad-card i{
+
+    font-size:34px;
+
+    color:#facc15;
+
+    margin-bottom:10px;
+
+}

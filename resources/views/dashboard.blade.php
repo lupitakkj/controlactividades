@@ -97,379 +97,295 @@
     </div>
 
     <!-- MODAL NUEVA ACTIVIDAD -->
-
     <div id="modal"
-        class="hidden fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+        class="hidden fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-6">
 
-        <div class="bg-white rounded-2xl p-6 w-full max-w-md">
+        <div class="bg-white rounded-3xl shadow-2xl w-full max-w-6xl h-[90vh] flex flex-col">
 
-            <h2 class="text-2xl font-bold mb-4">
-                Nueva actividad
-            </h2>
+            <div class="flex-1 overflow-y-auto p-8">
 
-            <form method="POST"
-                action="{{ route('actividades.store') }}"
-                enctype="multipart/form-data">
+                <h2 class="text-3xl font-bold mb-8">
+                    📝 Nueva actividad
+                </h2>
 
-                @csrf
+                <form method="POST"
+                    action="{{ route('actividades.store') }}"
+                    enctype="multipart/form-data">
 
-                <div class="mb-4">
+                    @csrf
 
-                    <label class="block mb-1 font-medium">
-                        Título
-                    </label>
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
 
-                    <input
-                        type="text"
-                        name="titulo"
-                        required
-                        class="w-full border rounded-lg p-2">
+                        <!-- ===================================== -->
+                        <!-- COLUMNA IZQUIERDA -->
+                        <!-- ===================================== -->
 
-                </div>
+                        <div>
 
-                <div class="mb-4">
+                            <div class="mb-6">
 
-                    <label class="block mb-1 font-medium">
-                        Descripción
-                    </label>
+                                <label class="block font-semibold mb-2">
+                                    Título
+                                </label>
 
-                    <textarea
-                        name="descripcion"
-                        rows="4"
-                        class="w-full border rounded-lg p-2"></textarea>
+                                <input
+                                    type="text"
+                                    name="titulo"
+                                    required
+                                    class="w-full rounded-xl border p-3">
 
-                </div>
+                            </div>
 
-                <div class="mb-6">
+                            <div>
 
-                    <label class="block mb-1 font-medium">
-                        Prioridad
-                    </label>
+                                <label class="block font-semibold mb-2">
+                                    Descripción
+                                </label>
 
-                    <select
-                        name="prioridad"
-                        class="w-full border rounded-lg p-2">
+                                <textarea
+                                    name="descripcion"
+                                    rows="12"
+                                    class="w-full rounded-xl border p-3 resize-none"></textarea>
 
-                        <option value="baja">Baja</option>
-                        <option value="media">Media</option>
-                        <option value="alta">Alta</option>
-                        <option value="urgente">Urgente</option>
-
-                    </select>
-
-                </div>
-
-                <div class="mb-6">
-
-                    <label class="block mb-3 font-semibold text-gray-700">
-
-                        Complejidad
-
-                    </label>
-
-                    <input type="hidden"
-                        name="complejidad"
-                        id="complejidad"
-                        value="1">
-
-                    <div class="flex gap-4">
-
-                        <div class="complejidad-card active flex-1"
-                            data-value="1"
-                            data-horas="4">
-
-                            <i class="fa-solid fa-star"></i>
-
-                            <h4>Nivel 1</h4>
-
-                            <p>Diseño sencillo</p>
-
-                            <span>2 - 4 horas</span>
+                            </div>
 
                         </div>
 
-                        <div class="complejidad-card flex-1"
-                            data-value="2"
-                            data-horas="16">
+                        <!-- ===================================== -->
+                        <!-- COLUMNA DERECHA -->
+                        <!-- ===================================== -->
 
-                            <i class="fa-solid fa-star-half-stroke"></i>
+                        <div>
 
-                            <h4>Nivel 2</h4>
+                            <!-- PRIORIDAD -->
 
-                            <p>Diseño medio</p>
+                            <div class="mb-5">
 
-                            <span>4 - 16 horas</span>
+                                <label class="block font-semibold mb-2">
+                                    Prioridad
+                                </label>
 
-                        </div>
+                                <select
+                                    name="prioridad"
+                                    class="w-full rounded-xl border p-3">
 
-                        <div class="complejidad-card flex-1"
-                            data-value="3"
-                            data-horas="48">
+                                    <option value="baja">🟢 Baja</option>
+                                    <option value="media">🟡 Media</option>
+                                    <option value="alta">🟠 Alta</option>
+                                    <option value="urgente">🔴 Urgente</option>
 
-                            <i class="fa-solid fa-crown"></i>
+                                </select>
 
-                            <h4>Nivel 3</h4>
+                            </div>
 
-                            <p>Diseño complejo</p>
+                            <!-- COMPLEJIDAD -->
 
-                            <span>16 - 48 horas</span>
+                            <div class="mb-5">
+
+                                <label class="block font-semibold mb-3">
+                                    Complejidad
+                                </label>
+
+                                <input
+                                    type="hidden"
+                                    name="complejidad"
+                                    id="complejidad"
+                                    value="1">
+
+                                <div class="grid grid-cols-3 gap-3">
+
+                                    <div class="complejidad-card active"
+                                        data-value="1"
+                                        data-horas="4">
+
+                                        <i class="fa-solid fa-star text-blue-600 text-2xl"></i>
+
+                                        <h4 class="font-bold mt-2">
+                                            Nivel 1
+                                        </h4>
+
+                                        <p class="text-sm text-gray-500">
+                                            Diseño sencillo
+                                        </p>
+
+                                        <span class="text-blue-600 text-sm font-semibold">
+                                            2 - 4 horas
+                                        </span>
+
+                                    </div>
+
+                                    <div class="complejidad-card"
+                                        data-value="2"
+                                        data-horas="16">
+
+                                        <i class="fa-solid fa-star-half-stroke text-yellow-500 text-2xl"></i>
+
+                                        <h4 class="font-bold mt-2">
+                                            Nivel 2
+                                        </h4>
+
+                                        <p class="text-sm text-gray-500">
+                                            Diseño medio
+                                        </p>
+
+                                        <span class="text-blue-600 text-sm font-semibold">
+                                            4 - 16 horas
+                                        </span>
+
+                                    </div>
+
+                                    <div class="complejidad-card"
+                                        data-value="3"
+                                        data-horas="48">
+
+                                        <i class="fa-solid fa-crown text-red-500 text-2xl"></i>
+
+                                        <h4 class="font-bold mt-2">
+                                            Nivel 3
+                                        </h4>
+
+                                        <p class="text-sm text-gray-500">
+                                            Diseño complejo
+                                        </p>
+
+                                        <span class="text-blue-600 text-sm font-semibold">
+                                            16 - 48 horas
+                                        </span>
+
+                                    </div>
+
+                                </div>
+
+                            </div>
+
+                            <!-- TIEMPO -->
+
+                            <div class="mb-5 rounded-xl bg-blue-50 border border-blue-200 p-4">
+
+                                <span class="font-semibold">
+                                    ⏱ Tiempo estimado:
+                                </span>
+
+                                <span id="horasEstimadas">
+                                    4 horas
+                                </span>
+
+                            </div>
+
+                            <!-- FECHA -->
+
+                            <div class="mb-5">
+
+                                <label class="block font-semibold mb-2">
+                                    📅 Fecha de entrega
+                                </label>
+
+                                <input
+                                    type="datetime-local"
+                                    name="fecha_limite"
+                                    min="{{ now()->format('Y-m-d\TH:i') }}"
+                                    class="w-full rounded-xl border p-3">
+
+                            </div>
+
+                            <!-- DISEÑADOR -->
+
+                            <div class="mb-5">
+
+                                <label class="block font-semibold mb-2">
+                                    👤 Diseñador
+                                </label>
+
+                                <select
+                                    name="user_id"
+                                    class="w-full rounded-xl border p-3">
+
+                                    @foreach($disenadores as $disenador)
+
+                                    <option value="{{ $disenador->id }}">
+                                        {{ $disenador->name }}
+                                    </option>
+
+                                    @endforeach
+
+                                </select>
+
+                            </div>
+
+                            <!-- ARCHIVOS -->
+
+                            <div class="mb-5">
+
+                                <label class="block font-semibold mb-2">
+                                    📎 Archivos
+                                </label>
+
+                                <input
+                                    type="file"
+                                    name="archivos[]"
+                                    multiple
+                                    class="w-full rounded-xl border p-3">
+
+                            </div>
 
                         </div>
 
                     </div>
 
-                    <div class="mt-4 p-3 rounded-xl bg-blue-50 border border-blue-200">
+                    <div class="border-t bg-white px-8 py-5 flex justify-end gap-4">
 
-                        <span class="font-semibold">
-                            Tiempo estimado:
-                        </span>
+                        <button
+                            type="button"
+                            onclick="document.getElementById('modal').classList.add('hidden')"
+                            class="px-6 py-3 rounded-xl bg-gray-200 hover:bg-gray-300">
 
-                        <span id="horasEstimadas">
-                            2 - 4 horas
-                        </span>
+                            Cancelar
+
+                        </button>
+
+                        <button
+                            type="submit"
+                            class="px-8 py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold">
+
+                            💾 Crear actividad
+
+                        </button>
 
                     </div>
 
-                </div>
-
-                <div class="mb-6">
-
-                    <label class="block mb-1 font-medium">
-                        Diseñador
-                    </label>
-
-                    <select
-                        name="user_id"
-                        required
-                        class="w-full border rounded-lg p-2">
-
-                        @foreach($disenadores as $disenador)
-
-                        <option value="{{ $disenador->id }}">
-
-                            {{ $disenador->name }}
-
-                        </option>
-
-                        @endforeach
-
-                    </select>
-
-                </div>
-
-
-                <div class="mb-4">
-
-                    <label class="block mb-1 font-medium">
-
-                        Archivos
-
-                    </label>
-
-                    <input
-                        type="file"
-                        name="archivos[]"
-                        multiple
-                        class="w-full border rounded-lg p-2">
-
-                </div>
-                <div class="flex justify-end gap-3">
-
-                    <button
-                        type="button"
-                        onclick="document.getElementById('modal').classList.add('hidden')"
-                        class="bg-gray-300 hover:bg-gray-400 px-4 py-2 rounded-lg">
-
-                        Cancelar
-
-                    </button>
-
-                    <button
-                        type="submit"
-                        class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg">
-
-                        Guardar
-
-                    </button>
-
-                </div>
-
-            </form>
-
-        </div>
-
-    </div>
-    <!-- MODAL DETALLE -->
-
-    <div id="detalleModal"
-        class="hidden fixed inset-0 bg-black/60 flex items-center justify-center z-50">
-
-        <div class="bg-white rounded-2xl w-full max-w-2xl p-6 relative max-h-[90vh] overflow-y-auto">
-
-            <!-- CERRAR -->
-
-            <button
-                onclick="cerrarModal()"
-                class="absolute top-4 right-4 text-gray-500 hover:text-black text-2xl">
-
-                ✕
-
-            </button>
-
-            <!-- TITULO -->
-
-            <h2 id="detalleTitulo"
-                class="text-3xl font-bold mb-4">
-            </h2>
-
-            <!-- BADGES -->
-
-            <div class="flex gap-3 mb-6">
-
-                <span id="detallePrioridad"
-                    class="px-3 py-1 rounded-full text-sm bg-gray-200">
-                </span>
-
-                <span id="detalleEstado"
-                    class="px-3 py-1 rounded-full text-sm bg-blue-200">
-                </span>
-
-            </div>
-
-            <!-- DESCRIPCION -->
-
-            <div class="mb-6">
-
-                <h3 class="font-bold text-lg mb-2">
-                    Descripción
-                </h3>
-
-                <div id="detalleDescripcion"
-                    class="bg-gray-100 rounded-xl p-4 min-h-[120px] whitespace-pre-line">
-                </div>
-
-            </div>
-
-            <!-- TIEMPO -->
-
-            <div class="mb-6">
-
-                <h3 class="font-bold text-lg mb-2">
-                    Tiempo acumulado
-                </h3>
-
-                <div class="text-2xl font-bold text-blue-600">
-
-                    <span id="detalleTiempo"></span>
-
-                </div>
-
-            </div>
-
-            <!-- COMENTARIOS -->
-
-            <div class="mt-8">
-
-                <h3 class="font-bold text-xl mb-4">
-                    Comentarios
-                </h3>
-
-                <div id="comentariosContainer"
-                    class="space-y-4 max-h-[300px] overflow-y-auto mb-6">
-
-                </div>
-
-                <form id="comentarioForm"
-                    method="POST">
-
-                    @csrf
-
-                    <textarea
-                        name="comentario"
-                        required
-                        placeholder="Escribe un comentario..."
-                        class="w-full border rounded-xl p-3 mb-3"></textarea>
-
-                    <button
-                        class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg">
-
-                        Comentar
-
-                    </button>
 
                 </form>
 
             </div>
 
-            <!-- REASIGNAR -->
-
-            @role('admin|supervisor')
-
-            <div class="mt-8">
-
-                <h3 class="font-bold text-xl mb-4">
-                    Reasignar diseñador
-                </h3>
-
-                <form id="reasignarForm"
-                    method="POST">
-
-                    @csrf
-
-                    <select
-                        name="user_id"
-                        class="w-full border rounded-xl p-3 mb-3">
-
-                        @foreach($disenadores as $disenador)
-
-                        <option value="{{ $disenador->id }}">
-
-                            {{ $disenador->name }}
-
-                        </option>
-
-                        @endforeach
-
-                    </select>
-
-                    <button
-                        class="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-lg">
-
-                        Reasignar
-
-                    </button>
-
-                </form>
-
-            </div>
-
-            @endrole
-
         </div>
 
     </div>
-
-    <!-- SCRIPT MODAL -->
 
     <script>
         function abrirModal(actividad) {
+            console.log(actividad);
+            const minutos = actividad.tiempo_total ?? 0;
 
-            document.getElementById('detalleTitulo')
-                .innerText = actividad.titulo;
+            const horas = Math.floor(minutos / 60);
+            const mins = minutos % 60;
+            document.getElementById('detalleTitulo').value =
+                actividad.titulo;
 
-            document.getElementById('detalleDescripcion')
-                .innerText = actividad.descripcion ?? '';
+            document.getElementById('detalleDescripcion').value =
+                actividad.descripcion ?? '';
 
-            document.getElementById('detallePrioridad')
-                .innerText = actividad.prioridad.toUpperCase();
+            document.getElementById('detallePrioridad').value =
+                actividad.prioridad.toLowerCase();
+            document.getElementById('detalleDisenador').textContent =
+                actividad.user?.name ?? 'Sin asignar';
 
             document.getElementById('detalleEstado')
                 .innerText =
                 actividad.estado.replace('_', ' ').toUpperCase();
 
-            document.getElementById('detalleTiempo')
-                .innerText =
-                actividad.tiempo_total + ' min';
+            document.getElementById('detalleTiempo').innerText =
+                `${horas.toString().padStart(2,'0')}:${mins.toString().padStart(2,'0')}`;
 
             // FORM COMENTARIOS
 
@@ -655,4 +571,7 @@
 
         });
     </script>
+
+    @include('modals.detalle-actividad')
+    @vite(['resources/css/app.css', 'resources/js/app.js'])
 </x-app-layout>

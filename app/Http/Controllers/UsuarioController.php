@@ -144,7 +144,7 @@ class UsuarioController extends Controller
 
         <p>
 
-            <a href='http://192.168.1.148:8000/login'>
+            <a href='https://controlactividad.infinityfreeapp.com/'>
 
                 Entrar al sistema
 

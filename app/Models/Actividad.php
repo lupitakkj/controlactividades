@@ -67,17 +67,24 @@ class Actividad extends Model
     {
         return $this->hasMany(Archivo::class);
     }
-    public function getDiferenciaTiempoAttribute()
+    public function getDiferenciaTiempoTextoAttribute()
     {
-        // tiempo real en horas
+        $minutos = $this->tiempo_total - ($this->tiempo_estimado * 60);
 
-        $real = $this->tiempo_total / 60;
+        $abs = abs($minutos);
 
-        // diferencia
+        $horas = floor($abs / 60);
 
-        return round(
-            $real - $this->tiempo_estimado,
-            2
-        );
+        $mins = $abs % 60;
+
+        if ($minutos > 0) {
+            return "🔴 {$horas} h {$mins} min de retraso";
+        }
+
+        if ($minutos < 0) {
+            return "🟢 {$horas} h {$mins} min antes";
+        }
+
+        return "🟡 En tiempo";
     }
 }

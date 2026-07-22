@@ -12,14 +12,16 @@ class ActividadController extends Controller
 {
     public function store(Request $request)
     {
-        
+
         $request->validate([
 
             'titulo' => 'required',
 
             'prioridad' => 'required',
 
-            'complejidad' => 'required|integer|between:1,3'
+            'complejidad' => 'required|integer|between:1,3',
+
+            'fecha_limite' => 'nullable|date'
         ]);
 
         /*
@@ -77,7 +79,9 @@ class ActividadController extends Controller
 
             'complejidad' => $request->complejidad,
 
-            'tiempo_estimado' => $tiempo_estimado,
+            'tiempo_estimado' => $tiempoEstimado,
+
+            'fecha_limite' => $request->fecha_limite,
         ]);
 
         if ($request->hasFile('archivos')) {
@@ -134,6 +138,13 @@ class ActividadController extends Controller
             $activa->save();
         }
 
+        // Guardar la fecha de inicio solamente la primera vez
+
+        if (is_null($actividad->fecha_inicio)) {
+
+            $actividad->fecha_inicio = now();
+        }
+
         // Crear nueva sesión
 
         SesionTiempo::create([
@@ -141,6 +152,7 @@ class ActividadController extends Controller
             'actividad_id' => $actividad->id,
 
             'inicio' => now()
+
         ]);
 
         $actividad->estado = 'en_proceso';
@@ -206,10 +218,10 @@ class ActividadController extends Controller
         $nuevoEstado = $request->estado;
 
         /*
-    |--------------------------------------------------------------------------
-    | SI SE MUEVE A EN PROCESO
-    |--------------------------------------------------------------------------
-    */
+        |--------------------------------------------------------------------------
+        | SI SE MUEVE A EN PROCESO
+        |--------------------------------------------------------------------------
+        */
 
         if ($nuevoEstado == 'en_proceso') {
 
@@ -259,10 +271,10 @@ class ActividadController extends Controller
         }
 
         /*
-    |--------------------------------------------------------------------------
-    | SI SE MUEVE A PAUSADA O TERMINADA
-    |--------------------------------------------------------------------------
-    */
+        |--------------------------------------------------------------------------
+        | SI SE MUEVE A PAUSADA O TERMINADA
+        |--------------------------------------------------------------------------
+        */
 
         if (
             $nuevoEstado == 'pausada' ||
@@ -328,5 +340,24 @@ class ActividadController extends Controller
         ]);
 
         return back();
+    }
+    public function update(Request $request, Actividad $actividad)
+    {
+        $request->validate([
+            'titulo' => 'required|string|max:255',
+            'descripcion' => 'nullable|string',
+            'prioridad' => 'required'
+        ]);
+
+        $actividad->update([
+            'titulo' => $request->titulo,
+            'descripcion' => $request->descripcion,
+            'prioridad' => $request->prioridad,
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Actividad actualizada correctamente.'
+        ]);
     }
 }

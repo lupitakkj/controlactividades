@@ -33,6 +33,8 @@ Route::middleware('auth')->group(function () {
         ->name('actividad.comentar');
     Route::post('/actividad/{id}/archivo', [ActividadController::class, 'subirArchivo'])
         ->name('actividad.archivo');
+    Route::put('/actividad/{actividad}', [ActividadController::class, 'update'])
+        ->name('actividad.update');
     Route::get('/reportes', [ReporteController::class, 'index'])
         ->name('reportes');
     Route::get('/usuarios', [UsuarioController::class, 'index'])

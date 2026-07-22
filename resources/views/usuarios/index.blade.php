@@ -94,15 +94,15 @@
                         name="role"
                         class="border rounded-lg p-3">
 
-                        <option value="admin">
+                        <option value="Administrador">
                             Administrador
                         </option>
 
-                        <option value="supervisor">
+                        <option value="Supervisor">
                             Supervisor
                         </option>
 
-                        <option value="disenador">
+                        <option value="Diseñador">
                             Diseñador
                         </option>
 

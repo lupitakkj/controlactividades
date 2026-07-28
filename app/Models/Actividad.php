@@ -13,12 +13,19 @@ class Actividad extends Model
         'user_id',
         'titulo',
         'descripcion',
+        'cliente',
         'prioridad',
         'complejidad',
         'estado',
         'tiempo_estimado',
         'fecha_inicio',
         'fecha_limite'
+    ];
+
+    protected $appends = [
+        'tiempo_total',
+        'tiempo_activo',
+        'diferencia_tiempo_texto',
     ];
 
     public function user()

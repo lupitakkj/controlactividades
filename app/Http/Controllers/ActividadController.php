@@ -31,7 +31,7 @@ class ActividadController extends Controller
             */
 
         if (auth()->user()->hasAnyRole([
-            'Adminstrador',
+            'Administrador',
             'Supervisor'
         ])) {
 
@@ -71,6 +71,8 @@ class ActividadController extends Controller
 
             'descripcion' => $request->descripcion,
 
+            'cliente' => $request->cliente,
+
             'user_id' => $userId,
 
             'estado' => 'pendiente',
@@ -97,9 +99,12 @@ class ActividadController extends Controller
 
                     'actividad_id' => $actividad->id,
 
+                    'user_id' => auth()->id(),
+
                     'archivo' => $ruta,
 
                     'nombre_original' => $file->getClientOriginalName()
+
                 ]);
             }
         }
@@ -322,7 +327,6 @@ class ActividadController extends Controller
     public function subirArchivo(Request $request, $id)
     {
         $request->validate([
-
             'archivo' => 'required|file|max:20480'
         ]);
 
@@ -334,9 +338,12 @@ class ActividadController extends Controller
 
             'actividad_id' => $id,
 
+            'user_id' => auth()->id(),
+
             'archivo' => $ruta,
 
             'nombre_original' => $file->getClientOriginalName()
+
         ]);
 
         return back();
@@ -359,5 +366,23 @@ class ActividadController extends Controller
             'success' => true,
             'message' => 'Actividad actualizada correctamente.'
         ]);
+    }
+
+    public function reasignar(Request $request, $id)
+    {
+        $request->validate([
+            'user_id' => 'required|exists:users,id'
+        ]);
+
+        $actividad = Actividad::findOrFail($id);
+
+        $actividad->user_id = $request->user_id;
+
+        $actividad->save();
+
+        return back()->with(
+            'success',
+            'Actividad reasignada correctamente.'
+        );
     }
 }

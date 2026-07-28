@@ -89,12 +89,23 @@
                         <div>
 
                             <p class="text-gray-500 text-sm">
-                                Entrega
+                                📅 Fecha de entrega
                             </p>
 
                             <p id="detalleEntrega"
                                 class="font-semibold">
                             </p>
+
+                        </div>
+                        <div>
+
+                            <span class="font-semibold">
+                                Cliente:
+                            </span>
+
+                            <span id="detalleCliente">
+                                -
+                            </span>
 
                         </div>
 
@@ -221,6 +232,7 @@
                             class="mb-3">
 
                         <button
+                            type="submit"
                             class="bg-indigo-500 hover:bg-indigo-600 text-white px-4 py-2 rounded-lg">
 
                             Agregar archivo

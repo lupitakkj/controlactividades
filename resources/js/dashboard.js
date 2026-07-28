@@ -3,10 +3,14 @@ let actividadActual = null;
 window.abrirModal = function (actividad) {
     console.log(actividad);
     actividadActual = actividad.id;
-    const minutos = actividad.tiempo_total ?? 0;
+    const totalMinutos = Number(actividad.tiempo_total ?? 0);
 
-    const horas = Math.floor(minutos / 60);
-    const mins = minutos % 60;
+    const totalSegundos = totalMinutos * 60;
+
+    const horas = Math.floor(totalSegundos / 3600);
+    const minutos = Math.floor((totalSegundos % 3600) / 60);
+    const segundos = totalSegundos % 60;
+
     document.getElementById('detalleTitulo').value =
         actividad.titulo;
 
@@ -26,8 +30,41 @@ window.abrirModal = function (actividad) {
     document.getElementById('detalleCreacion').textContent =
         new Date(actividad.created_at).toLocaleString('es-MX');
 
+    document.getElementById("detalleCliente").textContent =
+        actividad.cliente ?? "Sin cliente";
+        
     document.getElementById('detalleTiempo').innerText =
-        `${horas.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}`;
+        `${String(horas).padStart(2, '0')}:${String(minutos).padStart(2, '0')}:${String(segundos).padStart(2, '0')}`;
+
+    const diferencia = document.getElementById('detalleDiferencia');
+
+    diferencia.innerText = actividad.diferencia_tiempo_texto;
+
+    diferencia.classList.remove(
+        'text-red-600',
+        'text-green-600',
+        'text-yellow-600'
+    );
+
+    if (actividad.diferencia_tiempo_texto.includes('retraso')) {
+
+        diferencia.classList.add('text-red-600');
+
+    } else if (actividad.diferencia_tiempo_texto.includes('antes')) {
+
+        diferencia.classList.add('text-green-600');
+
+    } else {
+
+        diferencia.classList.add('text-yellow-600');
+
+    }
+
+    const estimadoHoras = actividad.tiempo_estimado ?? 0;
+
+    document.getElementById('detalleEstimado').innerText =
+        `${estimadoHoras.toString().padStart(2, '0')}:00:00`;
+
     if (actividad.fecha_inicio) {
 
         document.getElementById('detalleInicio').textContent =
@@ -54,6 +91,75 @@ window.abrirModal = function (actividad) {
         document.getElementById('detalleEntrega').textContent = 'Sin fecha';
 
     }
+
+    // ==============================
+    // ARCHIVOS
+    // ==============================
+
+    let archivosContainer =
+        document.getElementById("archivosContainer");
+
+    archivosContainer.innerHTML = "";
+
+    if (!actividad.archivos || actividad.archivos.length === 0) {
+
+        archivosContainer.innerHTML = `
+        <div class="text-gray-400 italic">
+            No hay archivos adjuntos.
+        </div>
+    `;
+
+    } else {
+
+        actividad.archivos.forEach(archivo => {
+
+            const fecha = new Date(archivo.created_at);
+
+            archivosContainer.innerHTML += `
+
+            <div class="flex items-center justify-between bg-slate-50 border rounded-xl p-3">
+
+                <div>
+
+                    <div class="font-semibold text-slate-800">
+
+                        📄 ${archivo.nombre_original}
+
+                    </div>
+
+                    <div class="text-xs text-gray-500 mt-1">
+
+                        👤 ${archivo.user?.name ?? 'Usuario'}
+
+                        <br>
+
+                        📅 ${fecha.toLocaleDateString('es-MX')}
+                        ${fecha.toLocaleTimeString('es-MX', {
+                hour: '2-digit',
+                minute: '2-digit'
+            })}
+
+                    </div>
+
+                </div>
+
+                <a
+                    href="/storage/app/public/archivos/${archivo.archivo}"
+                    download="${archivo.nombre_original}"
+                    title="Descargar archivo"
+                    class="w-11 h-11 rounded-full bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center transition-all duration-200 hover:scale-110 shadow-md">
+
+                    <i class="fa-solid fa-download text-lg"></i>
+
+                </a>
+
+            </div>
+
+        `;
+
+        });
+
+    }
     // FORM COMENTARIOS
 
     document.getElementById('comentarioForm')
@@ -70,7 +176,16 @@ window.abrirModal = function (actividad) {
         reasignarForm.action =
             `/actividad/${actividad.id}/reasignar`;
     }
+    // FORM ARCHIVOS
 
+    const archivoForm = document.getElementById('archivoForm');
+
+    if (archivoForm) {
+
+        archivoForm.action =
+            `/actividad/${actividad.id}/archivo`;
+
+    }
     // COMENTARIOS
 
     let container =

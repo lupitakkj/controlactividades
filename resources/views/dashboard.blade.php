@@ -4,62 +4,146 @@
 
         <!-- HEADER -->
 
-        <div class="flex justify-end items-center mb-6 gap-3">
+        <div class="flex items-center justify-between mb-6 gap-4">
 
-            @role('Administrador|Supervisor')
+            {{-- Barra de filtros --}}
+            <form
+                method="GET"
+                action="{{ route('dashboard') }}"
+                class="flex items-center gap-3 flex-1">
 
-            <a
-                href="{{ route('reportes') }}"
-                class="inline-flex items-center gap-2 h-11 px-5 rounded-xl
-                        bg-slate-800 border border-violet-500/50
-                        text-violet-300 font-semibold
-                        hover:bg-violet-600 hover:text-white
-                        hover:border-violet-500
-                        transition-all duration-300 shadow-lg">
+                {{-- Buscar --}}
+                <input
+                    type="text"
+                    name="buscar"
+                    value="{{ request('buscar') }}"
+                    placeholder="🔍 Buscar actividad..."
+                    class="w-72 h-11 rounded-xl border border-slate-600 bg-slate-800 text-white px-4">
 
-                <i class="fa-solid fa-chart-column"></i>
+                {{-- Cliente --}}
+                <select
+                    name="cliente"
+                    class="w-52 h-11 rounded-xl border border-slate-600 bg-slate-800 text-white px-3">
 
-                Reportes
+                    <option value="">🏢 Cliente</option>
 
-            </a>
+                    @foreach($clientes as $cliente)
 
-            @endrole
+                    <option
+                        value="{{ $cliente }}"
+                        {{ request('cliente') == $cliente ? 'selected' : '' }}>
 
-            @role('Administrador')
+                        {{ $cliente }}
 
-            <a
-                href="{{ route('usuarios.index') }}"
-                class="inline-flex items-center gap-2 h-11 px-5 rounded-xl
-                        bg-slate-800 border border-emerald-500/50
-                        text-emerald-300 font-semibold
-                        hover:bg-emerald-600 hover:text-white
-                        hover:border-emerald-500
-                        transition-all duration-300 shadow-lg">
+                    </option>
 
-                <i class="fa-solid fa-users"></i>
+                    @endforeach
 
-                Usuarios
+                </select>
 
-            </a>
+                {{-- Prioridad --}}
+                <select
+                    name="prioridad"
+                    class="w-44 h-11 rounded-xl border border-slate-600 bg-slate-800 text-white px-3">
 
-            @endrole
+                    <option value="">🔥 Prioridad</option>
 
-            <button
-                onclick="document.getElementById('modal').classList.remove('hidden')"
-                class="inline-flex items-center gap-2 h-11 px-5 rounded-xl
-                        bg-blue-600 border border-blue-400
-                        text-white font-semibold
-                        hover:bg-blue-700
-                        hover:shadow-blue-500/30
-                        transition-all duration-300 shadow-lg">
+                    <option value="baja" {{ request('prioridad')=='baja' ? 'selected' : '' }}>
+                        Baja
+                    </option>
 
-                <i class="fa-solid fa-plus"></i>
+                    <option value="media" {{ request('prioridad')=='media' ? 'selected' : '' }}>
+                        Media
+                    </option>
 
-                Nueva actividad
+                    <option value="alta" {{ request('prioridad')=='alta' ? 'selected' : '' }}>
+                        Alta
+                    </option>
 
-            </button>
+                    <option value="urgente" {{ request('prioridad')=='urgente' ? 'selected' : '' }}>
+                        Urgente
+                    </option>
+
+                </select>
+
+                <button
+                    type="submit"
+                    class="h-11 px-5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white">
+
+                    <i class="fa-solid fa-filter"></i>
+
+                </button>
+
+                <a
+                    href="{{ route('dashboard') }}"
+                        class="h-11 w-11 rounded-xl bg-slate-700
+                        hover:bg-red-600
+                        text-white
+                        flex items-center justify-center
+                        transition">
+
+                    <i class="fa-solid fa-xmark"></i>
+
+                </a>
+
+            </form>
+
+            <div class="flex items-center gap-3">
+
+                @role('Administrador|Supervisor')
+
+                <a
+                    href="{{ route('reportes') }}"
+                    class="inline-flex items-center gap-2 h-11 px-5 rounded-xl
+                   bg-slate-800 border border-violet-500/50
+                   text-violet-300 font-semibold
+                   hover:bg-violet-600 hover:text-white
+                   transition-all duration-300 shadow-lg">
+
+                    <i class="fa-solid fa-chart-column"></i>
+
+                    Reportes
+
+                </a>
+
+                @endrole
+
+                @role('Administrador')
+
+                <a
+                    href="{{ route('usuarios.index') }}"
+                    class="inline-flex items-center gap-2 h-11 px-5 rounded-xl
+                   bg-slate-800 border border-emerald-500/50
+                   text-emerald-300 font-semibold
+                   hover:bg-emerald-600 hover:text-white
+                   transition-all duration-300 shadow-lg">
+
+                    <i class="fa-solid fa-users"></i>
+
+                    Usuarios
+
+                </a>
+
+                @endrole
+
+                <button
+                    onclick="document.getElementById('modal').classList.remove('hidden')"
+                    class="inline-flex items-center gap-2 h-11 px-5 rounded-xl
+                   bg-blue-600 border border-blue-400
+                   text-white font-semibold
+                   hover:bg-blue-700
+                   transition-all duration-300 shadow-lg">
+
+                    <i class="fa-solid fa-plus"></i>
+
+                    Nueva actividad
+
+                </button>
+
+            </div>
 
         </div>
+
         <!-- TABLERO -->
 
         <div class="grid grid-cols-1 xl:grid-cols-4 gap-8">
@@ -150,6 +234,7 @@
                             </div>
 
                         </div>
+
 
                         <!-- ===================================== -->
                         <!-- COLUMNA DERECHA -->
@@ -309,6 +394,19 @@
                                     @endforeach
 
                                 </select>
+
+                            </div>
+                            <div class="mb-6">
+
+                                <label class="block mb-2 font-medium">
+                                    🏢 Cliente
+                                </label>
+
+                                <input
+                                    type="text"
+                                    name="cliente"
+                                    placeholder="Nombre del cliente"
+                                    class="w-full rounded-xl border border-gray-300 p-3">
 
                             </div>
 

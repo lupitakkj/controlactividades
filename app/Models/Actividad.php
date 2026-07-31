@@ -19,7 +19,8 @@ class Actividad extends Model
         'estado',
         'tiempo_estimado',
         'fecha_inicio',
-        'fecha_limite'
+        'fecha_limite',
+        'orden'
     ];
 
     protected $appends = [
@@ -93,5 +94,11 @@ class Actividad extends Model
         }
 
         return "🟡 En tiempo";
+    }
+
+    public function bitacoras()
+    {
+        return $this->hasMany(Bitacora::class)
+            ->latest();
     }
 }

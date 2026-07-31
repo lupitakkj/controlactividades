@@ -1,7 +1,9 @@
 <x-app-layout>
 
     <div class="p-6">
-
+        <button onclick="mostrarLottie('Startup.json','🚀 Iniciando actividad...')">
+            Probar
+        </button>
         <!-- HEADER -->
 
         <div class="flex items-center justify-between mb-6 gap-4">
@@ -41,6 +43,30 @@
 
                 </select>
 
+                @if(auth()->user()->hasRole('Administrador'))
+
+                <select
+                    name="disenador"
+                    class="w-52 h-11 rounded-xl border border-slate-600 bg-slate-800 text-white px-3">
+
+                    <option value="">🎨 Diseñador</option>
+
+                    @foreach($disenadores as $disenador)
+
+                    <option
+                        value="{{ $disenador->id }}"
+                        {{ request('disenador') == $disenador->id ? 'selected' : '' }}>
+
+                        {{ $disenador->name }}
+
+                    </option>
+
+                    @endforeach
+
+                </select>
+
+                @endif
+
                 {{-- Prioridad --}}
                 <select
                     name="prioridad"
@@ -76,7 +102,7 @@
 
                 <a
                     href="{{ route('dashboard') }}"
-                        class="h-11 w-11 rounded-xl bg-slate-700
+                    class="h-11 w-11 rounded-xl bg-slate-700
                         hover:bg-red-600
                         text-white
                         flex items-center justify-center
@@ -368,7 +394,7 @@
                                 <input
                                     type="datetime-local"
                                     name="fecha_limite"
-                                    min="{{ now()->format('Y-m-d\TH:i') }}"
+                                    min="{{ now()->subDays(30)->format('Y-m-d\TH:i') }}"
                                     class="w-full rounded-xl border p-3">
 
                             </div>
@@ -420,9 +446,15 @@
 
                                 <input
                                     type="file"
+                                    id="archivos"
                                     name="archivos[]"
                                     multiple
                                     class="w-full rounded-xl border p-3">
+
+                                <div
+                                    id="listaArchivos"
+                                    class="mt-4 space-y-2">
+                                </div>
 
                             </div>
 
@@ -459,7 +491,26 @@
         </div>
 
     </div>
+    <div id="animationModal"
+        class="hidden fixed inset-0 bg-black/60 flex items-center justify-center z-50">
 
+        <div class="bg-white rounded-3xl p-10 text-center shadow-2xl">
+
+            <lottie-player
+                id="animationPlayer"
+                autoplay
+                loop="false"
+                style="width:220px;height:220px">
+            </lottie-player>
+
+            <h2
+                id="animationText"
+                class="mt-6 text-2xl font-bold">
+            </h2>
+
+        </div>
+
+    </div>
     <script>
         function abrirModal(actividad) {
             console.log(actividad);
@@ -543,65 +594,52 @@
     </script>
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
     <script>
-        document.querySelectorAll('.kanban-body')
-            .forEach(column => {
+        document.querySelectorAll('.kanban-body').forEach(column => {
 
-                new Sortable(column, {
+            new Sortable(column, {
 
-                    group: 'kanban',
+                group: 'kanban',
+                animation: 200,
+                ghostClass: 'opacity-50',
+                delay: 150,
 
-                    animation: 200,
+                onEnd: function() {
 
-                    ghostClass: 'opacity-50',
+                    let columnas = [];
 
-                    delay: 150,
+                    document.querySelectorAll('.kanban-column').forEach(columna => {
 
-                    delayOnTouchOnly: false,
+                        let estado = columna.id;
 
-                    onEnd: function(evt) {
+                        let tarjetas = [];
 
-                        let actividadId =
-                            evt.item.dataset.id;
+                        columna.querySelectorAll('.kanban-card').forEach((card, index) => {
 
-                        let nuevoEstado =
-                            evt.to.closest('.kanban-column').id;
+                            tarjetas.push({
 
-                        fetch(`/actividad/mover/${actividadId}`, {
-
-                                method: 'POST',
-
-                                headers: {
-
-                                    'Content-Type': 'application/json',
-
-                                    'Accept': 'application/json',
-
-                                    'X-CSRF-TOKEN': '{{ csrf_token() }}'
-                                },
-
-                                body: JSON.stringify({
-
-                                    estado: nuevoEstado
-                                })
-
-                            })
-                            .then(response => response.json())
-                            .then(data => {
-
-                                location.reload();
-
-                            })
-                            .catch(error => {
-
-                                console.error(error);
+                                id: Number(card.dataset.id),
+                                orden: index + 1
 
                             });
 
-                    }
+                        });
 
-                });
+                        columnas.push({
+
+                            estado: estado,
+                            tarjetas: tarjetas
+
+                        });
+
+                    });
+
+                    console.log(columnas);
+
+                }
 
             });
+
+        });
     </script>
 
     <script>
@@ -672,4 +710,5 @@
 
     @include('modals.detalle-actividad')
     @vite(['resources/css/app.css', 'resources/js/app.js'])
+    <script src="https://unpkg.com/@lottiefiles/lottie-player@latest/dist/lottie-player.js"></script>
 </x-app-layout>

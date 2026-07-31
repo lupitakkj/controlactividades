@@ -49,6 +49,10 @@ class DashboardController extends Controller
 
             $query->where('cliente', $request->cliente);
         }
+        // FILTRO DISEÑADOR
+        if ($request->filled('Diseñador')) {
+            $query->where('user_id', $request->disenador);
+        }
 
         // ==========================
         // FILTRO PRIORIDAD
@@ -59,7 +63,7 @@ class DashboardController extends Controller
             $query->where('prioridad', $request->prioridad);
         }
 
-        
+
         $pendientes = (clone $query)
             ->where('estado', 'pendiente')
             ->get();

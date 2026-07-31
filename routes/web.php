@@ -40,6 +40,12 @@ Route::middleware('auth')->group(function () {
 
     Route::post('/actividad/{id}/reasignar', [ActividadController::class, 'reasignar'])
         ->name('actividad.reasignar');
+    Route::get('/archivo/{id}/descargar', [ActividadController::class, 'descargarArchivo'])
+        ->name('archivo.descargar');
+    Route::post(
+        '/actividades/orden',
+        [ActividadController::class, 'guardarOrden']
+    )->name('actividades.orden');
 });
 
 require __DIR__ . '/auth.php';

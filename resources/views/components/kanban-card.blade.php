@@ -14,7 +14,7 @@ ENT_QUOTES,
 <div
     data-id="{{ $actividad->id }}"
     onclick='abrirModal({!! $actividadJson !!})'
-    class="draggable-card bg-slate-900 hover:bg-slate-800 border border-slate-700 hover:border-blue-500 rounded-2xl p-6 shadow-lg transition-all duration-300 cursor-pointer">
+    class="kanban-card draggable-card bg-slate-900 hover:bg-slate-800 border border-slate-700 hover:border-blue-500 rounded-2xl p-6 shadow-lg transition-all duration-300 cursor-pointer">
     {{-- ========================= --}}
     {{-- TITULO --}}
     {{-- ========================= --}}
@@ -119,13 +119,15 @@ ENT_QUOTES,
         @if($estado == 'pendiente')
 
         <form
+            id="formIniciar{{ $actividad->id }}"
             method="POST"
             action="{{ route('actividad.iniciar',$actividad->id) }}">
 
             @csrf
 
             <button
-                onclick="event.stopPropagation()"
+                type="button"
+                onclick="event.stopPropagation(); iniciarActividad({{ $actividad->id }})"
                 class="bg-blue-600 hover:bg-blue-700 px-3 py-2 rounded text-white text-sm">
 
                 ▶ Iniciar
@@ -137,13 +139,15 @@ ENT_QUOTES,
         @elseif($estado == 'en_proceso')
 
         <form
+            id="formPausar{{ $actividad->id }}"
             method="POST"
             action="{{ route('actividad.pausar',$actividad->id) }}">
 
             @csrf
 
             <button
-                onclick="event.stopPropagation()"
+                type="button"
+                onclick="event.stopPropagation(); pausarActividad({{$actividad->id}})"
                 class="bg-yellow-500 hover:bg-yellow-600 px-3 py-2 rounded text-white text-sm">
 
                 ⏸ Pausar
@@ -155,13 +159,15 @@ ENT_QUOTES,
         @elseif($estado == 'pausada')
 
         <form
+            id="formReanudar{{ $actividad->id }}"
             method="POST"
             action="{{ route('actividad.iniciar',$actividad->id) }}">
 
             @csrf
 
             <button
-                onclick="event.stopPropagation()"
+                type="button"
+                onclick="event.stopPropagation(); reanudarActividad({{ $actividad->id }})"
                 class="bg-blue-600 hover:bg-blue-700 px-3 py-2 rounded text-white text-sm">
 
                 ▶ Reanudar
@@ -173,13 +179,15 @@ ENT_QUOTES,
         @endif
 
         <form
+            id="formTerminar{{ $actividad->id }}"
             method="POST"
             action="{{ route('actividad.terminar',$actividad->id) }}">
 
             @csrf
 
             <button
-                onclick="event.stopPropagation()"
+                type="button"
+                onclick="event.stopPropagation(); terminarActividad({{ $actividad->id }})"
                 class="bg-green-600 hover:bg-green-700 px-3 py-2 rounded text-white text-sm">
 
                 ✅ Terminar

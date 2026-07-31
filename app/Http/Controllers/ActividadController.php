@@ -7,6 +7,9 @@ use Illuminate\Http\Request;
 use App\Models\SesionTiempo;
 use App\Models\Comentario;
 use App\Models\Archivo;
+use Illuminate\Support\Facades\Storage;
+use App\Models\Bitacora;
+use Illuminate\Support\Facades\Auth;
 
 class ActividadController extends Controller
 {
@@ -64,7 +67,8 @@ class ActividadController extends Controller
             default:
                 $tiempoEstimado = 4;
         }
-
+        $ultimoOrden = Actividad::where('estado', 'pendiente')
+            ->max('orden');
         $actividad = Actividad::create([
 
             'titulo' => $request->titulo,
@@ -84,6 +88,8 @@ class ActividadController extends Controller
             'tiempo_estimado' => $tiempoEstimado,
 
             'fecha_limite' => $request->fecha_limite,
+
+            'orden' => $ultimoOrden + 1,
         ]);
 
         if ($request->hasFile('archivos')) {
@@ -108,7 +114,11 @@ class ActividadController extends Controller
                 ]);
             }
         }
-
+        $this->registrarBitacora(
+            $actividad->id,
+            'CREAR_ACTIVIDAD',
+            'Se creó la actividad "' . $actividad->titulo . '"'
+        );
         return back();
     }
 
@@ -384,5 +394,48 @@ class ActividadController extends Controller
             'success',
             'Actividad reasignada correctamente.'
         );
+    }
+
+    public function descargarArchivo($id)
+    {
+        $archivo = Archivo::findOrFail($id);
+
+        if (!Storage::disk('public')->exists($archivo->archivo)) {
+            abort(404, 'El archivo no existe.');
+        }
+
+        return Storage::disk('public')->download(
+            $archivo->archivo,
+            $archivo->nombre_original
+        );
+    }
+
+    private function registrarBitacora($actividadId, $accion, $descripcion = null)
+    {
+        Bitacora::create([
+            'actividad_id' => $actividadId,
+            'user_id'       => Auth::id(),
+            'accion'        => $accion,
+            'descripcion'   => $descripcion,
+        ]);
+    }
+
+    public function guardarOrden(Request $request)
+    {
+        foreach ($request->columnas as $columna) {
+
+            foreach ($columna['tarjetas'] as $tarjeta) {
+
+                Actividad::where('id', $tarjeta['id'])
+                    ->update([
+                        'estado' => $columna['estado'],
+                        'orden'  => $tarjeta['orden']
+                    ]);
+            }
+        }
+
+        return response()->json([
+            'success' => true
+        ]);
     }
 }

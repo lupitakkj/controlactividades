@@ -32,7 +32,7 @@ window.abrirModal = function (actividad) {
 
     document.getElementById("detalleCliente").textContent =
         actividad.cliente ?? "Sin cliente";
-        
+
     document.getElementById('detalleTiempo').innerText =
         `${String(horas).padStart(2, '0')}:${String(minutos).padStart(2, '0')}:${String(segundos).padStart(2, '0')}`;
 
@@ -144,7 +144,7 @@ window.abrirModal = function (actividad) {
                 </div>
 
                 <a
-                    href="/storage/app/public/archivos/${archivo.archivo}"
+                    href="/archivo/${archivo.id}/descargar"
                     download="${archivo.nombre_original}"
                     title="Descargar archivo"
                     class="w-11 h-11 rounded-full bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center transition-all duration-200 hover:scale-110 shadow-md">
@@ -288,5 +288,175 @@ async function guardarActividad() {
         alert('Ocurrió un error al guardar.');
 
     }
+
+}
+
+function mostrarLottie(nombre, texto) {
+
+    const modal = document.getElementById("animationModal");
+    const player = document.getElementById("animationPlayer");
+    const titulo = document.getElementById("animationText");
+
+    titulo.textContent = texto;
+
+    player.load("/lottie/" + nombre);
+
+    modal.classList.remove("hidden");
+
+    setTimeout(() => {
+
+        modal.classList.add("hidden");
+
+    }, 1800);
+
+}
+
+function iniciarActividad(id) {
+
+    mostrarLottie(
+        "Startup.json",
+        "🚀 Iniciando actividad..."
+    );
+
+    setTimeout(() => {
+
+        document.getElementById("formIniciar" + id).submit();
+
+    }, 1800);
+
+}
+function pausarActividad(id) {
+
+    mostrarLottie(
+        "Coffee Time.json",
+        "☕ Pausando actividad..."
+    );
+
+    setTimeout(() => {
+
+        document.getElementById("formPausar" + id).submit();
+
+    }, 1800);
+
+}
+function reanudarActividad(id) {
+
+    mostrarLottie(
+        "Rotate arrow.json",
+        "🔄 Reanudando actividad..."
+    );
+
+    setTimeout(() => {
+
+        document.getElementById("formReanudar" + id).submit();
+
+    }, 1800);
+
+}
+function terminarActividad(id) {
+
+    mostrarLottie(
+        "Confeti.json",
+        "🎉 Terminando actividad..."
+    );
+
+    setTimeout(() => {
+
+        document.getElementById("formTerminar" + id).submit();
+
+    }, 1800);
+
+}
+
+window.mostrarLottie = mostrarLottie;
+window.iniciarActividad = iniciarActividad;
+window.pausarActividad = pausarActividad;
+window.reanudarActividad = reanudarActividad;
+window.terminarActividad = terminarActividad;
+
+// ==============================
+// PREVISUALIZAR ARCHIVOS
+// ==============================
+
+let archivosSeleccionados = [];
+
+document.addEventListener("DOMContentLoaded", () => {
+
+    const inputArchivos = document.getElementById("archivos");
+
+    if (!inputArchivos) return;
+
+    inputArchivos.addEventListener("change", function () {
+
+        archivosSeleccionados = Array.from(this.files);
+
+        actualizarLista();
+
+    });
+
+});
+
+function actualizarLista() {
+
+    const lista = document.getElementById("listaArchivos");
+
+    const input = document.getElementById("archivos");
+
+    lista.innerHTML = "";
+
+    archivosSeleccionados.forEach((archivo, index) => {
+
+        const tamaño = archivo.size < 1024 * 1024
+            ? (archivo.size / 1024).toFixed(1) + " KB"
+            : (archivo.size / (1024 * 1024)).toFixed(2) + " MB";
+
+        lista.innerHTML += `
+            <div class="flex items-center justify-between rounded-xl border bg-slate-50 p-3">
+
+                <div class="flex items-center gap-3">
+
+                    <span class="text-xl">📄</span>
+
+                    <div>
+
+                        <div class="font-medium">
+                            ${archivo.name}
+                        </div>
+
+                        <div class="text-xs text-gray-500">
+                            ${tamaño}
+                        </div>
+
+                    </div>
+
+                </div>
+
+                <button
+                    type="button"
+                    onclick="eliminarArchivo(${index})"
+                    class="text-red-600 hover:text-red-800 transition">
+
+                    <i class="fa-solid fa-trash"></i>
+
+                </button>
+
+            </div>
+        `;
+
+    });
+
+    const dt = new DataTransfer();
+
+    archivosSeleccionados.forEach(file => dt.items.add(file));
+
+    input.files = dt.files;
+
+}
+
+window.eliminarArchivo = function(index){
+
+    archivosSeleccionados.splice(index, 1);
+
+    actualizarLista();
 
 }

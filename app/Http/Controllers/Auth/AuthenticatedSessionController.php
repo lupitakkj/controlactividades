@@ -28,7 +28,32 @@ class AuthenticatedSessionController extends Controller
 
         $request->session()->regenerate();
 
-        return redirect()->intended(route('dashboard', absolute: false));
+        $usuario = $request->user();
+
+        // ==========================================
+        // VENTAS → IMPORTACIÓN DE PEDIDOS
+        // ==========================================
+
+        if ($usuario->hasRole('Ventas')) {
+            return redirect()->route('importaciones.index');
+        }
+
+        // ==========================================
+        // DISEÑADOR Y SUPERVISOR → DASHBOARD ACTUAL
+        // ==========================================
+
+        if (
+            $usuario->hasRole('Diseñador') ||
+            $usuario->hasRole('Supervisor')
+        ) {
+            return redirect()->route('dashboard');
+        }
+
+        // ==========================================
+        // RESTO → DASHBOARD PRODUCCIÓN
+        // ==========================================
+
+        return redirect()->route('dashboard.produccion');
     }
 
     /**

@@ -50,10 +50,16 @@ class DashboardController extends Controller
             $query->where('cliente', $request->cliente);
         }
         // FILTRO DISEÑADOR
-        if ($request->filled('Diseñador')) {
-            $query->where('user_id', $request->disenador);
-        }
+        // FILTRO DISEÑADOR
 
+
+        if ($request->filled('disenador')) {
+
+            $query->where(
+                'user_id',
+                $request->disenador
+            );
+        }
         // ==========================
         // FILTRO PRIORIDAD
         // ==========================

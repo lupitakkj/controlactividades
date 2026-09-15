@@ -7,6 +7,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
 use App\Mail\NuevoUsuarioMail;
+use Spatie\Permission\Models\Role;
 use Illuminate\Support\Str;
 use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\Exception;
@@ -17,16 +18,19 @@ class UsuarioController extends Controller
     public function index()
     {
         // SOLO ADMIN
-
         if (!auth()->user()->hasRole('Administrador')) {
-
             abort(403);
         }
 
         $usuarios = User::all();
 
+        $roles = Role::where('guard_name', 'web')
+            ->orderBy('id')
+            ->get();
+
         return view('usuarios.index', compact(
-            'usuarios'
+            'usuarios',
+            'roles'
         ));
     }
 

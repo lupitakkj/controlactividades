@@ -15,11 +15,64 @@
                 <!-- Navigation Links -->
                 <div class="hidden space-x-8 sm:-my-px sm:ms-10 sm:flex">
 
-                    <x-nav-link :href="route('dashboard')" :active="request()->routeIs('dashboard')">
+                    {{-- ==========================================
+                        NAVEGACIÓN SEGÚN ROL
+                        ========================================== --}}
+
+                    {{-- DISEÑADOR Y SUPERVISOR → DASHBOARD ACTUAL --}}
+                    @if(auth()->user()->hasAnyRole(['Diseñador', 'Supervisor', 'Administrador']))
+
+                    <x-nav-link
+                        :href="route('dashboard')"
+                        :active="request()->routeIs('dashboard')">
                         {{ __('Dashboard') }}
                     </x-nav-link>
 
-                    <x-nav-link :href="route('agenda.index')" :active="request()->routeIs('agenda.*')">
+                    @endif
+
+
+                    {{-- VENTAS → IMPORTACIÓN + DASHBOARD PRODUCCIÓN --}}
+                    @if(auth()->user()->hasRole('Ventas'))
+
+                    <x-nav-link
+                        :href="route('importaciones.index')"
+                        :active="request()->routeIs('importaciones.*')">
+                        {{ __('Importación de Pedidos') }}
+                    </x-nav-link>
+
+                    <x-nav-link
+                        :href="route('dashboard.produccion')"
+                        :active="request()->routeIs('dashboard.produccion')">
+                        {{ __('Dashboard Producción') }}
+                    </x-nav-link>
+
+                    @endif
+
+
+                    {{-- RESTO DE ROLES → DASHBOARD PRODUCCIÓN --}}
+                    @if(auth()->user()->hasAnyRole([
+                    'Administrador',
+                    'RH',
+                    'Compras',
+                    'Producción',
+                    'Calidad',
+                    'Ingeniería',
+                    'Mantenimiento'
+                    ]))
+
+                    <x-nav-link
+                        :href="route('dashboard.produccion')"
+                        :active="request()->routeIs('dashboard.produccion')">
+                        {{ __('Dashboard Producción') }}
+                    </x-nav-link>
+
+                    @endif
+
+
+                    {{-- AGENDA → TODOS --}}
+                    <x-nav-link
+                        :href="route('agenda.index')"
+                        :active="request()->routeIs('agenda.*')">
                         {{ __('Agenda Corporativa') }}
                     </x-nav-link>
 

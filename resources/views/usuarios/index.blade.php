@@ -92,19 +92,20 @@
 
                     <select
                         name="role"
+                        required
                         class="border rounded-lg p-3">
 
-                        <option value="Administrador">
-                            Administrador
+                        <option value="">
+                            Selecciona un rol
                         </option>
 
-                        <option value="Supervisor">
-                            Supervisor
+                        @foreach($roles as $rol)
+
+                        <option value="{{ $rol->name }}">
+                            {{ $rol->name }}
                         </option>
 
-                        <option value="Diseñador">
-                            Diseñador
-                        </option>
+                        @endforeach
 
                     </select>
 

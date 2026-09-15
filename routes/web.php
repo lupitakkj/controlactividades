@@ -4,8 +4,15 @@ use App\Http\Controllers\ProfileController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ActividadController;
+use App\Http\Controllers\AgendaController;
 use App\Http\Controllers\ReporteController;
 use App\Http\Controllers\UsuarioController;
+use App\Http\Controllers\ExistenciasController;
+use App\Http\Controllers\ImportacionController;
+use App\Http\Controllers\ControlOperativoController;
+use App\Http\Controllers\DespieceController;
+use App\Http\Controllers\PedidosTerminadosController;
+use App\Models\Partida;
 
 Route::redirect('/', '/login');
 
@@ -13,8 +20,21 @@ Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
-    Route::get('/dashboard', [DashboardController::class, 'index'])
-        ->name('dashboard');
+    Route::get('/dashboard', function () {
+
+        if (
+            !auth()->user()->hasAnyRole([
+                'Diseñador',
+                'Supervisor'
+            ])
+        ) {
+            return redirect()->route('dashboard.produccion');
+        }
+
+        return app(DashboardController::class)->index(
+            request()
+        );
+    })->name('dashboard');
     Route::post('/actividades', [ActividadController::class, 'store'])
         ->name('actividades.store');
     Route::post('/actividad/{id}/iniciar', [ActividadController::class, 'iniciar'])
@@ -46,6 +66,100 @@ Route::middleware('auth')->group(function () {
         '/actividades/orden',
         [ActividadController::class, 'guardarOrden']
     )->name('actividades.orden');
+    Route::get('/agenda', [AgendaController::class, 'index'])
+        ->name('agenda.index');
+    Route::get('/agenda/eventos', [AgendaController::class, 'eventos'])
+        ->name('agenda.eventos');
+    Route::post('/agenda', [AgendaController::class, 'store'])
+        ->name('agenda.store');
+    Route::get('/importacion-pedidos', [ImportacionController::class, 'index'])
+        ->middleware('can:ver importacion pedidos')
+        ->name('importaciones.index');
+
+    Route::post('/importacion-pedidos/importar', [ImportacionController::class, 'importar'])
+        ->middleware('can:importar pedidos')
+        ->name('importaciones.importar');
+
+    Route::get('/dashboard-produccion', function () {
+        return view('dashboard-produccion');
+    })->name('dashboard.produccion');
+    Route::get('/control-operativo', [
+        ControlOperativoController::class,
+        'index'
+    ])->name('control.operativo');
+
+    Route::get('/prueba-despiece', function () {
+
+        $partida = Partida::with([
+            'despieceProcesos.proceso'
+        ])->first();
+
+        if (!$partida) {
+            return 'No hay partidas registradas.';
+        }
+
+        return response()->json([
+            'partida_id' => $partida->id,
+            'clave' => $partida->clave,
+            'descripcion' => $partida->descripcion,
+            'cantidad' => $partida->cantidad,
+            'procesos' => $partida->despieceProcesos->map(function ($dp) {
+                return [
+                    'proceso_id' => $dp->proceso_id,
+                    'proceso' => $dp->proceso?->nombre,
+                    'aplica' => $dp->aplica,
+                    'cantidad_realizada' => $dp->cantidad_realizada,
+                    'porcentaje' => $dp->porcentaje,
+                ];
+            }),
+        ]);
+    });
+
+    Route::get('/despiece', [DespieceController::class, 'index'])
+        ->name('despiece.index');
+
+    Route::post('/despiece/proceso', [
+        DespieceController::class,
+        'guardarProceso'
+    ])->name('despiece.proceso.guardar');
+
+    Route::get('/prueba-avance-pedido/{pedido}', function ($pedidoNo) {
+
+        $pedido = \App\Models\Pedido::with([
+            'partidas.despieceProcesos'
+        ])
+            ->where('pedido_no', $pedidoNo)
+            ->firstOrFail();
+
+        return response()->json([
+            'pedido' => $pedido->pedido_no,
+            'cantidad_partidas' => $pedido->partidas->count(),
+            'avance' => $pedido->avance,
+            'avance_porcentaje' => $pedido->avance !== null
+                ? round($pedido->avance * 100, 2)
+                : null,
+        ]);
+    });
+
+    Route::get('/pedidos-terminados', [
+        PedidosTerminadosController::class,
+        'index'
+    ])->name('pedidos.terminados');
 });
 
 require __DIR__ . '/auth.php';
+
+
+Route::get('/existencias/{clave}', [ExistenciasController::class, 'consulta'])
+    ->name('existencias.consulta');
+
+Route::get('/existencias/estado/{uuid}', [ExistenciasController::class, 'estado'])
+    ->name('existencias.estado');
+
+// ==========================================
+// CUTLIST - SIN AUTENTICACIÓN
+// ==========================================
+
+Route::get('/cutlist', function () {
+    return view('cutlist.index');
+})->name('cutlist.index');

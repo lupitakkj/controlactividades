@@ -3,13 +3,87 @@
         display: none !important;
     }
 </style>
+    <style>
+        /* =========================================================
+           MENÚ LATERAL EN CELULAR
+        ========================================================== */
+        @media (max-width: 768px) {
+            #sidebarMobileOverlay {
+                display: block;
+                position: fixed;
+                inset: 0;
+                background: rgba(15, 23, 42, 0.55);
+                z-index: 40;
+            }
+
+            nav.fixed.inset-y-0.left-0 {
+                z-index: 50;
+            }
+
+            /* Cuando el menú está cerrado, desaparece del área visible */
+            .sidebar-mobile-hidden {
+                transform: translateX(-100%) !important;
+            }
+
+            /* Botón flotante para abrir el menú */
+            #btnMenuMobile {
+                display: flex;
+            }
+        }
+
+        @media (min-width: 769px) {
+            #sidebarMobileOverlay,
+            #btnMenuMobile {
+                display: none !important;
+            }
+        }
+
+        @media (max-width: 768px) {
+            #sidebarMobileOverlay {
+                display: none;
+            }
+
+            #sidebarMobileOverlay.visible {
+                display: block;
+            }
+        }
+    </style>
+
+
+
+{{-- =========================================================
+     CONTROLES DEL MENÚ EN CELULAR
+========================================================== --}}
+<div
+    id="sidebarMobileOverlay"
+    x-show="sidebarOpen && window.innerWidth <= 768"
+    @click="sidebarOpen = false"
+    x-transition.opacity>
+</div>
+
+<button
+    id="btnMenuMobile"
+    type="button"
+    @click="sidebarOpen = true"
+    x-show="!sidebarOpen && window.innerWidth <= 768"
+    class="fixed top-4 left-4 z-[60]
+           w-11 h-11 rounded-xl
+           bg-slate-950 border border-slate-700
+           text-white shadow-xl
+           items-center justify-center">
+    <i class="fa-solid fa-bars text-lg"></i>
+</button>
 
 <nav
     class="fixed inset-y-0 left-0 z-50
            bg-slate-950 border-r border-slate-800
            shadow-xl flex flex-col overflow-visible
            transition-[width] duration-300 ease-in-out"
-    x-bind:class="sidebarOpen ? 'w-64' : 'w-16'">
+    x-bind:class="{
+        'w-64': sidebarOpen,
+        'w-16': !sidebarOpen,
+        'sidebar-mobile-hidden': !sidebarOpen && window.innerWidth <= 768
+    }">
 
     {{-- =========================================================
          LOGO
@@ -459,7 +533,9 @@
     {{-- =========================================================
          BOTÓN COLAPSAR / EXPANDIR
     ========================================================== --}}
-    <div class="absolute top-5 -right-3 z-10">
+    <div
+        class="absolute top-5 -right-3 z-10"
+        x-show="window.innerWidth > 768">
 
         <button
             type="button"

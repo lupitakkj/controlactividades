@@ -15,10 +15,30 @@
         href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
     <!-- Scripts -->
     @vite(['resources/css/app.css', 'resources/js/app.js'])
+
+    <style>
+        /* =========================================================
+           LAYOUT MÓVIL
+           En celular el contenido aprovecha todo el ancho.
+        ========================================================== */
+        @media (max-width: 768px) {
+            .mobile-content-full {
+                margin-left: 0 !important;
+                width: 100% !important;
+            }
+        }
+    </style>
+
 </head>
 
 <body class="font-sans antialiased bg-slate-900">
-    <div x-data="{ sidebarOpen: true }" x-cloak>
+    <div
+        x-data="{ sidebarOpen: window.innerWidth > 768 }"
+        x-init="window.addEventListener('resize', () => {
+            if (window.innerWidth <= 768) sidebarOpen = false;
+            else sidebarOpen = true;
+        })"
+        x-cloak>
 
     <div class="min-h-screen bg-slate-900">
 
@@ -33,7 +53,8 @@
         ========================================================== --}}
         <div
             class="min-h-screen min-w-0 transition-[margin] duration-300 ease-in-out"
-            x-bind:class="sidebarOpen ? 'ml-64' : 'ml-16'">
+            x-bind:class="sidebarOpen ? 'ml-64' : 'ml-16'"
+            :class="{ 'mobile-content-full': window.innerWidth <= 768 }">
 
 
             {{-- =====================================================

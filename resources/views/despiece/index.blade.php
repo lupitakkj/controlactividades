@@ -21,6 +21,8 @@
             <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-visible">
 
 
+                <div id="despieceMobileEncabezado">
+
                 {{-- ====================================================
                      CABECERA DEL DESPIECE
                 ===================================================== --}}
@@ -204,7 +206,9 @@
                 </div>
 
 
-                {{-- ====================================================
+                </div>
+
+                                {{-- ====================================================
                      TABLA
                 ===================================================== --}}
                 <div class="p-4">
@@ -212,6 +216,14 @@
                     <div
                         id="tablaDespiece"
                         class="despiece-grid"></div>
+
+                    {{-- ====================================================
+                         VISTA MÓVIL DE PRODUCCIÓN
+                    ===================================================== --}}
+                    <div id="despieceMobile" class="despiece-mobile">
+                        <div id="mobileLista"></div>
+                        <div id="mobileDetalle" class="hidden"></div>
+                    </div>
 
                 </div>
 
@@ -923,6 +935,495 @@
                 }
             );
 
+
+            /* ========================================================
+               MODO PRODUCCIÓN MÓVIL
+               La vista de escritorio y su lógica permanecen intactas.
+            ======================================================== */
+
+            const mobileRoot = document.getElementById('despieceMobile');
+            const mobileLista = document.getElementById('mobileLista');
+            const mobileDetalle = document.getElementById('mobileDetalle');
+            const mobileEncabezado = document.getElementById('despieceMobileEncabezado');
+
+            function mostrarEncabezadoMovil(mostrar) {
+                if (!mobileEncabezado) return;
+
+                if (esMovil()) {
+                    mobileEncabezado.style.display = mostrar ? '' : 'none';
+                } else {
+                    mobileEncabezado.style.display = '';
+                }
+            }
+
+            function esMovil() {
+                return window.matchMedia('(max-width: 768px)').matches;
+            }
+
+            function escaparHtml(valor) {
+                return String(valor ?? '')
+                    .replace(/&/g, '&amp;')
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;')
+                    .replace(/"/g, '&quot;')
+                    .replace(/'/g, '&#039;');
+            }
+
+            function avanceTexto(valor) {
+                if (valor === null || valor === undefined || valor === '') {
+                    return '—';
+                }
+
+                return (Number(valor) * 100).toLocaleString('es-MX', {
+                    minimumFractionDigits: 1,
+                    maximumFractionDigits: 1
+                }) + '%';
+            }
+
+            function avanceClase(valor) {
+                const n = Number(valor || 0);
+
+                if (n >= 1) return 'completo';
+                if (n >= 0.75) return 'alto';
+                if (n >= 0.4) return 'medio';
+                return 'bajo';
+            }
+
+            function agruparPartidasMovil() {
+                const grupos = new Map();
+
+                datosDespiece.forEach(function(fila) {
+                    const pedido = String(fila.pedido_no ?? '');
+
+                    if (!grupos.has(pedido)) {
+                        grupos.set(pedido, {
+                            pedido_no: pedido,
+                            partidas: []
+                        });
+                    }
+
+                    grupos.get(pedido).partidas.push(fila);
+                });
+
+                return Array.from(grupos.values());
+            }
+
+            function renderMobileLista(texto = '') {
+                if (!esMovil()) return;
+
+                mostrarEncabezadoMovil(true);
+
+                mobileDetalle.classList.add('hidden');
+                mobileLista.classList.remove('hidden');
+
+                const busqueda = String(texto).trim().toLowerCase();
+
+                const grupos = agruparPartidasMovil().filter(function(grupo) {
+                    if (!busqueda) return true;
+
+                    return grupo.partidas.some(function(fila) {
+                        const pedido = String(fila.pedido_no ?? '').toLowerCase();
+                        const clave = String(fila.clave ?? '').toLowerCase();
+                        const descripcion = String(fila.descripcion ?? '').toLowerCase();
+
+                        return pedido.includes(busqueda) ||
+                            clave.includes(busqueda) ||
+                            descripcion.includes(busqueda);
+                    });
+                });
+
+                if (grupos.length === 0) {
+                    mobileLista.innerHTML = `
+                        <div class="mobile-vacio">
+                            <div class="mobile-vacio-icon">🔎</div>
+                            <div>No se encontraron pedidos.</div>
+                        </div>
+                    `;
+                    return;
+                }
+
+                mobileLista.innerHTML = grupos.map(function(grupo) {
+                    const partidas = grupo.partidas.filter(function(fila) {
+                        if (!busqueda) return true;
+
+                        const pedido = String(fila.pedido_no ?? '').toLowerCase();
+                        const clave = String(fila.clave ?? '').toLowerCase();
+                        const descripcion = String(fila.descripcion ?? '').toLowerCase();
+
+                        return pedido.includes(busqueda) ||
+                            clave.includes(busqueda) ||
+                            descripcion.includes(busqueda);
+                    });
+
+                    const avancePedido = partidas.length
+                        ? partidas.reduce((suma, fila) => suma + Number(fila.avance || 0), 0) / partidas.length
+                        : 0;
+
+                    return `
+                        <button
+                            type="button"
+                            class="mobile-pedido-card"
+                            data-mobile-pedido="${escaparHtml(grupo.pedido_no)}">
+
+                            <div class="mobile-pedido-top">
+                                <div>
+                                    <div class="mobile-label">PEDIDO</div>
+                                    <div class="mobile-pedido-numero">
+                                        ${escaparHtml(grupo.pedido_no)}
+                                    </div>
+                                </div>
+
+                                <div class="mobile-avance ${avanceClase(avancePedido)}">
+                                    ${avanceTexto(avancePedido)}
+                                </div>
+                            </div>
+
+                            <div class="mobile-pedido-bottom">
+                                <span>${partidas.length} partida${partidas.length === 1 ? '' : 's'}</span>
+                                <span>›</span>
+                            </div>
+                        </button>
+                    `;
+                }).join('');
+
+                mobileLista.querySelectorAll('[data-mobile-pedido]').forEach(function(boton) {
+                    boton.addEventListener('click', function() {
+                        renderMobilePartidas(this.dataset.mobilePedido);
+                    });
+                });
+            }
+
+            function renderMobilePartidas(pedidoNo) {
+                const partidas = datosDespiece.filter(function(fila) {
+                    return String(fila.pedido_no) === String(pedidoNo);
+                });
+
+                mostrarEncabezadoMovil(false);
+
+                mobileLista.classList.add('hidden');
+                mobileDetalle.classList.remove('hidden');
+
+                mobileDetalle.innerHTML = `
+                    <div class="mobile-detalle-header">
+                        <button type="button" id="mobileVolver" class="mobile-volver">
+                            ← Pedidos
+                        </button>
+
+                        <div class="mobile-detalle-titulo">
+                            <span>Pedido</span>
+                            <strong>${escaparHtml(pedidoNo)}</strong>
+                        </div>
+                    </div>
+
+                    <div class="mobile-partidas-lista">
+                        ${partidas.map(function(fila, indice) {
+                            return `
+                                <button
+                                    type="button"
+                                    class="mobile-partida-card"
+                                    data-mobile-partida="${fila.partida_id}">
+
+                                    <div class="mobile-partida-numero">
+                                        Partida ${indice + 1}
+                                    </div>
+
+                                    <div class="mobile-partida-clave">
+                                        ${escaparHtml(fila.clave || 'Sin clave')}
+                                    </div>
+
+                                    <div class="mobile-partida-descripcion">
+                                        ${escaparHtml(fila.descripcion || 'Sin descripción')}
+                                    </div>
+
+                                    <div class="mobile-partida-meta">
+                                        <span>Cantidad: <strong>${escaparHtml(fila.cantidad)}</strong></span>
+                                        <span class="mobile-avance ${avanceClase(fila.avance)}">
+                                            ${avanceTexto(fila.avance)}
+                                        </span>
+                                    </div>
+
+                                    <div class="mobile-partida-ir">
+                                        Capturar procesos →
+                                    </div>
+                                </button>
+                            `;
+                        }).join('')}
+                    </div>
+                `;
+
+                document.getElementById('mobileVolver').addEventListener('click', function() {
+                    renderMobileLista(document.getElementById('buscarDespiece').value);
+                });
+
+                mobileDetalle.querySelectorAll('[data-mobile-partida]').forEach(function(boton) {
+                    boton.addEventListener('click', function() {
+                        renderMobileProcesos(Number(this.dataset.mobilePartida));
+                    });
+                });
+            }
+
+            function renderMobileProcesos(partidaId) {
+                const fila = datosDespiece.find(function(item) {
+                    return Number(item.partida_id) === Number(partidaId);
+                });
+
+                if (!fila) return;
+
+                mostrarEncabezadoMovil(false);
+
+                const cantidadTotal = Number(fila.cantidad || 0);
+
+                mobileDetalle.innerHTML = `
+                    <div class="mobile-detalle-header">
+                        <button type="button" id="mobileVolverPartidas" class="mobile-volver">
+                            ← Partidas
+                        </button>
+
+                        <div class="mobile-detalle-titulo">
+                            <span>Pedido ${escaparHtml(fila.pedido_no)}</span>
+                            <strong>${escaparHtml(fila.clave || 'Partida')}</strong>
+                        </div>
+                    </div>
+
+                    <div class="mobile-producto-card">
+                        <div class="mobile-producto-descripcion">
+                            ${escaparHtml(fila.descripcion || 'Sin descripción')}
+                        </div>
+
+                        <div class="mobile-producto-datos">
+                            <span>Cantidad: <strong>${escaparHtml(fila.cantidad)}</strong></span>
+                            <span>Avance: <strong id="mobileAvanceActual">${avanceTexto(fila.avance)}</strong></span>
+                        </div>
+
+                        <div class="mobile-avance-barra">
+                            <div
+                                id="mobileAvanceBarra"
+                                style="width:${Math.max(0, Math.min(100, Number(fila.avance || 0) * 100))}%">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mobile-procesos-titulo">
+                        Procesos de la partida
+                    </div>
+
+                    <div id="mobileProcesosLista">
+                        ${procesos.map(function(proceso, indice) {
+                            const procesoId = proceso.id;
+                            const valor = fila['proceso_' + procesoId];
+                            const aplica = fila['proceso_aplica_' + procesoId];
+
+                            const esNA = aplica === false || aplica === 0;
+                            const tieneValor = valor !== null && valor !== undefined && valor !== '';
+
+                            const cantidadRealizada = tieneValor ? Number(valor) : 0;
+                            const porcentaje = cantidadTotal > 0
+                                ? Math.max(0, Math.min(1, cantidadRealizada / cantidadTotal))
+                                : 0;
+
+                            return `
+                                <div class="mobile-proceso-card ${esNA ? 'mobile-na' : ''}">
+                                    <div class="mobile-proceso-header">
+                                        <div>
+                                            <span class="mobile-proceso-numero">
+                                                ${indice + 1}
+                                            </span>
+                                            <strong>${escaparHtml(proceso.nombre)}</strong>
+                                        </div>
+
+                                        <span class="mobile-proceso-porcentaje">
+                                            ${esNA ? 'N/A' : avanceTexto(porcentaje)}
+                                        </span>
+                                    </div>
+
+                                    <div class="mobile-proceso-captura">
+                                        <div class="mobile-input-wrap">
+                                            <label>Realizadas</label>
+                                            <input
+                                                type="number"
+                                                class="mobile-input-proceso"
+                                                min="0"
+                                                max="${cantidadTotal}"
+                                                step="1"
+                                                value="${esNA ? '' : (tieneValor ? cantidadRealizada : 0)}"
+                                                data-mobile-partida="${fila.partida_id}"
+                                                data-mobile-proceso="${procesoId}"
+                                                ${esNA ? 'disabled' : ''}
+                                            >
+                                            <small>de ${cantidadTotal}</small>
+                                        </div>
+
+                                        <button
+                                            type="button"
+                                            class="mobile-btn-na ${esNA ? 'activo' : ''}"
+                                            data-mobile-na="${esNA ? '1' : '0'}"
+                                            data-mobile-partida="${fila.partida_id}"
+                                            data-mobile-proceso="${procesoId}">
+                                            ${esNA ? 'Quitar N/A' : 'N/A'}
+                                        </button>
+                                    </div>
+
+                                    <button
+                                        type="button"
+                                        class="mobile-btn-guardar"
+                                        data-mobile-guardar
+                                        data-mobile-partida="${fila.partida_id}"
+                                        data-mobile-proceso="${procesoId}"
+                                        ${esNA ? 'disabled' : ''}>
+                                        Guardar proceso
+                                    </button>
+                                </div>
+                            `;
+                        }).join('')}
+                    </div>
+                `;
+
+                document.getElementById('mobileVolverPartidas').addEventListener('click', function() {
+                    renderMobilePartidas(fila.pedido_no);
+                });
+
+                mobileDetalle.querySelectorAll('[data-mobile-guardar]').forEach(function(boton) {
+                    boton.addEventListener('click', async function() {
+                        const partida = Number(this.dataset.mobilePartida);
+                        const procesoId = Number(this.dataset.mobileProceso);
+                        const input = mobileDetalle.querySelector(
+                            `.mobile-input-proceso[data-mobile-partida="${partida}"][data-mobile-proceso="${procesoId}"]`
+                        );
+
+                        if (!input) return;
+
+                        let cantidad = parseInt(input.value, 10);
+
+                        if (isNaN(cantidad)) {
+                            cantidad = 0;
+                        }
+
+                        cantidad = Math.max(0, Math.min(cantidadTotal, cantidad));
+
+                        this.disabled = true;
+                        this.textContent = 'Guardando...';
+
+                        const datos = await guardarProcesoServidor(
+                            partida,
+                            procesoId,
+                            true,
+                            cantidad
+                        );
+
+                        this.disabled = false;
+                        this.textContent = 'Guardar proceso';
+
+                        if (!datos) return;
+
+                        const filaActual = datosDespiece.find(function(item) {
+                            return Number(item.partida_id) === partida;
+                        });
+
+                        if (filaActual) {
+                            filaActual['proceso_' + procesoId] = cantidad;
+                            filaActual['proceso_aplica_' + procesoId] = true;
+                            filaActual.avance = datos.avance;
+                        }
+
+                        renderMobileProcesos(partida);
+                    });
+                });
+
+                mobileDetalle.querySelectorAll('[data-mobile-na]').forEach(function(boton) {
+                    boton.addEventListener('click', async function() {
+                        const partida = Number(this.dataset.mobilePartida);
+                        const procesoId = Number(this.dataset.mobileProceso);
+                        const actualmenteNA = this.dataset.mobileNa === '1';
+
+                        this.disabled = true;
+
+                        const datos = await guardarProcesoServidor(
+                            partida,
+                            procesoId,
+                            !actualmenteNA,
+                            actualmenteNA ? null : 0
+                        );
+
+                        if (!datos) {
+                            this.disabled = false;
+                            return;
+                        }
+
+                        const filaActual = datosDespiece.find(function(item) {
+                            return Number(item.partida_id) === partida;
+                        });
+
+                        if (filaActual) {
+                            if (actualmenteNA) {
+                                filaActual['proceso_' + procesoId] = null;
+                                filaActual['proceso_aplica_' + procesoId] = null;
+                            } else {
+                                filaActual['proceso_' + procesoId] = 0;
+                                filaActual['proceso_aplica_' + procesoId] = false;
+                            }
+
+                            filaActual.avance = datos.avance;
+                        }
+
+                        renderMobileProcesos(partida);
+                    });
+                });
+            }
+
+            let modoMovilAnterior = esMovil();
+
+            function inicializarModoMovil(forzar = false) {
+                if (!mobileRoot) return;
+
+                const modoMovilActual = esMovil();
+
+                /*
+                 * IMPORTANTE:
+                 * En celulares, al hacer scroll rápidamente puede cambiar
+                 * temporalmente el tamaño del viewport debido a la barra
+                 * del navegador. Eso dispara "resize".
+                 *
+                 * No debemos volver a renderizar la lista de pedidos cada
+                 * vez que ocurre ese resize, porque eso sacaría al usuario
+                 * de la partida/proceso en el que está.
+                 *
+                 * Solo cambiamos de vista cuando realmente pasamos de
+                 * escritorio <-> móvil.
+                 */
+                if (!forzar && modoMovilActual === modoMovilAnterior) {
+                    return;
+                }
+
+                modoMovilAnterior = modoMovilActual;
+
+                if (modoMovilActual) {
+                    mobileRoot.classList.add('activo');
+
+                    /*
+                     * Solo al entrar realmente al modo móvil mostramos
+                     * inicialmente la lista de pedidos.
+                     */
+                    mostrarEncabezadoMovil(true);
+                    renderMobileLista(
+                        document.getElementById('buscarDespiece').value
+                    );
+
+                } else {
+                    mobileRoot.classList.remove('activo');
+                    mostrarEncabezadoMovil(true);
+                }
+            }
+
+            /*
+             * El resize puede ocurrir al desplazarse en Android/iOS.
+             * Ahora únicamente se procesa si cambió realmente el modo.
+             */
+            window.addEventListener('resize', function() {
+                inicializarModoMovil(false);
+            });
+
+            inicializarModoMovil(true);
+
             /* ========================================================
                 CONFIGURACIÓN DE COLUMNAS
             ======================================================== */
@@ -1596,6 +2097,388 @@
         /* ============================================================
                     TABULATOR GENERAL
                     ============================================================= */
+
+
+        /* ============================================================
+           MODO PRODUCCIÓN EN CELULAR
+           La vista de escritorio permanece intacta.
+        ============================================================= */
+
+        .despiece-mobile {
+            display: none;
+        }
+
+        @media (max-width: 768px) {
+
+            .despiece-grid {
+                display: none !important;
+            }
+
+            .despiece-mobile {
+                display: none;
+            }
+
+            .despiece-mobile.activo {
+                display: block;
+            }
+
+            .mobile-pedido-card,
+            .mobile-partida-card,
+            .mobile-proceso-card,
+            .mobile-producto-card {
+                width: 100%;
+                box-sizing: border-box;
+            }
+
+            .mobile-pedido-card {
+                display: block;
+                text-align: left;
+                background: #fff;
+                border: 1px solid #e2e8f0;
+                border-radius: 12px;
+                padding: 14px;
+                margin-bottom: 10px;
+                box-shadow: 0 1px 2px rgba(15, 23, 42, .04);
+            }
+
+            .mobile-pedido-top,
+            .mobile-partida-meta,
+            .mobile-producto-datos {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                gap: 10px;
+            }
+
+            .mobile-label {
+                font-size: 9px;
+                font-weight: 700;
+                letter-spacing: .08em;
+                color: #94a3b8;
+            }
+
+            .mobile-pedido-numero {
+                margin-top: 2px;
+                font-size: 17px;
+                font-weight: 800;
+                color: #0f172a;
+            }
+
+            .mobile-avance {
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                min-width: 58px;
+                padding: 6px 8px;
+                border-radius: 8px;
+                font-size: 12px;
+                font-weight: 800;
+            }
+
+            .mobile-avance.bajo { background: #fef2f2; color: #b91c1c; }
+            .mobile-avance.medio { background: #fffbeb; color: #b45309; }
+            .mobile-avance.alto { background: #eff6ff; color: #1d4ed8; }
+            .mobile-avance.completo { background: #dcfce7; color: #15803d; }
+
+            .mobile-pedido-bottom {
+                display: flex;
+                justify-content: space-between;
+                margin-top: 12px;
+                padding-top: 10px;
+                border-top: 1px solid #f1f5f9;
+                font-size: 12px;
+                color: #64748b;
+            }
+
+            .mobile-detalle-header {
+                display: flex;
+                align-items: center;
+                gap: 10px;
+                margin-bottom: 12px;
+            }
+
+            .mobile-volver {
+                border: 1px solid #cbd5e1;
+                background: #fff;
+                color: #334155;
+                border-radius: 9px;
+                padding: 8px 10px;
+                font-size: 12px;
+                font-weight: 700;
+            }
+
+            .mobile-detalle-titulo {
+                display: flex;
+                flex-direction: column;
+                min-width: 0;
+            }
+
+            .mobile-detalle-titulo span {
+                color: #64748b;
+                font-size: 10px;
+            }
+
+            .mobile-detalle-titulo strong {
+                color: #0f172a;
+                font-size: 15px;
+            }
+
+            .mobile-partidas-lista {
+                display: flex;
+                flex-direction: column;
+                gap: 10px;
+            }
+
+            .mobile-partida-card {
+                display: block;
+                text-align: left;
+                background: #fff;
+                border: 1px solid #e2e8f0;
+                border-radius: 12px;
+                padding: 14px;
+            }
+
+            .mobile-partida-numero {
+                color: #64748b;
+                font-size: 10px;
+                font-weight: 700;
+                text-transform: uppercase;
+                letter-spacing: .05em;
+            }
+
+            .mobile-partida-clave {
+                margin-top: 3px;
+                color: #0f172a;
+                font-size: 15px;
+                font-weight: 800;
+            }
+
+            .mobile-partida-descripcion {
+                margin-top: 5px;
+                color: #475569;
+                font-size: 12px;
+                line-height: 1.35;
+            }
+
+            .mobile-partida-meta {
+                margin-top: 12px;
+                color: #64748b;
+                font-size: 12px;
+            }
+
+            .mobile-partida-meta strong {
+                color: #0f172a;
+            }
+
+            .mobile-partida-ir {
+                margin-top: 12px;
+                padding-top: 10px;
+                border-top: 1px solid #f1f5f9;
+                color: #2563eb;
+                font-size: 12px;
+                font-weight: 700;
+            }
+
+            .mobile-producto-card {
+                background: #f8fafc;
+                border: 1px solid #e2e8f0;
+                border-radius: 12px;
+                padding: 14px;
+                margin-bottom: 16px;
+            }
+
+            .mobile-producto-descripcion {
+                color: #0f172a;
+                font-size: 13px;
+                font-weight: 700;
+                line-height: 1.4;
+            }
+
+            .mobile-producto-datos {
+                margin-top: 10px;
+                color: #64748b;
+                font-size: 12px;
+            }
+
+            .mobile-producto-datos strong {
+                color: #0f172a;
+            }
+
+            .mobile-avance-barra {
+                height: 8px;
+                margin-top: 12px;
+                overflow: hidden;
+                background: #e2e8f0;
+                border-radius: 999px;
+            }
+
+            .mobile-avance-barra > div {
+                height: 100%;
+                background: #22c55e;
+                border-radius: inherit;
+            }
+
+            .mobile-procesos-titulo {
+                margin: 4px 0 10px;
+                color: #334155;
+                font-size: 13px;
+                font-weight: 800;
+            }
+
+            .mobile-proceso-card {
+                background: #fff;
+                border: 1px solid #e2e8f0;
+                border-radius: 12px;
+                padding: 13px;
+                margin-bottom: 10px;
+            }
+
+            .mobile-proceso-card.mobile-na {
+                background: #f8fafc;
+            }
+
+            .mobile-proceso-header {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                gap: 10px;
+            }
+
+            .mobile-proceso-header > div {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                min-width: 0;
+            }
+
+            .mobile-proceso-header strong {
+                color: #0f172a;
+                font-size: 13px;
+                line-height: 1.25;
+            }
+
+            .mobile-proceso-numero {
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                width: 24px;
+                height: 24px;
+                flex: 0 0 24px;
+                border-radius: 7px;
+                background: #eff6ff;
+                color: #2563eb;
+                font-size: 10px;
+                font-weight: 800;
+            }
+
+            .mobile-proceso-porcentaje {
+                color: #64748b;
+                font-size: 11px;
+                font-weight: 800;
+            }
+
+            .mobile-proceso-captura {
+                display: flex;
+                align-items: flex-end;
+                gap: 8px;
+                margin-top: 12px;
+            }
+
+            .mobile-input-wrap {
+                flex: 1;
+            }
+
+            .mobile-input-wrap label {
+                display: block;
+                margin-bottom: 5px;
+                color: #64748b;
+                font-size: 10px;
+                font-weight: 700;
+            }
+
+            .mobile-input-proceso {
+                width: 100%;
+                box-sizing: border-box;
+                height: 42px;
+                padding: 0 12px;
+                border: 1px solid #cbd5e1;
+                border-radius: 9px;
+                background: #fff;
+                color: #0f172a;
+                font-size: 16px;
+                font-weight: 700;
+                text-align: center;
+            }
+
+            .mobile-input-wrap small {
+                display: block;
+                margin-top: 3px;
+                color: #94a3b8;
+                font-size: 9px;
+                text-align: center;
+            }
+
+            .mobile-btn-na {
+                min-width: 78px;
+                height: 42px;
+                padding: 0 10px;
+                border: 1px solid #cbd5e1;
+                border-radius: 9px;
+                background: #fff;
+                color: #475569;
+                font-size: 11px;
+                font-weight: 800;
+            }
+
+            .mobile-btn-na.activo {
+                background: #e2e8f0;
+                border-color: #64748b;
+                color: #1e293b;
+            }
+
+            .mobile-btn-guardar {
+                width: 100%;
+                height: 42px;
+                margin-top: 10px;
+                border: 0;
+                border-radius: 9px;
+                background: #2563eb;
+                color: #fff;
+                font-size: 12px;
+                font-weight: 800;
+            }
+
+            .mobile-btn-guardar:disabled {
+                opacity: .55;
+            }
+
+            .mobile-vacio {
+                padding: 40px 20px;
+                text-align: center;
+                color: #64748b;
+                font-size: 13px;
+            }
+
+            .mobile-vacio-icon {
+                margin-bottom: 8px;
+                font-size: 28px;
+            }
+
+            #buscarDespiece {
+                font-size: 14px;
+                min-height: 42px;
+            }
+
+            #limpiarBusqueda {
+                min-height: 42px;
+            }
+
+            #btnColumnas,
+            #panelColumnas {
+                display: none !important;
+            }
+        }
+
 
         .despiece-grid .tabulator {
 

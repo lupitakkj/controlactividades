@@ -18,22 +18,52 @@
 </head>
 
 <body class="font-sans antialiased bg-slate-900">
+    <div x-data="{ sidebarOpen: true }" x-cloak>
 
     <div class="min-h-screen bg-slate-900">
 
+        {{-- =========================================================
+             MENÚ LATERAL
+        ========================================================== --}}
         @include('layouts.navigation')
 
-        @isset($header)
-        <header class="bg-slate-800 shadow">
-            <div class="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
-                {{ $header }}
-            </div>
-        </header>
-        @endisset
 
-        <main class="bg-slate-900 min-h-screen">
-            {{ $slot }}
-        </main>
+        {{-- =========================================================
+             CONTENIDO PRINCIPAL
+        ========================================================== --}}
+        <div
+            class="min-h-screen min-w-0 transition-[margin] duration-300 ease-in-out"
+            x-bind:class="sidebarOpen ? 'ml-64' : 'ml-16'">
+
+
+            {{-- =====================================================
+                 HEADER DE LA PÁGINA
+            ====================================================== --}}
+            @isset($header)
+
+            <header class="bg-slate-900">
+                <div class="w-full px-6 lg:px-8 py-5">
+
+                    {{ $header }}
+
+                </div>
+            </header>
+
+            @endisset
+
+
+            {{-- =====================================================
+                 CONTENIDO
+            ====================================================== --}}
+            <main class="bg-slate-900 min-h-screen">
+
+                {{ $slot }}
+
+            </main>
+
+        </div>
+
+    </div>
 
     </div>
 

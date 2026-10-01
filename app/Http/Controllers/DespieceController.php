@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Pedido;
 use App\Models\Proceso;
 use App\Models\Partida;
+use App\Models\ControlOperativo;
 use App\Models\DespieceProceso;
 use Illuminate\Http\Request;
 
@@ -17,258 +18,283 @@ class DespieceController extends Controller
      *
      * Reglas:
      *
-     * - Cada partida debe tener todos los procesos activos.
-     * - Cada proceso comienza con:
+     * - Cada partida puede tener procesos activos.
+     * - Proceso normal:
      *      aplica = true
-     *      cantidad_realizada = 0
-     *      porcentaje = 0
+     *      cantidad_realizada = cantidad capturada
+     *      porcentaje = cantidad_realizada / cantidad_partida
      *
-     * - Si un proceso no aplica:
+     * - Proceso N/A:
      *      aplica = false
      *      cantidad_realizada = 0
      *      porcentaje = 0
      *
      * - N/A NO participa en el promedio.
-     *
-     * - Una cantidad de 0 SÍ participa en el promedio
-     *   y representa 0% de avance.
-     *
-     * - El porcentaje se calcula:
-     *
-     *      cantidad_realizada / cantidad_de_partida
-     *
-     * - El avance de una partida es el promedio de los procesos
-     *   aplicables.
-     *
-     * - El avance del pedido se calcula en el modelo Pedido.
-     *
+     * - Una cantidad de 0 SÍ participa en el promedio.
+     * - El avance de una partida es el promedio de sus procesos aplicables.
+     * - El avance del pedido es el promedio de sus partidas.
      * - Los pedidos con avance de 100% NO aparecen en Despiece.
-     *
-     * - Cuando un pedido llega al 100%, se guarda la fecha de terminado.
+     * - fecha_terminado solamente se guarda al terminar realmente un pedido.
      *
      */
+
     public function index(Request $request)
     {
         /*
-         * ================================================================
-         * PROCESOS ACTIVOS
-         * ================================================================
-         */
-        $procesos = Proceso::where('activo', true)
+        |--------------------------------------------------------------------------
+        | 1. PROCESOS ACTIVOS
+        |--------------------------------------------------------------------------
+        |
+        | IMPORTANTE:
+        | Se consulta UNA SOLA VEZ.
+        |
+        */
+
+        $procesos = Proceso::query()
+            ->select([
+                'id',
+                'nombre',
+                'orden',
+                'activo',
+            ])
+            ->where('activo', true)
             ->orderBy('orden')
             ->get();
 
-
         /*
-         * ================================================================
-         * PEDIDOS
-         * ================================================================
-         *
-         * Cargamos las partidas y sus procesos.
-         */
-        $pedidos = Pedido::with([
-            'partidas.despieceProcesos.proceso'
-        ])
+        |--------------------------------------------------------------------------
+        | 2. PEDIDOS
+        |--------------------------------------------------------------------------
+        |
+        | Cargamos únicamente las columnas necesarias.
+        |
+        | También cargamos todas las relaciones en una sola carga.
+        |
+        */
+
+        $pedidos = Pedido::query()
+            ->select([
+                'id',
+                'pedido_no',
+                'fecha_entrega',
+            ])
+            ->with([
+                'partidas' => function ($query) {
+
+                    $query->select([
+                        'id',
+                        'pedido_id',
+                        'clave',
+                        'descripcion',
+                        'cantidad',
+                    ]);
+                },
+
+                'partidas.despieceProcesos' => function ($query) {
+
+                    $query->select([
+                        'id',
+                        'partida_id',
+                        'proceso_id',
+                        'aplica',
+                        'cantidad_realizada',
+                        'porcentaje',
+                    ]);
+                },
+            ])
             ->orderBy('fecha_entrega', 'asc')
             ->orderBy('pedido_no', 'asc')
             ->get();
 
-
         /*
-         * ================================================================
-         * ASEGURAR QUE TODAS LAS PARTIDAS TENGAN TODOS LOS PROCESOS
-         * ================================================================
-         *
-         * Si falta un proceso, se crea automáticamente con:
-         *
-         *      aplica = true
-         *      cantidad_realizada = 0
-         *      porcentaje = 0
-         *
-         * firstOrCreate NO modifica registros existentes.
-         */
+        |--------------------------------------------------------------------------
+        | 3. CALCULAR AVANCE UNA SOLA VEZ POR PEDIDO
+        |--------------------------------------------------------------------------
+        |
+        | Antes:
+        |
+        |     $pedido->avance
+        |
+        | podía ejecutarse varias veces.
+        |
+        | Ahora calculamos el avance una sola vez y lo guardamos en memoria.
+        |
+        */
+
+        $pedidosConAvance = collect();
+
         foreach ($pedidos as $pedido) {
 
-            foreach ($pedido->partidas as $partida) {
+            $avancePedido = $this->calcularAvancePedido(
+                $pedido,
+                $procesos
+            );
 
-                foreach ($procesos as $proceso) {
-
-                    DespieceProceso::firstOrCreate(
-                        [
-                            'partida_id' => $partida->id,
-                            'proceso_id' => $proceso->id,
-                        ],
-                        [
-                            'aplica' => true,
-                            'cantidad_realizada' => 0,
-                            'porcentaje' => 0,
-                        ]
-                    );
-                }
-            }
-        }
-
-
-        /*
-         * ================================================================
-         * VOLVER A CARGAR LAS RELACIONES
-         * ================================================================
-         */
-        $pedidos->load([
-            'partidas.despieceProcesos.proceso'
-        ]);
-
-
-        /*
-         * ================================================================
-         * CONSTRUIR FILAS DEL DESPIECE
-         * ================================================================
-         *
-         * Primero verificamos los pedidos completos.
-         *
-         * Si alguno ya está al 100% y todavía no tiene fecha de
-         * terminado, se registra la fecha actual.
-         *
-         * Esto también permite detectar pedidos que llegaron al
-         * 100% antes de que esta lógica fuera implementada.
-         */
-        foreach ($pedidos as $pedido) {
+            /*
+            |--------------------------------------------------------------------------
+            | EXCLUIR TERMINADOS
+            |--------------------------------------------------------------------------
+            */
 
             if (
-                $pedido->avance !== null &&
-                $pedido->avance >= 1 &&
-                $pedido->fecha_terminado === null
+                $avancePedido !== null &&
+                $avancePedido >= 1
             ) {
-
-                $pedido->fecha_terminado =
-                    now()->toDateString();
-
-                $pedido->save();
+                continue;
             }
+
+            /*
+            |--------------------------------------------------------------------------
+            | GUARDAR AVANCE EN MEMORIA
+            |--------------------------------------------------------------------------
+            |
+            | No modifica la base de datos.
+            |
+            */
+
+            $pedido->setAttribute(
+                'avance_calculado',
+                $avancePedido
+            );
+
+            $pedidosConAvance->push($pedido);
         }
 
+        $pedidos = $pedidosConAvance->values();
 
         /*
-         * ================================================================
-         * EXCLUIR PEDIDOS TERMINADOS
-         * ================================================================
-         *
-         * IMPORTANTE:
-         *
-         * No se elimina absolutamente nada.
-         *
-         * Solamente se excluyen de la vista de Despiece.
-         */
-        $pedidos = $pedidos
-            ->filter(function ($pedido) {
+        |--------------------------------------------------------------------------
+        | 4. CONSTRUIR FILAS
+        |--------------------------------------------------------------------------
+        */
 
-                return $pedido->avance === null
-                    || $pedido->avance < 1;
-
-            })
-            ->values();
-
-
-        /*
-         * ================================================================
-         * CONSTRUIR FILAS DEL DESPIECE
-         * ================================================================
-         */
         $filasDespiece = [];
 
         foreach ($pedidos as $pedido) {
 
-            $avancePedido = $pedido->avance;
+            /*
+            |--------------------------------------------------------------------------
+            | AVANCE DEL PEDIDO
+            |--------------------------------------------------------------------------
+            */
+
+            $avancePedido =
+                $pedido->getAttribute('avance_calculado');
+
+            /*
+            |--------------------------------------------------------------------------
+            | PARTIDAS
+            |--------------------------------------------------------------------------
+            */
 
             foreach ($pedido->partidas as $partida) {
 
-                $fila = [
-                    'pedido_id' => $pedido->id,
+                /*
+                |--------------------------------------------------------------------------
+                | INDEXAR DESPIECES
+                |--------------------------------------------------------------------------
+                |
+                | Esto evita hacer firstWhere() repetidamente.
+                |
+                */
 
-                    'pedido_no' => $pedido->pedido_no,
-
-                    'partida_id' => $partida->id,
-
-                    'clave' => $partida->clave,
-
-                    'descripcion' => $partida->descripcion,
-
-                    'cantidad' => $partida->cantidad,
-
-                    'avance_pedido' => $avancePedido,
-                ];
-
+                $despieces =
+                    $partida->despieceProcesos
+                    ->keyBy('proceso_id');
 
                 /*
-                 * ========================================================
-                 * PROCESOS
-                 * ========================================================
-                 */
+                |--------------------------------------------------------------------------
+                | FILA
+                |--------------------------------------------------------------------------
+                */
+
+                $fila = [
+
+                    'pedido_id' =>
+                    $pedido->id,
+
+                    'pedido_no' =>
+                    $pedido->pedido_no,
+
+                    'partida_id' =>
+                    $partida->id,
+
+                    'clave' =>
+                    $partida->clave,
+
+                    'descripcion' =>
+                    $partida->descripcion,
+
+                    'cantidad' =>
+                    $partida->cantidad,
+
+                    'avance_pedido' =>
+                    $avancePedido,
+                ];
+
+                /*
+                |--------------------------------------------------------------------------
+                | PROCESOS
+                |--------------------------------------------------------------------------
+                */
+
                 foreach ($procesos as $proceso) {
 
-                    $despiece = $partida
-                        ->despieceProcesos
-                        ->firstWhere(
-                            'proceso_id',
-                            $proceso->id
-                        );
-
+                    $despiece =
+                        $despieces->get($proceso->id);
 
                     /*
-                     * Cantidad realizada.
-                     *
-                     * Si no existe, mostramos 0.
-                     */
-                    $fila[
-                        'proceso_' . $proceso->id
-                    ] =
-                        $despiece
-                            ? (float) $despiece->cantidad_realizada
-                            : 0;
+                    |--------------------------------------------------------------------------
+                    | CANTIDAD REALIZADA
+                    |--------------------------------------------------------------------------
+                    */
 
+                    $fila['proceso_' . $proceso->id] =
+                        $despiece
+                        ? (float) $despiece->cantidad_realizada
+                        : null;
 
                     /*
-                     * Indica si el proceso aplica.
-                     *
-                     * true  = proceso normal
-                     * false = N/A
-                     */
-                    $fila[
-                        'proceso_aplica_' . $proceso->id
-                    ] =
+                    |--------------------------------------------------------------------------
+                    | APLICA
+                    |--------------------------------------------------------------------------
+                    */
+
+                    $fila['proceso_aplica_' . $proceso->id] =
                         $despiece
-                            ? (bool) $despiece->aplica
-                            : true;
+                        ? (bool) $despiece->aplica
+                        : null;
                 }
-
 
                 $filasDespiece[] = $fila;
             }
         }
 
-
         /*
-         * ================================================================
-         * DATOS DE PROCESOS PARA JAVASCRIPT
-         * ================================================================
-         */
+        |--------------------------------------------------------------------------
+        | 5. DATOS PARA JAVASCRIPT
+        |--------------------------------------------------------------------------
+        */
+
         $procesosData = $procesos
             ->map(function ($proceso) {
 
                 return [
-                    'id' => $proceso->id,
-                    'nombre' => $proceso->nombre,
-                ];
+                    'id' =>
+                    $proceso->id,
 
+                    'nombre' =>
+                    $proceso->nombre,
+                ];
             })
             ->values();
 
-
         /*
-         * ================================================================
-         * VISTA
-         * ================================================================
-         */
+        |--------------------------------------------------------------------------
+        | 6. VISTA
+        |--------------------------------------------------------------------------
+        */
+
         return view(
             'despiece.index',
             compact(
@@ -283,16 +309,383 @@ class DespieceController extends Controller
 
     /**
      * =========================================================================
+     * CALCULAR AVANCE DEL PEDIDO
+     * =========================================================================
+     *
+     * No realiza consultas a la base de datos.
+     *
+     * Todo se calcula usando las relaciones ya cargadas.
+     *
+     */
+
+    private function calcularAvancePedido(
+        Pedido $pedido,
+        $procesosActivos
+    ): ?float {
+
+        $partidas = $pedido->partidas;
+
+        /*
+        |--------------------------------------------------------------------------
+        | SIN PARTIDAS
+        |--------------------------------------------------------------------------
+        */
+
+        if ($partidas->isEmpty()) {
+            return null;
+        }
+
+        /*
+        |--------------------------------------------------------------------------
+        | SIN PROCESOS ACTIVOS
+        |--------------------------------------------------------------------------
+        */
+
+        if ($procesosActivos->isEmpty()) {
+            return 0;
+        }
+
+        /*
+        |--------------------------------------------------------------------------
+        | ACUMULADORES DEL PEDIDO
+        |--------------------------------------------------------------------------
+        |
+        | Cada partida pesa de acuerdo con su cantidad de piezas.
+        |
+        | Fórmula:
+        |
+        |   SUMA(avance partida × cantidad partida)
+        |   --------------------------------------
+        |          SUMA(cantidad partida)
+        |
+        */
+
+        $sumaAvancePonderado = 0;
+
+        $sumaCantidad = 0;
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | RECORRER PARTIDAS
+        |--------------------------------------------------------------------------
+        */
+
+        foreach ($partidas as $partida) {
+
+            /*
+            |--------------------------------------------------------------------------
+            | CANTIDAD DE LA PARTIDA
+            |--------------------------------------------------------------------------
+            */
+
+            $cantidadPartida = (float) $partida->cantidad;
+
+            /*
+            |--------------------------------------------------------------------------
+            | IGNORAR CANTIDADES INVÁLIDAS
+            |--------------------------------------------------------------------------
+            */
+
+            if ($cantidadPartida <= 0) {
+                continue;
+            }
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | INDEXAR DESPIECES
+            |--------------------------------------------------------------------------
+            */
+
+            $despieces = $partida->despieceProcesos
+                ->keyBy('proceso_id');
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | ACUMULADORES DE LA PARTIDA
+            |--------------------------------------------------------------------------
+            */
+
+            $sumaPorcentajes = 0;
+
+            $cantidadProcesosAplicables = 0;
+
+            $hayProcesoPendiente = false;
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | RECORRER PROCESOS ACTIVOS
+            |--------------------------------------------------------------------------
+            */
+
+            foreach ($procesosActivos as $proceso) {
+
+                $despiece = $despieces->get($proceso->id);
+
+
+                /*
+            |--------------------------------------------------------------------------
+            | PROCESO SIN REGISTRO
+            |--------------------------------------------------------------------------
+            |
+            | No existe todavía en despiece_procesos.
+            |
+            | Esto significa:
+            |
+            |     - No se ha capturado
+            |     - Está pendiente
+            |     - Su avance es 0%
+            |     - SÍ participa en el promedio
+            |
+            */
+
+                if (!$despiece) {
+
+                    $hayProcesoPendiente = true;
+
+                    $cantidadProcesosAplicables++;
+
+                    continue;
+                }
+
+
+                /*
+            |--------------------------------------------------------------------------
+            | PROCESO N/A
+            |--------------------------------------------------------------------------
+            |
+            | Si aplica = false:
+            |
+            |     - No participa
+            |     - No suma porcentaje
+            |     - No cuenta como pendiente
+            |
+            */
+
+                if (!$despiece->aplica) {
+
+                    continue;
+                }
+
+
+                /*
+            |--------------------------------------------------------------------------
+            | PROCESO APLICABLE
+            |--------------------------------------------------------------------------
+            */
+
+                $cantidadProcesosAplicables++;
+
+
+                /*
+            |--------------------------------------------------------------------------
+            | CANTIDAD REALIZADA
+            |--------------------------------------------------------------------------
+            */
+
+                $cantidadRealizada =
+                    $despiece->cantidad_realizada;
+
+
+                /*
+            |--------------------------------------------------------------------------
+            | SIN CANTIDAD CAPTURADA
+            |--------------------------------------------------------------------------
+            |
+            | Aunque exista el registro, si la cantidad es NULL,
+            | todavía está pendiente.
+            |
+            */
+
+                if ($cantidadRealizada === null) {
+
+                    $hayProcesoPendiente = true;
+
+                    continue;
+                }
+
+
+                /*
+            |--------------------------------------------------------------------------
+            | PORCENTAJE
+            |--------------------------------------------------------------------------
+            */
+
+                $porcentaje =
+                    (float) $despiece->porcentaje;
+
+
+                /*
+            |--------------------------------------------------------------------------
+            | LIMITAR PORCENTAJE
+            |--------------------------------------------------------------------------
+            */
+
+                $porcentaje =
+                    max(
+                        0,
+                        min(
+                            1,
+                            $porcentaje
+                        )
+                    );
+
+
+                /*
+            |--------------------------------------------------------------------------
+            | ACUMULAR
+            |--------------------------------------------------------------------------
+            */
+
+                $sumaPorcentajes += $porcentaje;
+            }
+
+
+            /*
+        |--------------------------------------------------------------------------
+        | AVANCE DE LA PARTIDA
+        |--------------------------------------------------------------------------
+        */
+
+            if ($cantidadProcesosAplicables > 0) {
+
+                $avancePartida =
+                    $sumaPorcentajes /
+                    $cantidadProcesosAplicables;
+            } else {
+
+                /*
+            | Todos los procesos son N/A
+            */
+
+                $avancePartida = 0;
+            }
+
+
+            /*
+        |--------------------------------------------------------------------------
+        | EVITAR 100% SI EXISTE UN PROCESO PENDIENTE
+        |--------------------------------------------------------------------------
+        |
+        | Si tenemos:
+        |
+        |     Corte       = 100%
+        |     Soldadura   = NULL
+        |     Pintura     = NULL
+        |
+        | El resultado será:
+        |
+        |     (100 + 0 + 0) / 3
+        |     = 33.33%
+        |
+        | Por lo tanto normalmente aquí ya no será 100%.
+        |
+        | Este bloque funciona como protección adicional.
+        |
+        */
+
+            if (
+                $hayProcesoPendiente &&
+                $avancePartida >= 1
+            ) {
+
+                $avancePartida = 0.9999;
+            }
+
+
+            /*
+        |--------------------------------------------------------------------------
+        | LIMITAR AVANCE DE PARTIDA
+        |--------------------------------------------------------------------------
+        */
+
+            $avancePartida =
+                max(
+                    0,
+                    min(
+                        1,
+                        $avancePartida
+                    )
+                );
+
+
+            /*
+        |--------------------------------------------------------------------------
+        | ACUMULAR AVANCE PONDERADO
+        |--------------------------------------------------------------------------
+        */
+
+            $sumaAvancePonderado +=
+                $avancePartida *
+                $cantidadPartida;
+
+
+            /*
+        |--------------------------------------------------------------------------
+        | ACUMULAR CANTIDAD
+        |--------------------------------------------------------------------------
+        */
+
+            $sumaCantidad +=
+                $cantidadPartida;
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | SIN CANTIDADES VÁLIDAS
+        |--------------------------------------------------------------------------
+        */
+
+        if ($sumaCantidad <= 0) {
+            return null;
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | AVANCE FINAL DEL PEDIDO
+        |--------------------------------------------------------------------------
+        */
+
+        $avancePedido =
+            $sumaAvancePonderado /
+            $sumaCantidad;
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | LIMITAR AVANCE FINAL
+        |--------------------------------------------------------------------------
+        */
+
+        return max(
+            0,
+            min(
+                1,
+                $avancePedido
+            )
+        );
+    }
+
+
+    /**
+     * =========================================================================
      * GUARDAR PROCESO
      * =========================================================================
      */
+
     public function guardarProceso(Request $request)
     {
         /*
-         * ================================================================
-         * VALIDACIÓN
-         * ================================================================
-         */
+        |--------------------------------------------------------------------------
+        | VALIDACIÓN
+        |--------------------------------------------------------------------------
+        */
+
         $datos = $request->validate([
 
             'partida_id' => [
@@ -320,161 +713,230 @@ class DespieceController extends Controller
 
         ]);
 
+        /*
+        |--------------------------------------------------------------------------
+        | PARTIDA
+        |--------------------------------------------------------------------------
+        */
+
+        $partida =
+            Partida::findOrFail(
+                $datos['partida_id']
+            );
 
         /*
-         * ================================================================
-         * OBTENER PARTIDA
-         * ================================================================
-         */
-        $partida = Partida::findOrFail(
-            $datos['partida_id']
-        );
+        |--------------------------------------------------------------------------
+        | PROCESO
+        |--------------------------------------------------------------------------
+        */
 
-
-        /*
-         * ================================================================
-         * OBTENER PROCESO
-         * ================================================================
-         */
-        $proceso = Proceso::findOrFail(
-            $datos['proceso_id']
-        );
-
+        $proceso =
+            Proceso::findOrFail(
+                $datos['proceso_id']
+            );
 
         /*
-         * ================================================================
-         * VALIDAR PROCESO ACTIVO
-         * ================================================================
-         */
+        |--------------------------------------------------------------------------
+        | VALIDAR PROCESO ACTIVO
+        |--------------------------------------------------------------------------
+        */
+
         if (!$proceso->activo) {
 
             return response()->json([
+
                 'ok' => false,
 
                 'mensaje' =>
-                    'El proceso seleccionado no está activo.',
+                'El proceso seleccionado no está activo.',
 
             ], 422);
         }
 
-
         /*
-         * ================================================================
-         * CANTIDAD TOTAL DE LA PARTIDA
-         * ================================================================
-         */
+        |--------------------------------------------------------------------------
+        | CANTIDAD DE PARTIDA
+        |--------------------------------------------------------------------------
+        */
+
         $cantidadPartida =
             (float) $partida->cantidad;
-
 
         if ($cantidadPartida <= 0) {
 
             return response()->json([
+
                 'ok' => false,
 
                 'mensaje' =>
-                    'La partida tiene una cantidad inválida.',
+                'La partida tiene una cantidad inválida.',
 
             ], 422);
         }
 
-
         /*
-         * ================================================================
-         * PROCESO N/A
-         * ================================================================
-         */
+        |--------------------------------------------------------------------------
+        | PROCESO N/A
+        |--------------------------------------------------------------------------
+        */
+
         if (!$datos['aplica']) {
 
             $despieceProceso =
                 DespieceProceso::updateOrCreate(
+
                     [
                         'partida_id' =>
-                            $partida->id,
+                        $partida->id,
 
                         'proceso_id' =>
-                            $proceso->id,
+                        $proceso->id,
                     ],
 
                     [
                         'aplica' =>
-                            false,
+                        false,
 
                         'cantidad_realizada' =>
-                            0,
+                        0,
 
                         'porcentaje' =>
-                            0,
+                        0,
                     ]
                 );
 
-
             /*
-             * ============================================================
-             * CALCULAR AVANCE DE PARTIDA
-             * ============================================================
-             */
+    |--------------------------------------------------------------------------
+    | AVANCE DE PARTIDA
+    |--------------------------------------------------------------------------
+    */
+
             $avance =
                 $this->calcularAvancePartida(
                     $partida->id
                 );
 
+            /*
+    |--------------------------------------------------------------------------
+    | PEDIDO
+    |--------------------------------------------------------------------------
+    */
+
+            $pedido =
+                $partida
+                ->pedido()
+                ->with([
+                    'partidas.despieceProcesos'
+                ])
+                ->first();
+
+            $pedidoTerminado = false;
+
+            if ($pedido) {
+
+                $pedidoTerminado =
+                    $this->pedidoEstaTerminado(
+                        $pedido
+                    );
+
+                if ($pedidoTerminado) {
+
+                    /*
+            |--------------------------------------------------------------------------
+            | FECHA DE TERMINADO
+            |--------------------------------------------------------------------------
+            */
+
+                    if ($pedido->fecha_terminado === null) {
+
+                        $pedido->fecha_terminado =
+                            now()->toDateString();
+
+                        $pedido->save();
+                    }
+
+                    /*
+            |--------------------------------------------------------------------------
+            | ESTADO OPERATIVO
+            |--------------------------------------------------------------------------
+            */
+
+                    ControlOperativo::updateOrCreate(
+                        [
+                            'pedido_id' =>
+                            $pedido->id,
+                        ],
+                        [
+                            'estado_operativo' =>
+                            'Terminado',
+                        ]
+                    );
+                }
+            }
 
             /*
-             * ============================================================
-             * RESPUESTA
-             * ============================================================
-             */
+    |--------------------------------------------------------------------------
+    | RESPUESTA
+    |--------------------------------------------------------------------------
+    */
+
             return response()->json([
 
                 'ok' => true,
 
                 'mensaje' =>
-                    'Proceso marcado como N/A.',
+                $pedidoTerminado
+                    ? 'Proceso marcado como N/A. El pedido quedó terminado.'
+                    : 'Proceso marcado como N/A.',
 
                 'partida_id' =>
-                    $partida->id,
+                $partida->id,
 
                 'proceso_id' =>
-                    $proceso->id,
+                $proceso->id,
 
                 'aplica' =>
-                    false,
+                false,
 
                 'cantidad_realizada' =>
-                    0,
+                0,
 
                 'porcentaje' =>
-                    0,
+                0,
 
                 'avance' =>
-                    $avance,
+                $avance,
+
+                'pedido_terminado' =>
+                $pedidoTerminado,
+
+                'fecha_terminado' =>
+                $pedido &&
+                    $pedido->fecha_terminado
+                    ? $pedido->fecha_terminado->format('Y-m-d')
+                    : null,
 
             ]);
         }
 
-
         /*
-         * ================================================================
-         * PROCESO NORMAL
-         * ================================================================
-         *
-         * Si llega NULL porque se quitó el N/A,
-         * lo convertimos en 0.
-         */
+        |--------------------------------------------------------------------------
+        | PROCESO NORMAL
+        |--------------------------------------------------------------------------
+        */
+
         $cantidadRealizada =
             $datos['cantidad_realizada'] ?? 0;
-
 
         $cantidadRealizada =
             (float) $cantidadRealizada;
 
-
         /*
-         * ================================================================
-         * NO SUPERAR LA CANTIDAD DE LA PARTIDA
-         * ================================================================
-         */
+        |--------------------------------------------------------------------------
+        | NO SUPERAR CANTIDAD
+        |--------------------------------------------------------------------------
+        */
+
         if (
             $cantidadRealizada >
             $cantidadPartida
@@ -485,27 +947,23 @@ class DespieceController extends Controller
                 'ok' => false,
 
                 'mensaje' =>
-                    'La cantidad realizada no puede ser mayor que '
+                'La cantidad realizada no puede ser mayor que '
                     . $cantidadPartida
                     . ' piezas.',
 
             ], 422);
         }
 
-
         /*
-         * ================================================================
-         * CALCULAR PORCENTAJE
-         * ================================================================
-         */
+        |--------------------------------------------------------------------------
+        | PORCENTAJE
+        |--------------------------------------------------------------------------
+        */
+
         $porcentaje =
             $cantidadRealizada /
             $cantidadPartida;
 
-
-        /*
-         * Asegurar rango 0 - 1
-         */
         $porcentaje =
             max(
                 0,
@@ -515,64 +973,61 @@ class DespieceController extends Controller
                 )
             );
 
-
         /*
-         * ================================================================
-         * GUARDAR
-         * ================================================================
-         */
+        |--------------------------------------------------------------------------
+        | GUARDAR
+        |--------------------------------------------------------------------------
+        */
+
         $despieceProceso =
             DespieceProceso::updateOrCreate(
+
                 [
                     'partida_id' =>
-                        $partida->id,
+                    $partida->id,
 
                     'proceso_id' =>
-                        $proceso->id,
+                    $proceso->id,
                 ],
 
                 [
                     'aplica' =>
-                        true,
+                    true,
 
                     'cantidad_realizada' =>
-                        $cantidadRealizada,
+                    $cantidadRealizada,
 
                     'porcentaje' =>
-                        $porcentaje,
+                    $porcentaje,
                 ]
             );
 
-
         /*
-         * ================================================================
-         * RECALCULAR AVANCE DE PARTIDA
-         * ================================================================
-         */
+        |--------------------------------------------------------------------------
+        | AVANCE DE PARTIDA
+        |--------------------------------------------------------------------------
+        */
+
         $avance =
             $this->calcularAvancePartida(
                 $partida->id
             );
 
-
         /*
-         * ================================================================
-         * VERIFICAR PEDIDO
-         * ================================================================
-         *
-         * Después de guardar el proceso, comprobamos si el pedido
-         * completo llegó al 100%.
-         */
-        $pedido =
-            $partida->pedido()
-                ->with([
-                    'partidas.despieceProcesos'
-                ])
-                ->first();
+        |--------------------------------------------------------------------------
+        | PEDIDO
+        |--------------------------------------------------------------------------
+        */
 
+        $pedido =
+            $partida
+            ->pedido()
+            ->with([
+                'partidas.despieceProcesos'
+            ])
+            ->first();
 
         $pedidoTerminado = false;
-
 
         if ($pedido) {
 
@@ -581,71 +1036,84 @@ class DespieceController extends Controller
                     $pedido
                 );
 
+            if ($pedidoTerminado) {
 
-            /*
-             * ============================================================
-             * GUARDAR FECHA DE TERMINADO
-             * ============================================================
-             *
-             * Solamente se guarda si todavía no existe.
-             *
-             * Esto conserva la fecha histórica.
-             */
-            if (
-                $pedidoTerminado &&
-                $pedido->fecha_terminado === null
-            ) {
+                /*
+                |--------------------------------------------------------------------------
+                | FECHA DE TERMINADO
+                |--------------------------------------------------------------------------
+                */
 
-                $pedido->fecha_terminado =
-                    now()->toDateString();
+                if ($pedido->fecha_terminado === null) {
 
-                $pedido->save();
+                    $pedido->fecha_terminado =
+                        now()->toDateString();
+
+                    $pedido->save();
+                }
+
+                /*
+                |--------------------------------------------------------------------------
+                | ESTADO OPERATIVO
+                |--------------------------------------------------------------------------
+                */
+
+                ControlOperativo::updateOrCreate(
+                    [
+                        'pedido_id' =>
+                        $pedido->id,
+                    ],
+                    [
+                        'estado_operativo' =>
+                        'Terminado',
+                    ]
+                );
             }
         }
 
-
         /*
-         * ================================================================
-         * RESPUESTA
-         * ================================================================
-         */
+        |--------------------------------------------------------------------------
+        | RESPUESTA
+        |--------------------------------------------------------------------------
+        */
+
         return response()->json([
 
             'ok' => true,
 
             'mensaje' =>
-                $pedidoTerminado
-                    ? 'Proceso guardado. El pedido quedó terminado.'
-                    : 'Proceso guardado correctamente.',
+            $pedidoTerminado
+                ? 'Proceso guardado. El pedido quedó terminado.'
+                : 'Proceso guardado correctamente.',
 
             'partida_id' =>
-                $partida->id,
+            $partida->id,
 
             'proceso_id' =>
-                $proceso->id,
+            $proceso->id,
 
             'aplica' =>
-                true,
+            true,
 
             'cantidad_realizada' =>
-                (float)
-                $despieceProceso->cantidad_realizada,
+            (float)
+            $despieceProceso->cantidad_realizada,
 
             'porcentaje' =>
-                (float)
-                $despieceProceso->porcentaje,
+            (float)
+            $despieceProceso->porcentaje,
 
             'avance' =>
-                $avance,
+            $avance,
 
             'pedido_terminado' =>
-                $pedidoTerminado,
+            $pedidoTerminado,
 
             'fecha_terminado' =>
-                $pedido &&
+            $pedido &&
                 $pedido->fecha_terminado
-                    ? $pedido->fecha_terminado->format('Y-m-d')
-                    : null,
+                ? $pedido->fecha_terminado->format('Y-m-d')
+                : null,
 
         ]);
     }
@@ -656,15 +1124,17 @@ class DespieceController extends Controller
      * CALCULAR AVANCE DE UNA PARTIDA
      * =========================================================================
      */
+
     private function calcularAvancePartida(
         int $partidaId
     ): ?float {
 
         /*
-         * ================================================================
-         * PARTIDA
-         * ================================================================
-         */
+        |--------------------------------------------------------------------------
+        | PARTIDA
+        |--------------------------------------------------------------------------
+        */
+
         $partida =
             Partida::with(
                 'despieceProcesos'
@@ -673,22 +1143,22 @@ class DespieceController extends Controller
                 $partidaId
             );
 
-
         /*
-         * ================================================================
-         * PROCESOS ACTIVOS
-         * ================================================================
-         */
-        $procesosActivos =
-            Proceso::where(
-                'activo',
-                true
-            )
-            ->orderBy(
-                'orden'
-            )
-            ->get();
+        |--------------------------------------------------------------------------
+        | PROCESOS ACTIVOS
+        |--------------------------------------------------------------------------
+        */
 
+        $procesosActivos =
+            Proceso::query()
+            ->select([
+                'id',
+                'orden',
+                'activo',
+            ])
+            ->where('activo', true)
+            ->orderBy('orden')
+            ->get();
 
         if (
             $procesosActivos->isEmpty()
@@ -697,32 +1167,29 @@ class DespieceController extends Controller
             return 0;
         }
 
-
         /*
-         * ================================================================
-         * INDEXAR CAPTURAS
-         * ================================================================
-         */
+        |--------------------------------------------------------------------------
+        | INDEXAR
+        |--------------------------------------------------------------------------
+        */
+
         $despieces =
             $partida
-                ->despieceProcesos
-                ->keyBy(
-                    'proceso_id'
-                );
-
+            ->despieceProcesos
+            ->keyBy('proceso_id');
 
         $sumaPorcentajes = 0;
 
         $cantidadProcesosAplicables = 0;
 
-        $hayProcesoPendiente = false;
 
 
         /*
-         * ================================================================
-         * RECORRER LOS PROCESOS
-         * ================================================================
-         */
+        |--------------------------------------------------------------------------
+        | RECORRER PROCESOS
+        |--------------------------------------------------------------------------
+        */
+
         foreach (
             $procesosActivos as $proceso
         ) {
@@ -732,43 +1199,48 @@ class DespieceController extends Controller
                     $proceso->id
                 );
 
-
             /*
-             * Si falta el registro,
-             * se considera pendiente.
-             */
+            |--------------------------------------------------------------------------
+            | NO CAPTURADO
+            |--------------------------------------------------------------------------
+            |
+            | El proceso está activo pero todavía no tiene registro.
+            | Cuenta como 0% de avance.
+            |
+            */
+
             if (!$despiece) {
 
-                $hayProcesoPendiente = true;
+                $cantidadProcesosAplicables++;
 
                 continue;
             }
 
-
             /*
-             * ============================================================
-             * N/A
-             * ============================================================
-             */
+            |--------------------------------------------------------------------------
+            | N/A
+            |--------------------------------------------------------------------------
+            |
+            | El proceso existe pero no aplica para esta partida.
+            | NO cuenta dentro del porcentaje.
+            |
+            */
+
             if (!$despiece->aplica) {
 
                 continue;
             }
 
-
             /*
-             * ============================================================
-             * PORCENTAJE
-             * ============================================================
-             */
+            |--------------------------------------------------------------------------
+            | PORCENTAJE
+            |--------------------------------------------------------------------------
+            */
+
             $porcentaje =
                 (float)
                 $despiece->porcentaje;
 
-
-            /*
-             * Asegurar rango 0 - 1
-             */
             $porcentaje =
                 max(
                     0,
@@ -778,23 +1250,24 @@ class DespieceController extends Controller
                     )
                 );
 
-
             /*
-             * 0 TAMBIÉN CUENTA
-             */
+            |--------------------------------------------------------------------------
+            | ACUMULAR
+            |--------------------------------------------------------------------------
+            */
+
             $sumaPorcentajes +=
                 $porcentaje;
-
 
             $cantidadProcesosAplicables++;
         }
 
-
         /*
-         * ================================================================
-         * NO HAY PROCESOS APLICABLES
-         * ================================================================
-         */
+        |--------------------------------------------------------------------------
+        | SIN PROCESOS APLICABLES
+        |--------------------------------------------------------------------------
+        */
+
         if (
             $cantidadProcesosAplicables === 0
         ) {
@@ -802,36 +1275,22 @@ class DespieceController extends Controller
             return 0;
         }
 
-
         /*
-         * ================================================================
-         * PROMEDIO
-         * ================================================================
-         */
+        |--------------------------------------------------------------------------
+        | PROMEDIO
+        |--------------------------------------------------------------------------
+        */
+
         $avance =
             $sumaPorcentajes /
             $cantidadProcesosAplicables;
 
-
         /*
-         * ================================================================
-         * SI FALTA UN PROCESO
-         * ================================================================
-         */
-        if (
-            $hayProcesoPendiente &&
-            $avance >= 1
-        ) {
+        |--------------------------------------------------------------------------
+        | LIMITAR
+        |--------------------------------------------------------------------------
+        */
 
-            $avance = 0.9999;
-        }
-
-
-        /*
-         * ================================================================
-         * ASEGURAR RANGO
-         * ================================================================
-         */
         return max(
             0,
             min(
@@ -846,40 +1305,30 @@ class DespieceController extends Controller
      * =========================================================================
      * VERIFICAR SI EL PEDIDO ESTÁ TERMINADO
      * =========================================================================
-     *
-     * Un pedido solamente se considera TERMINADO cuando:
-     *
-     * 1. Tiene partidas.
-     * 2. Todas las partidas tienen todos los procesos activos.
-     * 3. Cada proceso aplicable tiene 100%.
-     * 4. Los procesos N/A están resueltos.
-     *
-     * Esta función NO modifica información.
      */
+
     private function pedidoEstaTerminado(
         Pedido $pedido
     ): bool {
 
         /*
-         * ================================================================
-         * PROCESOS ACTIVOS
-         * ================================================================
-         */
+        |--------------------------------------------------------------------------
+        | PROCESOS ACTIVOS
+        |--------------------------------------------------------------------------
+        */
+
         $procesosActivos =
-            Proceso::where(
+            Proceso::query()
+            ->select([
+                'id',
+                'nombre',
+                'orden',
                 'activo',
-                true
-            )
-            ->orderBy(
-                'orden'
-            )
+            ])
+            ->where('activo', true)
+            ->orderBy('orden')
             ->get();
 
-
-        /*
-         * Si no existen procesos,
-         * no podemos considerar terminado el pedido.
-         */
         if (
             $procesosActivos->isEmpty()
         ) {
@@ -887,20 +1336,27 @@ class DespieceController extends Controller
             return false;
         }
 
+        /*
+        |--------------------------------------------------------------------------
+        | ÚLTIMO PROCESO = TERMINADO
+        |--------------------------------------------------------------------------
+        |
+        | El último proceso activo siempre representa TERMINADO.
+        |
+        */
+
+        $procesoTerminado =
+            $procesosActivos->last();
 
         /*
-         * ================================================================
-         * PARTIDAS
-         * ================================================================
-         */
+        |--------------------------------------------------------------------------
+        | PARTIDAS
+        |--------------------------------------------------------------------------
+        */
+
         $partidas =
             $pedido->partidas;
 
-
-        /*
-         * Un pedido sin partidas
-         * no puede estar terminado.
-         */
         if (
             $partidas->isEmpty()
         ) {
@@ -908,17 +1364,20 @@ class DespieceController extends Controller
             return false;
         }
 
-
         /*
-         * ================================================================
-         * REVISAR CADA PARTIDA
-         * ================================================================
-         */
+        |--------------------------------------------------------------------------
+        | REVISAR TODAS LAS PARTIDAS
+        |--------------------------------------------------------------------------
+        */
+
         foreach ($partidas as $partida) {
 
             /*
-             * Cantidad inválida
-             */
+            |--------------------------------------------------------------------------
+            | CANTIDAD INVÁLIDA
+            |--------------------------------------------------------------------------
+            */
+
             if (
                 (float) $partida->cantidad <= 0
             ) {
@@ -926,75 +1385,74 @@ class DespieceController extends Controller
                 return false;
             }
 
+            /*
+            |--------------------------------------------------------------------------
+            | INDEXAR DESPIECES
+            |--------------------------------------------------------------------------
+            */
 
             $despieces =
                 $partida
-                    ->despieceProcesos
-                    ->keyBy(
-                        'proceso_id'
-                    );
-
+                ->despieceProcesos
+                ->keyBy('proceso_id');
 
             /*
-             * ============================================================
-             * REVISAR TODOS LOS PROCESOS
-             * ============================================================
-             */
-            foreach (
-                $procesosActivos as $proceso
+            |--------------------------------------------------------------------------
+            | BUSCAR PROCESO TERMINADO
+            |--------------------------------------------------------------------------
+            */
+
+            $despieceTerminado =
+                $despieces->get(
+                    $procesoTerminado->id
+                );
+
+            /*
+            |--------------------------------------------------------------------------
+            | NO EXISTE REGISTRO DE TERMINADO
+            |--------------------------------------------------------------------------
+            */
+
+            if (!$despieceTerminado) {
+
+                return false;
+            }
+
+            /*
+            |--------------------------------------------------------------------------
+            | TERMINADO NO PUEDE SER N/A
+            |--------------------------------------------------------------------------
+            */
+
+            if (!$despieceTerminado->aplica) {
+
+                return false;
+            }
+
+            /*
+            |--------------------------------------------------------------------------
+            | TERMINADO DEBE ESTAR AL 100%
+            |--------------------------------------------------------------------------
+            */
+
+            $porcentaje =
+                (float)
+                $despieceTerminado->porcentaje;
+
+            if (
+                $porcentaje < 1
             ) {
 
-                $despiece =
-                    $despieces->get(
-                        $proceso->id
-                    );
-
-
-                /*
-                 * Falta el proceso.
-                 */
-                if (!$despiece) {
-
-                    return false;
-                }
-
-
-                /*
-                 * N/A está resuelto.
-                 */
-                if (!$despiece->aplica) {
-
-                    continue;
-                }
-
-
-                /*
-                 * ========================================================
-                 * PROCESO NORMAL
-                 * ========================================================
-                 *
-                 * Debe tener 100%.
-                 */
-                $porcentaje =
-                    (float)
-                    $despiece->porcentaje;
-
-
-                if (
-                    $porcentaje < 1
-                ) {
-
-                    return false;
-                }
+                return false;
             }
         }
 
-
         /*
-         * ================================================================
-         * TODAS LAS PARTIDAS Y PROCESOS ESTÁN COMPLETOS
-         * ================================================================
-         */
+        |--------------------------------------------------------------------------
+        | TODAS LAS PARTIDAS TERMINADAS
+        |--------------------------------------------------------------------------
+        */
+
         return true;
     }
 }

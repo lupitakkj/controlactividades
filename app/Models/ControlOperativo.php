@@ -15,7 +15,7 @@ class ControlOperativo extends Model
         'fecha_produccion',
         'estado_operativo',
         'comentario',
-        'responsable_id',
+        'responsable',
     ];
 
     protected $casts = [
@@ -30,19 +30,6 @@ class ControlOperativo extends Model
         return $this->belongsTo(
             Pedido::class,
             'pedido_id'
-        );
-    }
-
-    /**
-     * Responsable del pedido.
-     *
-     * Se relaciona con la tabla users.
-     */
-    public function responsable(): BelongsTo
-    {
-        return $this->belongsTo(
-            User::class,
-            'responsable_id'
         );
     }
 }

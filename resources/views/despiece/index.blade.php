@@ -1,28 +1,6 @@
 <x-app-layout>
 
     {{-- ============================================================
-         ENCABEZADO
-    ============================================================= --}}
-    <x-slot name="header">
-
-        <div class="flex items-center justify-between gap-4">
-
-            <div>
-                <h2 class="font-semibold text-xl text-gray-600 leading-tight">
-                    Despiece
-                </h2>
-
-                <p class="text-sm text-gray-300 mt-1">
-                    Control de avance por proceso
-                </p>
-            </div>
-
-        </div>
-
-    </x-slot>
-
-
-    {{-- ============================================================
          TABULATOR CSS
     ============================================================= --}}
     <link
@@ -68,31 +46,53 @@
                         ===================================================== --}}
                         <div class="flex items-center gap-3">
 
-                            <div class="px-3 py-2 rounded-lg bg-gray-50 border border-gray-200">
+                            <div class="flex items-center gap-3">
 
-                                <div class="text-[10px] uppercase tracking-wide text-gray-400">
-                                    Pedidos activos
+                                {{-- PEDIDOS ACTIVOS --}}
+                                <div class="px-3 py-2 rounded-lg bg-gray-50 border border-gray-200">
+
+                                    <div class="text-[10px] uppercase tracking-wide text-gray-400">
+                                        Pedidos activos
+                                    </div>
+
+                                    <div
+                                        id="contadorPedidos"
+                                        class="text-sm font-semibold text-gray-700">
+                                        0
+                                    </div>
+
                                 </div>
 
-                                <div
-                                    id="contadorPartidas"
-                                    class="text-sm font-semibold text-gray-700">
-                                    0
+
+                                {{-- TOTAL DE PARTIDAS --}}
+                                <div class="px-3 py-2 rounded-lg bg-gray-50 border border-gray-200">
+
+                                    <div class="text-[10px] uppercase tracking-wide text-gray-400">
+                                        Partidas
+                                    </div>
+
+                                    <div
+                                        id="contadorPartidas"
+                                        class="text-sm font-semibold text-gray-700">
+                                        0
+                                    </div>
+
                                 </div>
 
-                            </div>
 
+                                {{-- PROCESOS --}}
+                                <div class="px-3 py-2 rounded-lg bg-gray-50 border border-gray-200">
 
-                            <div class="px-3 py-2 rounded-lg bg-gray-50 border border-gray-200">
+                                    <div class="text-[10px] uppercase tracking-wide text-gray-400">
+                                        Procesos
+                                    </div>
 
-                                <div class="text-[10px] uppercase tracking-wide text-gray-400">
-                                    Procesos
-                                </div>
+                                    <div
+                                        id="contadorProcesos"
+                                        class="text-sm font-semibold text-gray-700">
+                                        0
+                                    </div>
 
-                                <div
-                                    id="contadorProcesos"
-                                    class="text-sm font-semibold text-gray-700">
-                                    0
                                 </div>
 
                             </div>
@@ -233,49 +233,48 @@
 
     foreach ($pedido->partidas as $partida) {
 
+    /*
+    |--------------------------------------------------------------------------
+    | INDEXAR PROCESOS DE LA PARTIDA
+    |--------------------------------------------------------------------------
+    | En lugar de buscar firstWhere() repetidamente,
+    | convertimos la colección en un índice por proceso_id.
+    */
+
+    $despieces = $partida->despieceProcesos
+    ->keyBy('proceso_id');
+
     $fila = [
-
     'pedido_id' => $pedido->id,
-
     'pedido_no' => $pedido->pedido_no,
-
     'partida_id' => $partida->id,
-
     'clave' => $partida->clave,
-
     'descripcion' => $partida->descripcion,
-
     'cantidad' => $partida->cantidad,
-
     ];
-
 
     foreach ($procesos as $proceso) {
 
-    $despiece = $partida
-    ->despieceProcesos
-    ->firstWhere('proceso_id', $proceso->id);
+    $despiece = $despieces->get($proceso->id);
 
     $fila['proceso_' . $proceso->id] =
     $despiece?->cantidad_realizada;
 
     $fila['proceso_aplica_' . $proceso->id] =
     $despiece?->aplica;
-
     }
-
 
     $filasDespiece[] = $fila;
-
     }
-
     }
 
     $procesosData = $procesos->map(function ($proceso) {
+
     return [
     'id' => $proceso->id,
     'nombre' => $proceso->nombre,
     ];
+
     })->values();
 
     @endphp
@@ -291,6 +290,9 @@
             const datosDespiece = @json($filasDespiece);
 
             const procesos = @json($procesosData);
+
+            console.log('DATOS DESPIECE:', datosDespiece);
+            console.log('PROCESOS:', procesos);
 
             /* ========================================================
         GUARDAR PROCESO EN LARAVEL
@@ -412,6 +414,7 @@
                         valor === ''
                     ) {
                         hayProcesoPendiente = true;
+                        cantidadProcesosAplicables++;
                         return;
                     }
 
@@ -532,7 +535,7 @@
             }
 
             /* ========================================================
-               CONTADORES
+            CONTADORES
             ======================================================== */
 
             const pedidosUnicos = new Set(
@@ -541,8 +544,26 @@
                 })
             );
 
-            document.getElementById('contadorPartidas').textContent =
+
+            /* ========================================================
+               PEDIDOS ACTIVOS
+            ======================================================== */
+
+            document.getElementById('contadorPedidos').textContent =
                 pedidosUnicos.size;
+
+
+            /* ========================================================
+               TOTAL DE PARTIDAS
+            ======================================================== */
+
+            document.getElementById('contadorPartidas').textContent =
+                datosDespiece.length;
+
+
+            /* ========================================================
+               TOTAL DE PROCESOS
+            ======================================================== */
 
             document.getElementById('contadorProcesos').textContent =
                 procesos.length;

@@ -14,12 +14,11 @@ class PedidosTerminadosController extends Controller
      *
      * Muestra los pedidos cuyo avance calculado es 100%.
      *
-     * IMPORTANTE:
+     * También muestra:
      *
-     * - No elimina información.
-     * - No modifica partidas.
-     * - No modifica procesos.
-     * - No depende todavía de Control Operativo.
+     * - Fecha de solicitud
+     * - Fecha de terminado
+     * - Días transcurridos entre ambas fechas
      *
      */
     public function index(Request $request)
@@ -49,7 +48,7 @@ class PedidosTerminadosController extends Controller
          * ================================================================
          *
          * Un pedido terminado es aquel cuyo avance calculado
-         * es exactamente 100%.
+         * es 100% o mayor.
          */
         $pedidosTerminados =
             $pedidos->filter(function ($pedido) {
@@ -58,6 +57,36 @@ class PedidosTerminadosController extends Controller
                     && $pedido->avance >= 1;
             })
             ->values();
+
+
+        /*
+         * ================================================================
+         * CALCULAR DÍAS DE DIFERENCIA
+         * ================================================================
+         *
+         * Fecha de terminado - Fecha de solicitud.
+         *
+         * Si alguna de las dos fechas no existe,
+         * dejamos el valor en NULL.
+         */
+        $pedidosTerminados->each(function ($pedido) {
+
+            if (
+                $pedido->fecha_solicitud
+                && $pedido->fecha_terminado
+            ) {
+
+                $pedido->dias_diferencia =
+                    $pedido->fecha_solicitud
+                        ->diffInDays(
+                            $pedido->fecha_terminado
+                        );
+
+            } else {
+
+                $pedido->dias_diferencia = null;
+            }
+        });
 
 
         /*

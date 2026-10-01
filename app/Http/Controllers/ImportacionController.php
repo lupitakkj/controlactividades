@@ -434,6 +434,27 @@ class ImportacionController extends Controller
                                 $importacion->id,
 
                             ]);
+
+
+                        /*
+                    |--------------------------------------------------------------------------
+                    | CREAR CONTROL OPERATIVO
+                    |--------------------------------------------------------------------------
+                    |
+                    | Todo pedido nuevo importado comienza automáticamente
+                    | con el estado operativo "Por Iniciar".
+                    |
+                    | Este bloque solo se ejecuta para pedidos NUEVOS.
+                    | Si el pedido ya existe, conserva su estado actual.
+                    |
+                    */
+
+                        $pedido->controlOperativo()->create([
+
+                            'estado_operativo' =>
+                            'Por Iniciar',
+
+                        ]);
                     }
 
 

@@ -2,10 +2,12 @@
 
 namespace App\Models;
 
+use App\Models\ActividadControlOperativo;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Support\Collection;
 
 class Pedido extends Model
 {
@@ -17,6 +19,7 @@ class Pedido extends Model
         'su_pedido',
         'enviar_a',
         'importe_total',
+        'pedido_interno',
         'fecha_solicitud',
         'fecha_entrega',
         'fecha_terminado',
@@ -26,10 +29,30 @@ class Pedido extends Model
 
     protected $casts = [
         'importe_total' => 'decimal:4',
+        'pedido_interno' => 'boolean',
         'fecha_solicitud' => 'date',
         'fecha_entrega' => 'date',
         'fecha_terminado' => 'date',
     ];
+
+    /**
+     * Cache de procesos activos durante la petición actual.
+     */
+    protected static ?Collection $procesosActivosCache = null;
+
+    /**
+     * Cache del avance calculado para este pedido.
+     */
+    protected ?float $avanceCalculado = null;
+
+    protected bool $avanceYaCalculado = false;
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | RELACIONES
+    |--------------------------------------------------------------------------
+    */
 
     public function importacion(): BelongsTo
     {
@@ -39,6 +62,7 @@ class Pedido extends Model
         );
     }
 
+
     public function partidas(): HasMany
     {
         return $this->hasMany(
@@ -46,6 +70,7 @@ class Pedido extends Model
             'pedido_id'
         );
     }
+
 
     public function controlOperativo(): HasOne
     {
@@ -55,35 +80,99 @@ class Pedido extends Model
         );
     }
 
-    /**
-     * =========================================================================
-     * AVANCE TOTAL DEL PEDIDO
-     * =========================================================================
-     *
-     * Reglas:
-     *
-     * - Cada proceso activo debe tener:
-     *      1. Cantidad capturada
-     *      2. O N/A
-     *
-     * - Si un proceso está vacío, se considera 0% para el cálculo.
-     *
-     * - N/A no participa en el promedio.
-     *
-     * - Una partida solamente puede llegar a 100% cuando TODOS
-     *   sus procesos activos están resueltos.
-     *
-     * - El avance del pedido es el promedio de las partidas.
-     *
-     */
+
+    public function actividadesControlOperativo(): HasMany
+    {
+        return $this->hasMany(
+            ActividadControlOperativo::class,
+            'pedido_id'
+        );
+    }
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | PROCESOS ACTIVOS
+    |--------------------------------------------------------------------------
+    |
+    | Se consultan una sola vez durante la petición.
+    |
+    */
+
+    protected static function obtenerProcesosActivos(): Collection
+    {
+        if (static::$procesosActivosCache === null) {
+
+            static::$procesosActivosCache =
+                Proceso::where('activo', true)
+                    ->orderBy('orden')
+                    ->get();
+        }
+
+        return static::$procesosActivosCache;
+    }
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | AVANCE TOTAL DEL PEDIDO
+    |--------------------------------------------------------------------------
+    |
+    | El avance se calcula de la siguiente manera:
+    |
+    | 1. Cada partida obtiene su avance mediante sus procesos.
+    |
+    | 2. Los procesos con aplica = false (N/A)
+    |    no participan en el promedio.
+    |
+    | 3. Un proceso con 0% sí participa.
+    |
+    | 4. Si falta un proceso o no tiene cantidad realizada,
+    |    la partida no puede llegar a 100%.
+    |
+    | 5. El avance del pedido es un PROMEDIO PONDERADO
+    |    por la cantidad de piezas de cada partida.
+    |
+    | Fórmula:
+    |
+    |   Avance pedido =
+    |
+    |   SUMA(avance partida × cantidad partida)
+    |   --------------------------------------
+    |            SUMA(cantidad partida)
+    |
+    */
 
     public function getAvanceAttribute(): ?float
     {
+        /*
+        |--------------------------------------------------------------------------
+        | EVITAR RECALCULAR EL MISMO PEDIDO
+        |--------------------------------------------------------------------------
+        */
+
+        if ($this->avanceYaCalculado) {
+            return $this->avanceCalculado;
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | PARTIDAS
+        |--------------------------------------------------------------------------
+        */
+
         $partidas = $this->partidas;
 
+
         if ($partidas->isEmpty()) {
+
+            $this->avanceCalculado = null;
+            $this->avanceYaCalculado = true;
+
             return null;
         }
+
 
         /*
         |--------------------------------------------------------------------------
@@ -91,73 +180,125 @@ class Pedido extends Model
         |--------------------------------------------------------------------------
         */
 
-        $procesosActivos = Proceso::where('activo', true)
-            ->orderBy('orden')
-            ->get();
+        $procesosActivos =
+            static::obtenerProcesosActivos();
+
 
         if ($procesosActivos->isEmpty()) {
+
+            $this->avanceCalculado = 0;
+            $this->avanceYaCalculado = true;
+
             return 0;
         }
 
+
         /*
         |--------------------------------------------------------------------------
-        | ACUMULAR AVANCE DE PARTIDAS
+        | ACUMULADORES DEL PROMEDIO PONDERADO
         |--------------------------------------------------------------------------
+        |
+        | sumaAvancePonderado:
+        |
+        |   avance de partida × cantidad
+        |
+        | sumaCantidad:
+        |
+        |   cantidad total de piezas
+        |
         */
 
-        $sumaAvances = 0;
-        $cantidadPartidas = 0;
+        $sumaAvancePonderado = 0;
+
+        $sumaCantidad = 0;
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | RECORRER PARTIDAS
+        |--------------------------------------------------------------------------
+        */
 
         foreach ($partidas as $partida) {
 
             /*
             |--------------------------------------------------------------------------
-            | OBTENER PROCESOS CAPTURADOS DE LA PARTIDA
+            | CANTIDAD DE LA PARTIDA
             |--------------------------------------------------------------------------
             */
 
-            $despieces = $partida->despieceProcesos
-                ->keyBy('proceso_id');
+            $cantidadPartida =
+                (float) $partida->cantidad;
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | SI LA CANTIDAD ES 0 O MENOR
+            |--------------------------------------------------------------------------
+            |
+            | No podemos utilizar una cantidad negativa o cero
+            | como peso.
+            |
+            */
+
+            if ($cantidadPartida <= 0) {
+                continue;
+            }
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | PROCESOS DE LA PARTIDA
+            |--------------------------------------------------------------------------
+            */
+
+            $despieces =
+                $partida->despieceProcesos
+                    ->keyBy('proceso_id');
+
 
             $sumaPorcentajes = 0;
+
             $cantidadProcesosAplicables = 0;
+
+            $todosLosProcesosResueltos = true;
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | RECORRER PROCESOS ACTIVOS
+            |--------------------------------------------------------------------------
+            */
 
             foreach ($procesosActivos as $proceso) {
 
-                /*
-                |--------------------------------------------------------------------------
-                | BUSCAR CAPTURA DEL PROCESO
-                |--------------------------------------------------------------------------
-                */
+                $despiece =
+                    $despieces->get($proceso->id);
 
-                $despiece = $despieces->get($proceso->id);
 
                 /*
                 |--------------------------------------------------------------------------
-                | PROCESO VACÍO
+                | PROCESO FALTANTE
                 |--------------------------------------------------------------------------
-                |
-                | No existe registro:
-                |
-                |      → todavía no está capturado
-                |      → cuenta como 0%
-                |
-                | Esto evita que una sola captura al 100%
-                | haga que toda la partida quede terminada.
-                |
                 */
 
                 if (!$despiece) {
+
+                    $todosLosProcesosResueltos = false;
+
                     continue;
                 }
+
 
                 /*
                 |--------------------------------------------------------------------------
                 | N/A
                 |--------------------------------------------------------------------------
                 |
-                | N/A significa que el proceso está resuelto,
-                | pero no participa en el promedio.
+                | Si aplica = false significa que el proceso
+                | no corresponde a esta partida.
+                |
+                | Por lo tanto no participa en el promedio.
                 |
                 */
 
@@ -165,29 +306,62 @@ class Pedido extends Model
                     continue;
                 }
 
+
                 /*
                 |--------------------------------------------------------------------------
-                | CANTIDAD CAPTURADA
+                | PROCESO APLICABLE
                 |--------------------------------------------------------------------------
                 */
 
-                $porcentaje = (float) $despiece->porcentaje;
+                if ($despiece->cantidad_realizada === null) {
 
-                $porcentaje = max(
-                    0,
-                    min(
-                        1,
-                        $porcentaje
-                    )
-                );
+                    $todosLosProcesosResueltos = false;
+                }
 
-                $sumaPorcentajes += $porcentaje;
+
+                /*
+                |--------------------------------------------------------------------------
+                | PORCENTAJE DEL PROCESO
+                |--------------------------------------------------------------------------
+                */
+
+                $porcentaje =
+                    (float) $despiece->porcentaje;
+
+
+                /*
+                |--------------------------------------------------------------------------
+                | LIMITAR PORCENTAJE ENTRE 0 Y 1
+                |--------------------------------------------------------------------------
+                */
+
+                $porcentaje =
+                    max(
+                        0,
+                        min(
+                            1,
+                            $porcentaje
+                        )
+                    );
+
+
+                /*
+                |--------------------------------------------------------------------------
+                | ACUMULAR PORCENTAJE
+                |--------------------------------------------------------------------------
+                */
+
+                $sumaPorcentajes +=
+                    $porcentaje;
+
+
                 $cantidadProcesosAplicables++;
             }
 
+
             /*
             |--------------------------------------------------------------------------
-            | CALCULAR AVANCE DE LA PARTIDA
+            | AVANCE DE LA PARTIDA
             |--------------------------------------------------------------------------
             */
 
@@ -202,97 +376,96 @@ class Pedido extends Model
                 $avancePartida = 0;
             }
 
-            /*
-            |--------------------------------------------------------------------------
-            | VERIFICAR SI FALTA ALGÚN PROCESO
-            |--------------------------------------------------------------------------
-            |
-            | Si falta aunque sea un proceso, la partida NO puede
-            | considerarse 100%.
-            |
-            */
-
-            $todosLosProcesosResueltos = true;
-
-            foreach ($procesosActivos as $proceso) {
-
-                $despiece = $despieces->get($proceso->id);
-
-                /*
-                |--------------------------------------------------------------------------
-                | No existe captura = VACÍO
-                |--------------------------------------------------------------------------
-                */
-
-                if (!$despiece) {
-                    $todosLosProcesosResueltos = false;
-                    break;
-                }
-
-                /*
-                |--------------------------------------------------------------------------
-                | Si aplica=true debe existir cantidad.
-                |--------------------------------------------------------------------------
-                */
-
-                if ($despiece->aplica) {
-
-                    if (
-                        $despiece->cantidad_realizada === null
-                    ) {
-                        $todosLosProcesosResueltos = false;
-                        break;
-                    }
-                }
-            }
 
             /*
             |--------------------------------------------------------------------------
-            | SI FALTA UN PROCESO
+            | NO PERMITIR 100% SI FALTA UN PROCESO
             |--------------------------------------------------------------------------
-            |
-            | No permitimos que la partida aparezca como 100%.
-            |
             */
 
             if (
                 !$todosLosProcesosResueltos &&
                 $avancePartida >= 1
             ) {
+
                 $avancePartida = 0.9999;
             }
 
+
             /*
             |--------------------------------------------------------------------------
-            | LIMITAR AVANCE
+            | LIMITAR AVANCE DE PARTIDA
             |--------------------------------------------------------------------------
             */
 
-            $avancePartida = max(
-                0,
-                min(
-                    1,
-                    $avancePartida
-                )
-            );
+            $avancePartida =
+                max(
+                    0,
+                    min(
+                        1,
+                        $avancePartida
+                    )
+                );
 
-            $sumaAvances += $avancePartida;
-            $cantidadPartidas++;
+
+            /*
+            |--------------------------------------------------------------------------
+            | PROMEDIO PONDERADO
+            |--------------------------------------------------------------------------
+            |
+            | Aquí está el cambio principal.
+            |
+            | En lugar de:
+            |
+            |   sumar avances / número de partidas
+            |
+            | hacemos:
+            |
+            |   avance × cantidad
+            |
+            */
+
+            $sumaAvancePonderado +=
+                $avancePartida *
+                $cantidadPartida;
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | ACUMULAR CANTIDAD TOTAL
+            |--------------------------------------------------------------------------
+            */
+
+            $sumaCantidad +=
+                $cantidadPartida;
         }
+
 
         /*
         |--------------------------------------------------------------------------
-        | CALCULAR AVANCE DEL PEDIDO
+        | SIN CANTIDAD VÁLIDA
         |--------------------------------------------------------------------------
         */
 
-        if ($cantidadPartidas === 0) {
+        if ($sumaCantidad <= 0) {
+
+            $this->avanceCalculado = null;
+            $this->avanceYaCalculado = true;
+
             return null;
         }
 
+
+        /*
+        |--------------------------------------------------------------------------
+        | AVANCE PONDERADO DEL PEDIDO
+        |--------------------------------------------------------------------------
+        */
+
         $avancePedido =
-            $sumaAvances /
-            $cantidadPartidas;
+            $sumaAvancePonderado /
+            $sumaCantidad;
+
 
         /*
         |--------------------------------------------------------------------------
@@ -300,12 +473,29 @@ class Pedido extends Model
         |--------------------------------------------------------------------------
         */
 
-        return max(
-            0,
-            min(
-                1,
-                $avancePedido
-            )
-        );
+        $avancePedido =
+            max(
+                0,
+                min(
+                    1,
+                    $avancePedido
+                )
+            );
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | GUARDAR EN CACHE DEL MODELO
+        |--------------------------------------------------------------------------
+        */
+
+        $this->avanceCalculado =
+            $avancePedido;
+
+        $this->avanceYaCalculado =
+            true;
+
+
+        return $avancePedido;
     }
 }

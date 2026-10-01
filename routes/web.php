@@ -5,11 +5,14 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ActividadController;
 use App\Http\Controllers\AgendaController;
+use App\Http\Controllers\CatalogoMaterialController;
 use App\Http\Controllers\ReporteController;
 use App\Http\Controllers\UsuarioController;
 use App\Http\Controllers\ExistenciasController;
 use App\Http\Controllers\ImportacionController;
 use App\Http\Controllers\ControlOperativoController;
+use App\Http\Controllers\DashboardDireccionController;
+use App\Http\Controllers\DashboardEjecutivoController;
 use App\Http\Controllers\DespieceController;
 use App\Http\Controllers\PedidosTerminadosController;
 use App\Models\Partida;
@@ -25,7 +28,8 @@ Route::middleware('auth')->group(function () {
         if (
             !auth()->user()->hasAnyRole([
                 'Diseñador',
-                'Supervisor'
+                'Supervisor',
+                'Administrador'
             ])
         ) {
             return redirect()->route('dashboard.produccion');
@@ -145,6 +149,81 @@ Route::middleware('auth')->group(function () {
         PedidosTerminadosController::class,
         'index'
     ])->name('pedidos.terminados');
+
+
+    Route::patch('/control-operativo/{pedido}/fecha-produccion', [
+        ControlOperativoController::class,
+        'actualizarFechaProduccion'
+    ])->name('control-operativo.fecha-produccion');
+
+
+    Route::patch('/control-operativo/{pedido}/pedido-interno', [
+        ControlOperativoController::class,
+        'actualizarPedidoInterno'
+    ])->name('control-operativo.pedido-interno');
+
+    Route::patch('/control-operativo/{pedido}/comentario', [
+        ControlOperativoController::class,
+        'actualizarComentario'
+    ])->name('control-operativo.comentario');
+
+    // Actividades del Control Operativo
+    Route::post(
+        '/control-operativo/{pedido}/actividad',
+        [ControlOperativoController::class, 'crearActividad']
+    )->name('control-operativo.actividad.crear');
+
+    Route::patch(
+        '/control-operativo/actividad/{actividad}',
+        [ControlOperativoController::class, 'actualizarActividad']
+    )->name('control-operativo.actividad.actualizar');
+
+    Route::patch(
+        '/control-operativo/actividad/{actividad}/eliminar',
+        [ControlOperativoController::class, 'eliminarActividad']
+    )->name('control-operativo.actividad.eliminar');
+
+
+    Route::patch('/control-operativo/{pedido}/responsable', [
+        ControlOperativoController::class,
+        'actualizarResponsable'
+    ])->name('control-operativo.responsable');
+
+    Route::patch('/control-operativo/{pedido}/prioridad', [
+        ControlOperativoController::class,
+        'actualizarPrioridad'
+    ])->name('control-operativo.prioridad');
+
+    Route::patch('/control-operativo/{pedido}/estado', [
+        ControlOperativoController::class,
+        'actualizarEstado'
+    ])->name('control-operativo.estado');
+
+    Route::get('/dashboard-produccion', [
+        DashboardEjecutivoController::class,
+        'index'
+    ])->name('dashboard.produccion');
+
+    Route::get(
+        '/catalogo-materiales',
+        [CatalogoMaterialController::class, 'index']
+    )->name('catalogo-materiales.index');
+
+    Route::post(
+        '/catalogo-materiales',
+        [CatalogoMaterialController::class, 'guardar']
+    )->name('catalogo-materiales.guardar');
+
+    Route::patch(
+        '/catalogo-materiales/{catalogoMaterial}',
+        [CatalogoMaterialController::class, 'actualizar']
+    )->name('catalogo-materiales.actualizar');
+
+
+    Route::get('/dashboard-direccion', [
+        DashboardDireccionController::class,
+        'index'
+    ])->name('dashboard.direccion');
 });
 
 require __DIR__ . '/auth.php';

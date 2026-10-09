@@ -33,58 +33,74 @@
 
 <body class="font-sans antialiased bg-slate-900">
     <div
-        x-data="{ sidebarOpen: window.innerWidth > 768 }"
-        x-init="window.addEventListener('resize', () => {
-            if (window.innerWidth <= 768) sidebarOpen = false;
-            else sidebarOpen = true;
-        })"
+        x-data="{
+            sidebarOpen: window.innerWidth <= 768
+                ? false
+                : (localStorage.getItem('sidebarOpen') !== 'false')
+        }"
+        x-init="
+            $watch('sidebarOpen', value => {
+                if (window.innerWidth > 768) {
+                    localStorage.setItem('sidebarOpen', value);
+                }
+            });
+
+            window.addEventListener('resize', () => {
+                if (window.innerWidth <= 768) {
+                    sidebarOpen = false;
+                }
+            });
+        "
         x-cloak>
 
-    <div class="min-h-screen bg-slate-900">
+        <div class="min-h-screen bg-slate-900">
 
-        {{-- =========================================================
+            {{-- =========================================================
              MENÚ LATERAL
         ========================================================== --}}
-        @include('layouts.navigation')
+            @include('layouts.navigation')
 
 
-        {{-- =========================================================
+            {{-- =========================================================
              CONTENIDO PRINCIPAL
         ========================================================== --}}
-        <div
-            class="min-h-screen min-w-0 transition-[margin] duration-300 ease-in-out"
-            x-bind:class="sidebarOpen ? 'ml-64' : 'ml-16'"
-            :class="{ 'mobile-content-full': window.innerWidth <= 768 }">
+            <div
+                class="min-h-screen min-w-0 transition-[margin] duration-300 ease-in-out"
+                :class="{
+                    'ml-64': sidebarOpen && window.innerWidth > 768,
+                    'ml-16': !sidebarOpen && window.innerWidth > 768,
+                    'mobile-content-full': window.innerWidth <= 768
+                }">
 
 
-            {{-- =====================================================
+                {{-- =====================================================
                  HEADER DE LA PÁGINA
             ====================================================== --}}
-            @isset($header)
+                @isset($header)
 
-            <header class="bg-slate-900">
-                <div class="w-full px-6 lg:px-8 py-5">
+                <header class="bg-slate-900">
+                    <div class="w-full px-6 lg:px-8 py-5">
 
-                    {{ $header }}
+                        {{ $header }}
 
-                </div>
-            </header>
+                    </div>
+                </header>
 
-            @endisset
+                @endisset
 
 
-            {{-- =====================================================
+                {{-- =====================================================
                  CONTENIDO
             ====================================================== --}}
-            <main class="bg-slate-900 min-h-screen">
+                <main class="bg-slate-900 min-h-screen">
 
-                {{ $slot }}
+                    {{ $slot }}
 
-            </main>
+                </main>
+
+            </div>
 
         </div>
-
-    </div>
 
     </div>
 

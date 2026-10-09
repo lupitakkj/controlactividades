@@ -15,7 +15,10 @@ use App\Http\Controllers\DashboardDireccionController;
 use App\Http\Controllers\DashboardEjecutivoController;
 use App\Http\Controllers\DespieceController;
 use App\Http\Controllers\PedidosTerminadosController;
+use App\Http\Controllers\ProduccionProductoController;
+use App\Http\Controllers\TicketCalidadController;
 use App\Models\Partida;
+use Illuminate\Support\Facades\DB;
 
 Route::redirect('/', '/login');
 
@@ -55,6 +58,22 @@ Route::middleware('auth')->group(function () {
         ->name('actividad.archivo');
     Route::put('/actividad/{actividad}', [ActividadController::class, 'update'])
         ->name('actividad.update');
+
+    Route::post(
+        '/actividad/{actividad}/subtareas',
+        [ActividadController::class, 'crearSubtarea']
+    )->name('actividad.subtareas.crear');
+
+    Route::put(
+        '/actividad/{actividad}/subtareas/{subtarea}',
+        [ActividadController::class, 'actualizarSubtarea']
+    )->name('actividad.subtareas.actualizar');
+
+    Route::delete(
+        '/actividad/{actividad}/subtareas/{subtarea}',
+        [ActividadController::class, 'eliminarSubtarea']
+    )->name('actividad.subtareas.eliminar');
+
     Route::get('/reportes', [ReporteController::class, 'index'])
         ->name('reportes');
     Route::get('/usuarios', [UsuarioController::class, 'index'])
@@ -224,11 +243,74 @@ Route::middleware('auth')->group(function () {
         DashboardDireccionController::class,
         'index'
     ])->name('dashboard.direccion');
+
+    Route::get('/produccion-producto', [
+        ProduccionProductoController::class,
+        'index'
+    ])->name('produccion.producto');
+
+    Route::get('/tickets-calidad', [
+        TicketCalidadController::class,
+        'index'
+    ])
+        ->middleware('can:ver tickets calidad')
+        ->name('tickets-calidad.index');
+
+    Route::get('/tickets-calidad/crear', [
+        TicketCalidadController::class,
+        'create'
+    ])
+        ->middleware('can:crear tickets calidad')
+        ->name('tickets-calidad.create');
+
+    Route::post('/tickets-calidad', [
+        TicketCalidadController::class,
+        'store'
+    ])
+        ->middleware('can:crear tickets calidad')
+        ->name('tickets-calidad.store');
+
+    Route::get('/tickets-calidad/{id}', [
+        TicketCalidadController::class,
+        'show'
+    ])
+        ->middleware('can:ver tickets calidad')
+        ->name('tickets-calidad.show');
+
+    Route::patch('/tickets-calidad/{id}/estado', [
+        TicketCalidadController::class,
+        'actualizarEstado'
+    ])
+        ->middleware('can:atender tickets calidad')
+        ->name('tickets-calidad.estado');
+
+    Route::get('/tickets-calidad/archivo/{id}/descargar', [
+        TicketCalidadController::class,
+        'descargarArchivo'
+    ])
+        ->middleware('can:ver tickets calidad')
+        ->name('tickets-calidad.archivo.descargar');
 });
 
 require __DIR__ . '/auth.php';
 
+Route::get('/prueba-ticketsapp', function () {
+    try {
+        $resultado = DB::connection('ticketsapp')
+            ->select('SELECT 1 AS conectado');
 
+        return response()->json([
+            'ok' => true,
+            'mensaje' => 'Conexión a ticketsapp correcta',
+            'resultado' => $resultado,
+        ]);
+    } catch (\Throwable $e) {
+        return response()->json([
+            'ok' => false,
+            'mensaje' => $e->getMessage(),
+        ], 500);
+    }
+});
 Route::get('/existencias/{clave}', [ExistenciasController::class, 'consulta'])
     ->name('existencias.consulta');
 
@@ -242,3 +324,151 @@ Route::get('/existencias/estado/{uuid}', [ExistenciasController::class, 'estado'
 Route::get('/cutlist', function () {
     return view('cutlist.index');
 })->name('cutlist.index');
+
+Route::get('/prueba-tablas-ticketsapp', function () {
+
+    try {
+
+        $tablas = DB::connection('ticketsapp')
+            ->select('SHOW TABLES');
+
+        return response()->json([
+            'ok' => true,
+            'tablas' => $tablas,
+        ]);
+    } catch (\Throwable $e) {
+
+        return response()->json([
+            'ok' => false,
+            'mensaje' => $e->getMessage(),
+        ], 500);
+    }
+});
+
+Route::get('/prueba-estructura-ticketsapp', function () {
+
+    try {
+
+        $columnas = DB::connection('ticketsapp')
+            ->select('SHOW COLUMNS FROM tickets');
+
+        return response()->json([
+            'ok' => true,
+            'columnas' => $columnas,
+        ]);
+    } catch (\Throwable $e) {
+
+        return response()->json([
+            'ok' => false,
+            'mensaje' => $e->getMessage(),
+        ], 500);
+    }
+});
+
+Route::get('/prueba-estructura-mensajes-ticket', function () {
+
+    try {
+
+        $columnas = DB::connection('ticketsapp')
+            ->select('SHOW COLUMNS FROM mensajes_ticket');
+
+        return response()->json([
+            'ok' => true,
+            'columnas' => $columnas,
+        ]);
+    } catch (\Throwable $e) {
+
+        return response()->json([
+            'ok' => false,
+            'mensaje' => $e->getMessage(),
+        ], 500);
+    }
+});
+
+Route::get('/prueba-tickets-existentes', function () {
+
+    try {
+
+        $tickets = DB::connection('ticketsapp')
+            ->table('tickets')
+            ->select([
+                'id',
+                'ticket_codigo',
+                'nombre',
+                'correo',
+                'area',
+                'tipo_calidad',
+                'prioridad',
+                'estado',
+                'problema',
+                'numero_orden',
+                'fecha',
+            ])
+            ->orderByDesc('id')
+            ->limit(20)
+            ->get();
+
+        return response()->json([
+            'ok' => true,
+            'tickets' => $tickets,
+        ]);
+    } catch (\Throwable $e) {
+
+        return response()->json([
+            'ok' => false,
+            'mensaje' => $e->getMessage(),
+        ], 500);
+    }
+});
+
+Route::get('/prueba-estructura-ticket-archivos', function () {
+
+    try {
+
+        $columnas = DB::connection('ticketsapp')
+            ->select('SHOW COLUMNS FROM ticket_archivos');
+
+        return response()->json([
+            'ok' => true,
+            'columnas' => $columnas,
+        ]);
+    } catch (\Throwable $e) {
+
+        return response()->json([
+            'ok' => false,
+            'mensaje' => $e->getMessage(),
+        ], 500);
+    }
+});
+
+Route::get('/prueba-archivos-ticket/{ticketId}', function ($ticketId) {
+
+    try {
+
+        $archivos = DB::connection('ticketsapp')
+            ->table('ticket_archivos')
+            ->where('ticket_id', $ticketId)
+            ->select([
+                'id',
+                'ticket_id',
+                'nombre_archivo',
+                'ruta',
+                'tipo',
+                'tamaño',
+                'fecha_subida',
+            ])
+            ->orderBy('id')
+            ->get();
+
+        return response()->json([
+            'ok' => true,
+            'archivos' => $archivos,
+        ]);
+    } catch (\Throwable $e) {
+
+        return response()->json([
+            'ok' => false,
+            'mensaje' => $e->getMessage(),
+        ], 500);
+    }
+});

@@ -762,18 +762,6 @@ class DespieceController extends Controller
         $cantidadPartida =
             (float) $partida->cantidad;
 
-        if ($cantidadPartida <= 0) {
-
-            return response()->json([
-
-                'ok' => false,
-
-                'mensaje' =>
-                'La partida tiene una cantidad inválida.',
-
-            ], 422);
-        }
-
         /*
         |--------------------------------------------------------------------------
         | PROCESO N/A
@@ -840,7 +828,6 @@ class DespieceController extends Controller
                     );
 
                 if ($pedidoTerminado) {
-
                     /*
             |--------------------------------------------------------------------------
             | FECHA DE TERMINADO
@@ -871,12 +858,13 @@ class DespieceController extends Controller
                             'Terminado',
                         ]
                     );
+
                 }
             }
 
             /*
-    |--------------------------------------------------------------------------
-    | RESPUESTA
+            |--------------------------------------------------------------------------
+            | RESPUESTA
     |--------------------------------------------------------------------------
     */
 
@@ -933,45 +921,75 @@ class DespieceController extends Controller
 
         /*
         |--------------------------------------------------------------------------
-        | NO SUPERAR CANTIDAD
+        | CANTIDAD DE PARTIDA
         |--------------------------------------------------------------------------
+        |
+        | Al quitar N/A, el proceso vuelve a ser aplicable con 0 piezas.
+        | Esto no debe fallar aunque la partida tenga cantidad 0.
+        | Si se intenta capturar una cantidad mayor que 0, se rechaza.
+        |
         */
 
-        if (
-            $cantidadRealizada >
-            $cantidadPartida
-        ) {
+        if ($cantidadPartida <= 0) {
 
-            return response()->json([
+            if ($cantidadRealizada > 0) {
 
-                'ok' => false,
+                return response()->json([
 
-                'mensaje' =>
-                'La cantidad realizada no puede ser mayor que '
-                    . $cantidadPartida
-                    . ' piezas.',
+                    'ok' => false,
 
-            ], 422);
+                    'mensaje' =>
+                    'La partida tiene una cantidad inválida.',
+
+                ], 422);
+            }
+
+            $porcentaje = 0;
+
+        } else {
+
+            /*
+            |--------------------------------------------------------------------------
+            | NO SUPERAR CANTIDAD
+            |--------------------------------------------------------------------------
+            */
+
+            if (
+                $cantidadRealizada >
+                $cantidadPartida
+            ) {
+
+                return response()->json([
+
+                    'ok' => false,
+
+                    'mensaje' =>
+                    'La cantidad realizada no puede ser mayor que '
+                        . $cantidadPartida
+                        . ' piezas.',
+
+                ], 422);
+            }
+
+            /*
+            |--------------------------------------------------------------------------
+            | PORCENTAJE
+            |--------------------------------------------------------------------------
+            */
+
+            $porcentaje =
+                $cantidadRealizada /
+                $cantidadPartida;
+
+            $porcentaje =
+                max(
+                    0,
+                    min(
+                        1,
+                        $porcentaje
+                    )
+                );
         }
-
-        /*
-        |--------------------------------------------------------------------------
-        | PORCENTAJE
-        |--------------------------------------------------------------------------
-        */
-
-        $porcentaje =
-            $cantidadRealizada /
-            $cantidadPartida;
-
-        $porcentaje =
-            max(
-                0,
-                min(
-                    1,
-                    $porcentaje
-                )
-            );
 
         /*
         |--------------------------------------------------------------------------
@@ -1029,15 +1047,14 @@ class DespieceController extends Controller
 
         $pedidoTerminado = false;
 
-        if ($pedido) {
+            if ($pedido) {
 
-            $pedidoTerminado =
-                $this->pedidoEstaTerminado(
-                    $pedido
-                );
+                $pedidoTerminado =
+                    $this->pedidoEstaTerminado(
+                        $pedido
+                    );
 
-            if ($pedidoTerminado) {
-
+                if ($pedidoTerminado) {
                 /*
                 |--------------------------------------------------------------------------
                 | FECHA DE TERMINADO
@@ -1068,12 +1085,25 @@ class DespieceController extends Controller
                         'Terminado',
                     ]
                 );
-            }
-        }
 
-        /*
-        |--------------------------------------------------------------------------
-        | RESPUESTA
+                } elseif ($despieceProceso->porcentaje > 0) {
+
+                    ControlOperativo::updateOrCreate(
+                        [
+                            'pedido_id' =>
+                            $pedido->id,
+                        ],
+                        [
+                            'estado_operativo' =>
+                            'En Proceso',
+                        ]
+                    );
+                }
+            }
+
+            /*
+            |--------------------------------------------------------------------------
+            | RESPUESTA
         |--------------------------------------------------------------------------
         */
 

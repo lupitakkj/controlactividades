@@ -759,23 +759,58 @@
             </h2>
 
             <p class="text-sm text-gray-500 mt-1">
-                Valor de pedidos programados por fecha de entrega
+                Valor de pedidos según fecha programada y fecha real de terminación
             </p>
 
-            {{-- ORDENAMIENTO --}}
-            <div class="flex justify-end items-center gap-2 mt-4">
-                <label for="ordenProyeccion" class="text-xs font-semibold text-gray-500">
-                    Ordenar:
-                </label>
-                <select
-                    id="ordenProyeccion"
-                    onchange="ordenarProyeccion(this.value)"
-                    class="text-xs border border-gray-300 rounded-lg px-3 py-2
-                           text-gray-700 bg-white focus:ring-2 focus:ring-blue-500
-                           focus:border-blue-500">
-                    <option value="importe_desc">Importe: mayor a menor</option>
-                    <option value="importe_asc">Importe: menor a mayor</option>
-                </select>
+
+
+            {{-- NAVEGACIÓN DE SEMANAS --}}
+            <div class="flex items-center justify-between mt-4 mb-4">
+
+                <a
+                    href="{{ $puedeRetrocederProyeccion
+                        ? request()->fullUrlWithQuery([
+                            'offset_proyeccion' => $offsetProyeccion - 1
+                        ])
+                        : '#' }}"
+                    class="inline-flex items-center gap-2 px-3 py-2 rounded-lg
+                           text-sm font-medium border transition
+                           {{ $puedeRetrocederProyeccion
+                                ? 'text-gray-700 bg-white border-gray-300 hover:bg-gray-50'
+                                : 'text-gray-300 bg-gray-50 border-gray-200 pointer-events-none' }}"
+                    aria-label="Semana anterior"
+                >
+                    <span class="text-lg leading-none">‹</span>
+                    Semana anterior
+                </a>
+
+
+                <div class="text-xs text-gray-500 font-medium">
+                    {{ $offsetProyeccion === 0
+                        ? 'Semana actual'
+                        : ($offsetProyeccion < 0
+                            ? 'Semanas anteriores'
+                            : 'Semanas siguientes') }}
+                </div>
+
+
+                <a
+                    href="{{ $puedeAvanzarProyeccion
+                        ? request()->fullUrlWithQuery([
+                            'offset_proyeccion' => $offsetProyeccion + 1
+                        ])
+                        : '#' }}"
+                    class="inline-flex items-center gap-2 px-3 py-2 rounded-lg
+                           text-sm font-medium border transition
+                           {{ $puedeAvanzarProyeccion
+                                ? 'text-gray-700 bg-white border-gray-300 hover:bg-gray-50'
+                                : 'text-gray-300 bg-gray-50 border-gray-200 pointer-events-none' }}"
+                    aria-label="Semana siguiente"
+                >
+                    Semana siguiente
+                    <span class="text-lg leading-none">›</span>
+                </a>
+
             </div>
 
 
@@ -2365,27 +2400,7 @@
 
 
     <script>
-        function ordenarProyeccion(orden) {
-            const contenedor = document.getElementById('proyeccionSemanasLista');
-            if (!contenedor) return;
 
-            const tarjetas = Array.from(
-                contenedor.querySelectorAll('.proyeccion-card')
-            );
-
-            tarjetas.sort(function(a, b) {
-                const importeA = Number(a.dataset.importe || 0);
-                const importeB = Number(b.dataset.importe || 0);
-
-                return orden === 'importe_asc'
-                    ? importeA - importeB
-                    : importeB - importeA;
-            });
-
-            tarjetas.forEach(function(tarjeta) {
-                contenedor.appendChild(tarjeta);
-            });
-        }
 
         function ordenarAtencion(orden) {
             const cuerpo = document.getElementById('tablaAtencionBody');

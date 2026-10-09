@@ -1128,12 +1128,18 @@
                 $porcentajePendiente =
                 ($otdPendientes / $totalDonut) * 100;
 
+                // PORCENTAJE GLOBAL
+                // A tiempo + Fuera de tiempo = pedidos entregados
+                $porcentajeGlobal =
+                (($otdATiempo + $otdFueraTiempo) / $totalDonut) * 100;
+
                 } else {
 
                 $porcentajeTiempo = 0;
                 $porcentajeFuera = 0;
                 $porcentajePendiente = 100;
 
+                $porcentajeGlobal = 0;
                 }
 
                 $inicioFuera = $porcentajeTiempo;
@@ -1326,7 +1332,7 @@
                             font-weight: 700;
                             color: #000000;
                         ">
-                                {{ number_format($otdPorcentaje * 100, 0) }}%
+                                {{ number_format($porcentajeGlobal, 0) }}%
                             </span>
 
                         </div>
@@ -3155,7 +3161,6 @@
                     // ----------------------------------------------------
                     // FECHAS
                     // ----------------------------------------------------
-
                     else if (
                         columna === 'fecha-produccion' ||
                         columna === 'fecha-entrega'
@@ -3189,7 +3194,6 @@
                     // ----------------------------------------------------
                     // TEXTO / ESTADO
                     // ----------------------------------------------------
-
                     else {
 
                         valorA = String(valorA)
@@ -3202,8 +3206,7 @@
 
                         resultado = valorA.localeCompare(
                             valorB,
-                            'es',
-                            {
+                            'es', {
                                 numeric: true,
                                 sensitivity: 'base'
                             }
@@ -3212,9 +3215,9 @@
                     }
 
 
-                    return direccion === 'asc'
-                        ? resultado
-                        : -resultado;
+                    return direccion === 'asc' ?
+                        resultado :
+                        -resultado;
 
                 });
 
@@ -3341,237 +3344,237 @@
     </script>
 
 
-<style>
-/* ============================================================
+    <style>
+        /* ============================================================
    REFINAMIENTO VISUAL — DASHBOARD DE PRODUCCIÓN
    Solo presentación. No modifica lógica, consultas ni JavaScript.
    ============================================================ */
 
-.dashboard-produccion-refinado {
-    --dp-bg: #0f172a;
-    --dp-panel: #1f2937;
-    --dp-panel-2: #111827;
-    --dp-border: rgba(148, 163, 184, .20);
-    --dp-text: #f8fafc;
-    --dp-muted: #94a3b8;
-}
+        .dashboard-produccion-refinado {
+            --dp-bg: #0f172a;
+            --dp-panel: #1f2937;
+            --dp-panel-2: #111827;
+            --dp-border: rgba(148, 163, 184, .20);
+            --dp-text: #f8fafc;
+            --dp-muted: #94a3b8;
+        }
 
-/* Área general */
-.dashboard-produccion-refinado > div {
-    transition: all .2s ease;
-}
+        /* Área general */
+        .dashboard-produccion-refinado>div {
+            transition: all .2s ease;
+        }
 
-/* Título principal */
-.dashboard-produccion-refinado > div > .max-w-\[1500px\] > div:first-child {
-    background: linear-gradient(135deg, #1e293b, #253247) !important;
-    border: 1px solid rgba(148,163,184,.16);
-    box-shadow: 0 10px 28px rgba(0,0,0,.18);
-    letter-spacing: .02em;
-    min-height: 48px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
+        /* Título principal */
+        .dashboard-produccion-refinado>div>.max-w-\[1500px\]>div:first-child {
+            background: linear-gradient(135deg, #1e293b, #253247) !important;
+            border: 1px solid rgba(148, 163, 184, .16);
+            box-shadow: 0 10px 28px rgba(0, 0, 0, .18);
+            letter-spacing: .02em;
+            min-height: 48px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
 
-/* Encabezados de sección */
-.dashboard-produccion-refinado .bg-\[\#1f2937\] {
-    border-color: rgba(148,163,184,.16);
-}
+        /* Encabezados de sección */
+        .dashboard-produccion-refinado .bg-\[\#1f2937\] {
+            border-color: rgba(148, 163, 184, .16);
+        }
 
-/* Resumen semanal */
-.dashboard-produccion-refinado .rounded-t-xl {
-    box-shadow: 0 8px 24px rgba(0,0,0,.14);
-}
+        /* Resumen semanal */
+        .dashboard-produccion-refinado .rounded-t-xl {
+            box-shadow: 0 8px 24px rgba(0, 0, 0, .14);
+        }
 
-.dashboard-produccion-refinado .rounded-t-xl + .grid {
-    box-shadow: 0 10px 28px rgba(0,0,0,.16);
-}
+        .dashboard-produccion-refinado .rounded-t-xl+.grid {
+            box-shadow: 0 10px 28px rgba(0, 0, 0, .16);
+        }
 
-/* Tarjetas KPI */
-.dashboard-produccion-refinado .hover\:scale-\[1\.02\] {
-    box-shadow:
-        0 4px 12px rgba(0,0,0,.12),
-        inset 0 1px 0 rgba(255,255,255,.04);
-    transform-origin: center;
-}
+        /* Tarjetas KPI */
+        .dashboard-produccion-refinado .hover\:scale-\[1\.02\] {
+            box-shadow:
+                0 4px 12px rgba(0, 0, 0, .12),
+                inset 0 1px 0 rgba(255, 255, 255, .04);
+            transform-origin: center;
+        }
 
-.dashboard-produccion-refinado .hover\:scale-\[1\.02\]:hover {
-    box-shadow:
-        0 10px 22px rgba(0,0,0,.20),
-        inset 0 1px 0 rgba(255,255,255,.06);
-}
+        .dashboard-produccion-refinado .hover\:scale-\[1\.02\]:hover {
+            box-shadow:
+                0 10px 22px rgba(0, 0, 0, .20),
+                inset 0 1px 0 rgba(255, 255, 255, .06);
+        }
 
-/* Encabezados naranja / azul / morado */
-.dashboard-produccion-refinado [class*="bg-[#ed7d31]"],
-.dashboard-produccion-refinado [class*="bg-[#00b0f0]"],
-.dashboard-produccion-refinado [class*="bg-purple-600"] {
-    letter-spacing: .025em;
-    box-shadow: inset 0 -1px 0 rgba(0,0,0,.12);
-}
+        /* Encabezados naranja / azul / morado */
+        .dashboard-produccion-refinado [class*="bg-[#ed7d31]"],
+        .dashboard-produccion-refinado [class*="bg-[#00b0f0]"],
+        .dashboard-produccion-refinado [class*="bg-purple-600"] {
+            letter-spacing: .025em;
+            box-shadow: inset 0 -1px 0 rgba(0, 0, 0, .12);
+        }
 
-/* Panel de pedidos internos */
-.dashboard-produccion-refinado .border-purple-400\/40 {
-    box-shadow: 0 8px 22px rgba(0,0,0,.14);
-}
+        /* Panel de pedidos internos */
+        .dashboard-produccion-refinado .border-purple-400\/40 {
+            box-shadow: 0 8px 22px rgba(0, 0, 0, .14);
+        }
 
-/* Controles de modo / semana */
-.dashboard-produccion-refinado form[action*="dashboard.produccion"] {
-    background: rgba(31,41,55,.72);
-    border: 1px solid rgba(148,163,184,.16);
-    border-radius: 14px;
-    padding: 10px 16px;
-    box-shadow: 0 8px 22px rgba(0,0,0,.12);
-}
+        /* Controles de modo / semana */
+        .dashboard-produccion-refinado form[action*="dashboard.produccion"] {
+            background: rgba(31, 41, 55, .72);
+            border: 1px solid rgba(148, 163, 184, .16);
+            border-radius: 14px;
+            padding: 10px 16px;
+            box-shadow: 0 8px 22px rgba(0, 0, 0, .12);
+        }
 
-.dashboard-produccion-refinado form[action*="dashboard.produccion"] select,
-.dashboard-produccion-refinado form[action*="dashboard.produccion"] button {
-    min-height: 40px;
-    transition: all .18s ease;
-}
+        .dashboard-produccion-refinado form[action*="dashboard.produccion"] select,
+        .dashboard-produccion-refinado form[action*="dashboard.produccion"] button {
+            min-height: 40px;
+            transition: all .18s ease;
+        }
 
-.dashboard-produccion-refinado form[action*="dashboard.produccion"] select:hover {
-    border-color: #60a5fa;
-}
+        .dashboard-produccion-refinado form[action*="dashboard.produccion"] select:hover {
+            border-color: #60a5fa;
+        }
 
-.dashboard-produccion-refinado form[action*="dashboard.produccion"] button {
-    box-shadow: 0 5px 14px rgba(37,99,235,.25);
-}
+        .dashboard-produccion-refinado form[action*="dashboard.produccion"] button {
+            box-shadow: 0 5px 14px rgba(37, 99, 235, .25);
+        }
 
-.dashboard-produccion-refinado form[action*="dashboard.produccion"] button:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 8px 18px rgba(37,99,235,.32);
-}
+        .dashboard-produccion-refinado form[action*="dashboard.produccion"] button:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 8px 18px rgba(37, 99, 235, .32);
+        }
 
-/* Avance semanal */
-.dashboard-produccion-refinado .bg-gray-200.border-x.border-b {
-    background: linear-gradient(180deg, #eef2f7 0%, #e5e7eb 100%) !important;
-    box-shadow: 0 10px 24px rgba(0,0,0,.14);
-}
+        /* Avance semanal */
+        .dashboard-produccion-refinado .bg-gray-200.border-x.border-b {
+            background: linear-gradient(180deg, #eef2f7 0%, #e5e7eb 100%) !important;
+            box-shadow: 0 10px 24px rgba(0, 0, 0, .14);
+        }
 
-.dashboard-produccion-refinado .bg-gray-200.border-x.border-b > div:first-child {
-    box-shadow:
-        inset 0 1px 1px rgba(255,255,255,.55),
-        0 2px 5px rgba(0,0,0,.10);
-}
+        .dashboard-produccion-refinado .bg-gray-200.border-x.border-b>div:first-child {
+            box-shadow:
+                inset 0 1px 1px rgba(255, 255, 255, .55),
+                0 2px 5px rgba(0, 0, 0, .10);
+        }
 
-/* Tarjetas de gráficas */
-.dashboard-produccion-refinado div[style*="background: #ffffff"][style*="border-radius: 8px"] {
-    border: 1px solid #e2e8f0;
-    box-shadow:
-        0 10px 24px rgba(0,0,0,.16),
-        0 1px 2px rgba(0,0,0,.06);
-    transition: transform .18s ease, box-shadow .18s ease;
-}
+        /* Tarjetas de gráficas */
+        .dashboard-produccion-refinado div[style*="background: #ffffff"][style*="border-radius: 8px"] {
+            border: 1px solid #e2e8f0;
+            box-shadow:
+                0 10px 24px rgba(0, 0, 0, .16),
+                0 1px 2px rgba(0, 0, 0, .06);
+            transition: transform .18s ease, box-shadow .18s ease;
+        }
 
-.dashboard-produccion-refinado div[style*="background: #ffffff"][style*="border-radius: 8px"]:hover {
-    transform: translateY(-2px);
-    box-shadow:
-        0 14px 30px rgba(0,0,0,.20),
-        0 2px 4px rgba(0,0,0,.07);
-}
+        .dashboard-produccion-refinado div[style*="background: #ffffff"][style*="border-radius: 8px"]:hover {
+            transform: translateY(-2px);
+            box-shadow:
+                0 14px 30px rgba(0, 0, 0, .20),
+                0 2px 4px rgba(0, 0, 0, .07);
+        }
 
-/* Dona */
-.dashboard-produccion-refinado div[style*="conic-gradient"] {
-    box-shadow: 0 6px 16px rgba(15,23,42,.10);
-}
+        /* Dona */
+        .dashboard-produccion-refinado div[style*="conic-gradient"] {
+            box-shadow: 0 6px 16px rgba(15, 23, 42, .10);
+        }
 
-/* Carga de trabajo */
-.dashboard-produccion-refinado .tabla-carga-trabajo {
-    border-radius: 12px 12px 0 0;
-    overflow: auto;
-    box-shadow:
-        0 12px 28px rgba(0,0,0,.18),
-        0 1px 2px rgba(0,0,0,.08);
-    scrollbar-width: thin;
-    scrollbar-color: #64748b #e5e7eb;
-}
+        /* Carga de trabajo */
+        .dashboard-produccion-refinado .tabla-carga-trabajo {
+            border-radius: 12px 12px 0 0;
+            overflow: auto;
+            box-shadow:
+                0 12px 28px rgba(0, 0, 0, .18),
+                0 1px 2px rgba(0, 0, 0, .08);
+            scrollbar-width: thin;
+            scrollbar-color: #64748b #e5e7eb;
+        }
 
-.dashboard-produccion-refinado .tabla-carga-trabajo table {
-    min-width: 100%;
-}
+        .dashboard-produccion-refinado .tabla-carga-trabajo table {
+            min-width: 100%;
+        }
 
-.dashboard-produccion-refinado .tabla-carga-trabajo thead th {
-    box-shadow: inset 0 -2px 0 rgba(255,255,255,.14);
-}
+        .dashboard-produccion-refinado .tabla-carga-trabajo thead th {
+            box-shadow: inset 0 -2px 0 rgba(255, 255, 255, .14);
+        }
 
-.dashboard-produccion-refinado .tabla-carga-trabajo tbody tr {
-    transition: background-color .15s ease, transform .15s ease;
-}
+        .dashboard-produccion-refinado .tabla-carga-trabajo tbody tr {
+            transition: background-color .15s ease, transform .15s ease;
+        }
 
-.dashboard-produccion-refinado .tabla-carga-trabajo tbody tr:nth-child(even) {
-    background-color: rgba(255,255,255,.025);
-}
+        .dashboard-produccion-refinado .tabla-carga-trabajo tbody tr:nth-child(even) {
+            background-color: rgba(255, 255, 255, .025);
+        }
 
-.dashboard-produccion-refinado .tabla-carga-trabajo tbody tr:hover {
-    background-color: #f1f5f9 !important;
-    box-shadow: inset 3px 0 0 #3b82f6;
-}
+        .dashboard-produccion-refinado .tabla-carga-trabajo tbody tr:hover {
+            background-color: #f1f5f9 !important;
+            box-shadow: inset 3px 0 0 #3b82f6;
+        }
 
-/* Total de pedidos */
-.dashboard-produccion-refinado .tabla-carga-trabajo + div {
-    border-radius: 0 0 12px 12px;
-    box-shadow: 0 8px 18px rgba(0,0,0,.12);
-}
+        /* Total de pedidos */
+        .dashboard-produccion-refinado .tabla-carga-trabajo+div {
+            border-radius: 0 0 12px 12px;
+            box-shadow: 0 8px 18px rgba(0, 0, 0, .12);
+        }
 
-/* Título Carga de Trabajo */
-.dashboard-produccion-refinado .mt-8.mb-4 {
-    padding: 2px 0;
-}
+        /* Título Carga de Trabajo */
+        .dashboard-produccion-refinado .mt-8.mb-4 {
+            padding: 2px 0;
+        }
 
-.dashboard-produccion-refinado .mt-8.mb-4 h2 {
-    letter-spacing: .02em;
-}
+        .dashboard-produccion-refinado .mt-8.mb-4 h2 {
+            letter-spacing: .02em;
+        }
 
-/* Separador final */
-.dashboard-produccion-refinado .mt-5.bg-\[\#f3f6fa\] {
-    border-radius: 10px;
-    margin-top: 28px !important;
-    box-shadow: 0 4px 14px rgba(0,0,0,.10);
-    color: #1f2937;
-}
+        /* Separador final */
+        .dashboard-produccion-refinado .mt-5.bg-\[\#f3f6fa\] {
+            border-radius: 10px;
+            margin-top: 28px !important;
+            box-shadow: 0 4px 14px rgba(0, 0, 0, .10);
+            color: #1f2937;
+        }
 
-/* Responsive */
-@media (max-width: 1100px) {
-    .dashboard-produccion-refinado > div > .max-w-\[1500px\] {
-        padding-left: 14px;
-        padding-right: 14px;
-    }
+        /* Responsive */
+        @media (max-width: 1100px) {
+            .dashboard-produccion-refinado>div>.max-w-\[1500px\] {
+                padding-left: 14px;
+                padding-right: 14px;
+            }
 
-    .dashboard-produccion-refinado form[action*="dashboard.produccion"] {
-        gap: 10px;
-    }
-}
+            .dashboard-produccion-refinado form[action*="dashboard.produccion"] {
+                gap: 10px;
+            }
+        }
 
-@media (max-width: 900px) {
-    .dashboard-produccion-refinado form[action*="dashboard.produccion"] {
-        justify-content: stretch;
-    }
+        @media (max-width: 900px) {
+            .dashboard-produccion-refinado form[action*="dashboard.produccion"] {
+                justify-content: stretch;
+            }
 
-    .dashboard-produccion-refinado form[action*="dashboard.produccion"] > div {
-        flex: 1 1 220px;
-    }
-}
+            .dashboard-produccion-refinado form[action*="dashboard.produccion"]>div {
+                flex: 1 1 220px;
+            }
+        }
 
-@media (max-width: 640px) {
-    .dashboard-produccion-refinado > div > .max-w-\[1500px\] {
-        padding-left: 8px;
-        padding-right: 8px;
-    }
+        @media (max-width: 640px) {
+            .dashboard-produccion-refinado>div>.max-w-\[1500px\] {
+                padding-left: 8px;
+                padding-right: 8px;
+            }
 
-    .dashboard-produccion-refinado form[action*="dashboard.produccion"] {
-        padding: 10px;
-    }
+            .dashboard-produccion-refinado form[action*="dashboard.produccion"] {
+                padding: 10px;
+            }
 
-    .dashboard-produccion-refinado form[action*="dashboard.produccion"] > div {
-        width: 100%;
-        flex-basis: 100%;
-    }
+            .dashboard-produccion-refinado form[action*="dashboard.produccion"]>div {
+                width: 100%;
+                flex-basis: 100%;
+            }
 
-    .dashboard-produccion-refinado form[action*="dashboard.produccion"] select,
-    .dashboard-produccion-refinado form[action*="dashboard.produccion"] button {
-        width: 100%;
-    }
-}
-</style>
+            .dashboard-produccion-refinado form[action*="dashboard.produccion"] select,
+            .dashboard-produccion-refinado form[action*="dashboard.produccion"] button {
+                width: 100%;
+            }
+        }
+    </style>
 
 </x-app-layout>

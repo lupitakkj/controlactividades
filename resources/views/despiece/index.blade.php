@@ -353,8 +353,29 @@
                         );
 
 
-                    const datos =
-                        await respuesta.json();
+                    const contenido =
+                        await respuesta.text();
+
+                    let datos;
+
+                    try {
+
+                        datos =
+                            contenido
+                                ? JSON.parse(contenido)
+                                : {};
+
+                    } catch (errorJson) {
+
+                        console.error(
+                            'Respuesta no JSON del servidor:',
+                            contenido
+                        );
+
+                        throw new Error(
+                            'El servidor devolvió una respuesta no válida. Revisa la consola para ver el detalle.'
+                        );
+                    }
 
 
                     if (!respuesta.ok || !datos.ok) {
@@ -1341,7 +1362,7 @@
                             partida,
                             procesoId,
                             !actualmenteNA,
-                            actualmenteNA ? null : 0
+                            0
                         );
 
                         if (!datos) {
@@ -1355,8 +1376,8 @@
 
                         if (filaActual) {
                             if (actualmenteNA) {
-                                filaActual['proceso_' + procesoId] = null;
-                                filaActual['proceso_aplica_' + procesoId] = null;
+                                filaActual['proceso_' + procesoId] = 0;
+                                filaActual['proceso_aplica_' + procesoId] = true;
                             } else {
                                 filaActual['proceso_' + procesoId] = 0;
                                 filaActual['proceso_aplica_' + procesoId] = false;
@@ -1863,7 +1884,7 @@
                                     partidaId,
                                     procesoId,
                                     true,
-                                    null
+                                    0
                                 );
 
 
@@ -1890,14 +1911,14 @@
 
 
                             input.value =
-                                '';
+                                0;
 
 
                             fila.update({
 
-                                ['proceso_' + procesoId]: null,
+                                ['proceso_' + procesoId]: 0,
 
-                                ['proceso_aplica_' + procesoId]: null,
+                                ['proceso_aplica_' + procesoId]: true,
 
                                 avance: datos.avance
 

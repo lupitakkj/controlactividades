@@ -7,14 +7,12 @@
 
     <meta
         name="viewport"
-        content="width=device-width, initial-scale=1.0"
-    >
+        content="width=device-width, initial-scale=1.0">
 
     <title>Consulta de inventario</title>
 
 
     <style>
-
         * {
             box-sizing: border-box;
         }
@@ -66,8 +64,7 @@
             padding: 28px 22px;
 
             box-shadow:
-                0 10px 35px
-                rgba(0, 0, 0, .10);
+                0 10px 35px rgba(0, 0, 0, .10);
         }
 
 
@@ -450,7 +447,6 @@
             }
 
         }
-
     </style>
 
 </head>
@@ -459,445 +455,476 @@
 <body>
 
 
-<div class="card">
+    <div class="card">
 
 
-    <!-- ========================================= -->
-    <!-- TÍTULO -->
-    <!-- ========================================= -->
+        <!-- ========================================= -->
+        <!-- TÍTULO -->
+        <!-- ========================================= -->
 
-    <div class="titulo">
-        Consulta de inventario
-    </div>
-
-
-    <!-- ========================================= -->
-    <!-- CÓDIGO -->
-    <!-- ========================================= -->
-
-    <div class="label">
-        Código
-    </div>
+        <div class="titulo">
+            Consulta de inventario
+        </div>
 
 
-    <div class="clave">
-        {{ $clave }}
-    </div>
+        <!-- ========================================= -->
+        <!-- CÓDIGO -->
+        <!-- ========================================= -->
+
+        <div class="label">
+            Código
+        </div>
 
 
-    <!-- ========================================= -->
-    <!-- CONTENIDO DINÁMICO -->
-    <!-- ========================================= -->
+        <div class="clave">
+            {{ $clave }}
+        </div>
 
-    <div id="contenido">
 
-        <div class="procesando">
+        <!-- ========================================= -->
+        <!-- CONTENIDO DINÁMICO -->
+        <!-- ========================================= -->
 
-            <div class="cargando"></div>
+        <div id="contenido">
 
-            Consultando inventario...
+            <div class="procesando">
+
+                <div class="cargando"></div>
+
+                Consultando inventario...
+
+            </div>
 
         </div>
 
+
     </div>
 
 
-</div>
+    <script>
+        // =====================================================
+        // CONFIGURACIÓN
+        // =====================================================
+
+        const clave =
+            @json($clave);
+
+        // =====================================================
+        // EQUIVALENCIA DE LÁMINAS
+        // SAE entrega EXISTENCIA EN m²
+        // Aquí indicamos cuántos m² representa 1 pieza
+        // =====================================================
+
+        const equivalenciasLammina = {
+            "MLALAN001": 2.2623,
+            "MLALAN002": 2.6962,
+            "MLALAN003": 2.9768,
+            "MLALAN004": 3.7210,
+            "MLALAN005": 3.7210,
+            "MLALAN006": 3.7210,
+            "MLALAN007": 3.7210,
+            "MLALAN008": 3.7210,
+            "MLALAN009": 3.7210,
+            "MLALAN010": 3.7210
+        };
 
 
-<script>
+        // =====================================================
+        // CONVERTIR m² A PIEZAS
+        // =====================================================
+
+        function convertirExistenciaAPiezas(clave, existenciaM2) {
+
+            const m2PorPieza = equivalenciasLammina[clave];
+
+            // Si no es una lámina registrada,
+            // conserva la existencia original de SAE
+            if (!m2PorPieza) {
+                return existenciaM2;
+            }
+
+            return existenciaM2 / m2PorPieza;
+        }
+
+        const API =
+            "https://rijaya-inventario-api.netlify.app/api/inventario";
 
 
-// =====================================================
-// CONFIGURACIÓN
-// =====================================================
+        let uuid = null;
 
-const clave =
-    @json($clave);
+        let intervalo = null;
 
 
-const API =
-    "https://rijaya-inventario-api.netlify.app/api/inventario";
+        // =====================================================
+        // CREAR CONSULTA
+        // =====================================================
+
+        async function crearConsulta() {
+
+            try {
+
+                const respuesta =
+                    await fetch(
+
+                        API +
+                        "?accion=crear",
+
+                        {
+
+                            method: "POST",
+
+                            headers: {
+
+                                "Content-Type": "application/json"
+
+                            },
+
+                            body: JSON.stringify({
+
+                                clave: clave
+
+                            })
+
+                        }
+
+                    );
 
 
-let uuid = null;
+                if (!respuesta.ok) {
 
-let intervalo = null;
+                    throw new Error(
 
+                        "HTTP " +
+                        respuesta.status
 
-// =====================================================
-// CREAR CONSULTA
-// =====================================================
-
-async function crearConsulta() {
-
-    try {
-
-        const respuesta =
-            await fetch(
-
-                API +
-                "?accion=crear",
-
-                {
-
-                    method: "POST",
-
-                    headers: {
-
-                        "Content-Type":
-                            "application/json"
-
-                    },
-
-                    body: JSON.stringify({
-
-                        clave: clave
-
-                    })
-
+                    );
                 }
 
-            );
 
+                const datos =
+                    await respuesta.json();
 
-        if (!respuesta.ok) {
 
-            throw new Error(
+                if (!datos.ok) {
 
-                "HTTP " +
-                respuesta.status
+                    throw new Error(
 
-            );
-        }
+                        datos.mensaje ??
 
+                        "No se pudo crear la consulta."
 
-        const datos =
-            await respuesta.json();
+                    );
+                }
 
 
-        if (!datos.ok) {
+                // =========================================
+                // GUARDAR UUID
+                // =========================================
 
-            throw new Error(
+                uuid =
+                    datos.consulta.uuid;
 
-                datos.mensaje ??
 
-                "No se pudo crear la consulta."
+                console.log(
 
-            );
-        }
+                    "Consulta creada:",
 
+                    uuid
 
-        // =========================================
-        // GUARDAR UUID
-        // =========================================
+                );
 
-        uuid =
-            datos.consulta.uuid;
 
+                // =========================================
+                // CONSULTAR ESTADO
+                // =========================================
 
-        console.log(
+                consultarEstado();
 
-            "Consulta creada:",
 
-            uuid
+                // =========================================
+                // CONSULTAR CADA SEGUNDO
+                // =========================================
 
-        );
+                intervalo =
 
+                    setInterval(
 
-        // =========================================
-        // CONSULTAR ESTADO
-        // =========================================
+                        consultarEstado,
 
-        consultarEstado();
+                        1000
 
+                    );
 
-        // =========================================
-        // CONSULTAR CADA SEGUNDO
-        // =========================================
+            } catch (error) {
 
-        intervalo =
+                console.error(
 
-            setInterval(
+                    "Error creando consulta:",
 
-                consultarEstado,
+                    error
 
-                1000
+                );
 
-            );
 
-    }
+                mostrarError(
 
-    catch (error) {
-
-        console.error(
-
-            "Error creando consulta:",
-
-            error
-
-        );
-
-
-        mostrarError(
-
-            error.message
-
-        );
-
-    }
-
-}
-
-
-// =====================================================
-// CONSULTAR ESTADO
-// =====================================================
-
-async function consultarEstado() {
-
-    if (!uuid) {
-
-        return;
-    }
-
-
-    try {
-
-        const respuesta =
-
-            await fetch(
-
-                API +
-                "?accion=estado&uuid=" +
-                encodeURIComponent(uuid)
-
-            );
-
-
-        if (!respuesta.ok) {
-
-            throw new Error(
-
-                "HTTP " +
-                respuesta.status
-
-            );
-        }
-
-
-        const datos =
-
-            await respuesta.json();
-
-
-        if (!datos.ok) {
-
-            throw new Error(
-
-                datos.mensaje ??
-
-                "Error consultando estado."
-
-            );
-        }
-
-
-        const consulta =
-
-            datos.consulta;
-
-
-        // =========================================
-        // PENDIENTE / PROCESANDO
-        // =========================================
-
-        if (
-
-            consulta.estado ===
-                "pendiente"
-
-            ||
-
-            consulta.estado ===
-                "procesando"
-
-        ) {
-
-            return;
-        }
-
-
-        // =========================================
-        // DETENER INTERVALO
-        // =========================================
-
-        if (intervalo) {
-
-            clearInterval(intervalo);
-
-            intervalo = null;
-        }
-
-
-        // =========================================
-        // ERROR
-        // =========================================
-
-        if (
-
-            consulta.estado ===
-                "error"
-
-        ) {
-
-            mostrarError(
-
-                consulta.error ??
-
-                "No se pudo consultar el artículo."
-
-            );
-
-            return;
-        }
-
-
-        // =========================================
-        // COMPLETADO
-        // =========================================
-
-        if (
-
-            consulta.estado ===
-                "completado"
-
-        ) {
-
-            mostrarResultado(
-                consulta
-            );
-
-            return;
-        }
-
-
-        // =========================================
-        // ESTADO DESCONOCIDO
-        // =========================================
-
-        mostrarError(
-
-            "Estado de consulta desconocido."
-
-        );
-
-    }
-
-    catch (error) {
-
-        console.error(
-
-            "Error consultando estado:",
-
-            error
-
-        );
-
-        /*
-         * Los errores temporales de red
-         * no detienen la consulta.
-         *
-         * El navegador seguirá intentando.
-         */
-
-    }
-
-}
-
-
-// =====================================================
-// MOSTRAR RESULTADO
-// =====================================================
-
-function mostrarResultado(
-    consulta
-) {
-
-
-    // =================================================
-    // FECHA DE CONSULTA SAE
-    // =================================================
-
-    const fechaRespuesta =
-
-        formatearFecha(
-
-            consulta.actualizada
-
-        );
-
-
-    // =================================================
-    // OBTENER ALMACENES
-    // =================================================
-
-    let almacenes =
-
-        Array.isArray(
-
-            consulta.almacenes
-
-        )
-
-            ? consulta.almacenes
-
-            : [];
-
-
-    // =================================================
-    // ORDENAR POR CLAVE DE ALMACÉN
-    // =================================================
-
-    almacenes =
-
-        [...almacenes].sort(
-
-            (a, b) => {
-
-                return (
-
-                    Number(
-                        a.clave ?? 0
-                    )
-
-                    -
-
-                    Number(
-                        b.clave ?? 0
-                    )
+                    error.message
 
                 );
 
             }
 
-        );
+        }
 
 
-    // =================================================
-    // GENERAR HTML DE ALMACENES
-    // =================================================
+        // =====================================================
+        // CONSULTAR ESTADO
+        // =====================================================
 
-    let htmlAlmacenes = "";
+        async function consultarEstado() {
+
+            if (!uuid) {
+
+                return;
+            }
 
 
-    if (
+            try {
 
-        almacenes.length === 0
+                const respuesta =
 
-    ) {
+                    await fetch(
 
-        htmlAlmacenes = `
+                        API +
+                        "?accion=estado&uuid=" +
+                        encodeURIComponent(uuid)
+
+                    );
+
+
+                if (!respuesta.ok) {
+
+                    throw new Error(
+
+                        "HTTP " +
+                        respuesta.status
+
+                    );
+                }
+
+
+                const datos =
+
+                    await respuesta.json();
+
+
+                if (!datos.ok) {
+
+                    throw new Error(
+
+                        datos.mensaje ??
+
+                        "Error consultando estado."
+
+                    );
+                }
+
+
+                const consulta =
+
+                    datos.consulta;
+
+
+                // =========================================
+                // PENDIENTE / PROCESANDO
+                // =========================================
+
+                if (
+
+                    consulta.estado ===
+                    "pendiente"
+
+                    ||
+
+                    consulta.estado ===
+                    "procesando"
+
+                ) {
+
+                    return;
+                }
+
+
+                // =========================================
+                // DETENER INTERVALO
+                // =========================================
+
+                if (intervalo) {
+
+                    clearInterval(intervalo);
+
+                    intervalo = null;
+                }
+
+
+                // =========================================
+                // ERROR
+                // =========================================
+
+                if (
+
+                    consulta.estado ===
+                    "error"
+
+                ) {
+
+                    mostrarError(
+
+                        consulta.error ??
+
+                        "No se pudo consultar el artículo."
+
+                    );
+
+                    return;
+                }
+
+
+                // =========================================
+                // COMPLETADO
+                // =========================================
+
+                if (
+
+                    consulta.estado ===
+                    "completado"
+
+                ) {
+
+                    mostrarResultado(
+                        consulta
+                    );
+
+                    return;
+                }
+
+
+                // =========================================
+                // ESTADO DESCONOCIDO
+                // =========================================
+
+                mostrarError(
+
+                    "Estado de consulta desconocido."
+
+                );
+
+            } catch (error) {
+
+                console.error(
+
+                    "Error consultando estado:",
+
+                    error
+
+                );
+
+                /*
+                 * Los errores temporales de red
+                 * no detienen la consulta.
+                 *
+                 * El navegador seguirá intentando.
+                 */
+
+            }
+
+        }
+
+
+        // =====================================================
+        // MOSTRAR RESULTADO
+        // =====================================================
+
+        function mostrarResultado(
+            consulta
+        ) {
+
+
+            // =================================================
+            // FECHA DE CONSULTA SAE
+            // =================================================
+
+            const fechaRespuesta =
+
+                formatearFecha(
+
+                    consulta.actualizada
+
+                );
+
+
+            // =================================================
+            // OBTENER ALMACENES
+            // =================================================
+
+            let almacenes =
+
+                Array.isArray(
+
+                    consulta.almacenes
+
+                )
+
+                ?
+                consulta.almacenes
+
+                :
+                [];
+
+
+            // =================================================
+            // ORDENAR POR CLAVE DE ALMACÉN
+            // =================================================
+
+            almacenes =
+
+                [...almacenes].sort(
+
+                    (a, b) => {
+
+                        return (
+
+                            Number(
+                                a.clave ?? 0
+                            )
+
+                            -
+
+                            Number(
+                                b.clave ?? 0
+                            )
+
+                        );
+
+                    }
+
+                );
+
+
+            // =================================================
+            // GENERAR HTML DE ALMACENES
+            // =================================================
+
+            let htmlAlmacenes = "";
+
+
+            if (
+
+                almacenes.length === 0
+
+            ) {
+
+                htmlAlmacenes = `
 
             <div class="sin-almacenes">
 
@@ -908,98 +935,102 @@ function mostrarResultado(
 
         `;
 
-    }
+            } else {
 
-    else {
+                htmlAlmacenes =
 
-        htmlAlmacenes =
+                    almacenes.map(
 
-            almacenes.map(
-
-                almacen => {
+                        almacen => {
 
 
-                    // =================================
-                    // EXISTENCIA NUMÉRICA
-                    // =================================
+                            // =================================
+                            // EXISTENCIA NUMÉRICA
+                            // =================================
 
-                    const numeroExistencia =
+                            const numeroExistencia =
 
-                        Number(
+                                Number(
 
-                            almacen.existencia ?? 0
+                                    almacen.existencia ?? 0
 
-                        );
-
-
-                    // =================================
-                    // ¿ESTÁ EN CERO?
-                    // =================================
-
-                    const sinExistencia =
-
-                        numeroExistencia === 0;
+                                );
 
 
-                    // =================================
-                    // CLASE DEL NOMBRE
-                    // =================================
+                            // =================================
+                            // ¿ESTÁ EN CERO?
+                            // =================================
 
-                    const claseNombre =
+                            const sinExistencia =
 
-                        sinExistencia
-
-                            ? "almacen-nombre almacen-nombre-sin-existencia"
-
-                            : "almacen-nombre";
+                                numeroExistencia === 0;
 
 
-                    // =================================
-                    // CLASE DE EXISTENCIA
-                    // =================================
+                            // =================================
+                            // CLASE DEL NOMBRE
+                            // =================================
 
-                    const claseExistencia =
+                            const claseNombre =
 
-                        sinExistencia
+                                sinExistencia
 
-                            ? "almacen-existencia almacen-sin-existencia"
+                                ?
+                                "almacen-nombre almacen-nombre-sin-existencia"
 
-                            : "almacen-existencia";
-
-
-                    // =================================
-                    // NOMBRE
-                    // =================================
-
-                    const nombre =
-
-                        escapeHtml(
-
-                            almacen.nombre ??
-
-                            "Almacén sin nombre"
-
-                        );
+                                :
+                                "almacen-nombre";
 
 
-                    // =================================
-                    // EXISTENCIA
-                    // =================================
+                            // =================================
+                            // CLASE DE EXISTENCIA
+                            // =================================
 
-                    const existencia =
+                            const claseExistencia =
 
-                        formatearExistencia(
+                                sinExistencia
 
-                            numeroExistencia
+                                ?
+                                "almacen-existencia almacen-sin-existencia"
 
-                        );
+                                :
+                                "almacen-existencia";
 
 
-                    // =================================
-                    // HTML
-                    // =================================
+                            // =================================
+                            // NOMBRE
+                            // =================================
 
-                    return `
+                            const nombre =
+
+                                escapeHtml(
+
+                                    almacen.nombre ??
+
+                                    "Almacén sin nombre"
+
+                                );
+
+                            // =================================
+                            // CONVERTIR EXISTENCIA
+                            // =================================
+
+                            const existenciaConvertida =
+                                convertirExistenciaAPiezas(
+                                    clave,
+                                    numeroExistencia
+                                );
+
+                            const existencia =
+                                formatearExistencia(
+                                    existenciaConvertida
+                                );
+
+
+                            // =================================
+                            // HTML
+                            // =================================
+
+                            return `
 
                         <div class="almacen">
 
@@ -1024,37 +1055,37 @@ function mostrarResultado(
 
                     `;
 
-                }
+                        }
 
-            ).join("");
+                    ).join("");
 
-    }
-
-
-    // =================================================
-    // PRECIO
-    // =================================================
-
-    const precio =
-
-        formatearPrecio(
-
-            consulta.precio
-
-        );
+            }
 
 
-    // =================================================
-    // ACTUALIZAR PANTALLA
-    // =================================================
+            // =================================================
+            // PRECIO
+            // =================================================
 
-    document
+            const precio =
 
-        .getElementById(
-            "contenido"
-        )
+                formatearPrecio(
 
-        .innerHTML = `
+                    consulta.precio
+
+                );
+
+
+            // =================================================
+            // ACTUALIZAR PANTALLA
+            // =================================================
+
+            document
+
+                .getElementById(
+                    "contenido"
+                )
+
+                .innerHTML = `
 
 
             <!-- ===================================== -->
@@ -1134,207 +1165,185 @@ function mostrarResultado(
 
         `;
 
-}
+        }
 
 
-// =====================================================
-// FORMATEAR FECHA
-// =====================================================
+        // =====================================================
+        // FORMATEAR FECHA
+        // =====================================================
 
-function formatearFecha(
-    fecha
-) {
+        function formatearFecha(
+            fecha
+        ) {
 
-    if (!fecha) {
+            if (!fecha) {
 
-        return "Sin fecha";
-    }
-
-
-    const fechaObj =
-        new Date(fecha);
+                return "Sin fecha";
+            }
 
 
-    if (
-
-        Number.isNaN(
-
-            fechaObj.getTime()
-
-        )
-
-    ) {
-
-        return "Fecha inválida";
-    }
+            const fechaObj =
+                new Date(fecha);
 
 
-    return fechaObj.toLocaleString(
+            if (
 
-        "es-MX",
+                Number.isNaN(
 
-        {
+                    fechaObj.getTime()
 
-            dateStyle: "short",
+                )
 
-            timeStyle: "medium"
+            ) {
+
+                return "Fecha inválida";
+            }
+
+
+            return fechaObj.toLocaleString(
+
+                "es-MX",
+
+                {
+
+                    dateStyle: "short",
+
+                    timeStyle: "medium"
+
+                }
+
+            );
 
         }
 
-    );
-
-}
 
 
-// =====================================================
-// FORMATEAR EXISTENCIA
-// =====================================================
+        // =====================================================
+        // FORMATEAR EXISTENCIA
+        // =====================================================
 
-function formatearExistencia(
-    valor
-) {
+        function formatearExistencia(valor) {
 
-    if (
+            if (
+                valor === null ||
+                valor === undefined
+            ) {
+                return "0";
+            }
 
-        valor === null ||
+            const numero = Number(valor);
 
-        valor === undefined
+            if (
+                Number.isNaN(numero)
+            ) {
+                return "0";
+            }
 
-    ) {
+            // =========================================
+            // LÁMINAS: 2 DECIMALES
+            // =========================================
 
-        return "0";
-    }
+            if (equivalenciasLammina[clave]) {
 
+                return numero.toFixed(2);
+            }
 
-    const numero =
-        Number(valor);
+            // =========================================
+            // ARTÍCULOS NORMALES
+            // =========================================
 
+            if (Number.isInteger(numero)) {
 
-    if (
+                return numero.toString();
+            }
 
-        Number.isNaN(numero)
-
-    ) {
-
-        return "0";
-    }
-
-
-    // =========================================
-    // ENTERO
-    // =========================================
-
-    if (
-
-        Number.isInteger(numero)
-
-    ) {
-
-        return numero.toString();
-    }
+            return numero
+                .toFixed(4)
+                .replace(/0+$/, "")
+                .replace(/\.$/, "");
+        }
 
 
-    // =========================================
-    // DECIMAL
-    // =========================================
+        // =====================================================
+        // FORMATEAR PRECIO
+        // =====================================================
 
-    return numero
+        function formatearPrecio(
+            valor
+        ) {
 
-        .toFixed(4)
+            if (
 
-        .replace(
-            /0+$/,
-            ""
-        )
+                valor === null ||
 
-        .replace(
-            /\.$/,
-            ""
-        );
+                valor === undefined
 
-}
+            ) {
 
-
-// =====================================================
-// FORMATEAR PRECIO
-// =====================================================
-
-function formatearPrecio(
-    valor
-) {
-
-    if (
-
-        valor === null ||
-
-        valor === undefined
-
-    ) {
-
-        return "No disponible";
-    }
+                return "No disponible";
+            }
 
 
-    const numero =
-        Number(valor);
+            const numero =
+                Number(valor);
 
 
-    if (
+            if (
 
-        Number.isNaN(numero)
+                Number.isNaN(numero)
 
-    ) {
+            ) {
 
-        return "No disponible";
-    }
+                return "No disponible";
+            }
 
 
-    return numero.toLocaleString(
+            return numero.toLocaleString(
 
-        "es-MX",
+                "es-MX",
 
-        {
+                {
 
-            style: "currency",
+                    style: "currency",
 
-            currency: "MXN",
+                    currency: "MXN",
 
-            minimumFractionDigits: 2,
+                    minimumFractionDigits: 2,
 
-            maximumFractionDigits: 2
+                    maximumFractionDigits: 2
+
+                }
+
+            );
 
         }
 
-    );
 
-}
+        // =====================================================
+        // MOSTRAR ERROR
+        // =====================================================
 
+        function mostrarError(
+            mensaje
+        ) {
 
-// =====================================================
-// MOSTRAR ERROR
-// =====================================================
+            if (intervalo) {
 
-function mostrarError(
-    mensaje
-) {
+                clearInterval(
+                    intervalo
+                );
 
-    if (intervalo) {
-
-        clearInterval(
-            intervalo
-        );
-
-        intervalo = null;
-    }
+                intervalo = null;
+            }
 
 
-    document
+            document
 
-        .getElementById(
-            "contenido"
-        )
+                .getElementById(
+                    "contenido"
+                )
 
-        .innerHTML = `
+                .innerHTML = `
 
             <div class="error">
 
@@ -1344,41 +1353,39 @@ function mostrarError(
 
         `;
 
-}
+        }
 
 
-// =====================================================
-// PROTEGER HTML
-// =====================================================
+        // =====================================================
+        // PROTEGER HTML
+        // =====================================================
 
-function escapeHtml(
-    texto
-) {
+        function escapeHtml(
+            texto
+        ) {
 
-    const div =
+            const div =
 
-        document.createElement(
-            "div"
-        );
-
-
-    div.textContent =
-        texto ?? "";
+                document.createElement(
+                    "div"
+                );
 
 
-    return div.innerHTML;
-
-}
-
-
-// =====================================================
-// INICIAR
-// =====================================================
-
-crearConsulta();
+            div.textContent =
+                texto ?? "";
 
 
-</script>
+            return div.innerHTML;
+
+        }
+
+
+        // =====================================================
+        // INICIAR
+        // =====================================================
+
+        crearConsulta();
+    </script>
 
 
 </body>

@@ -35,4 +35,15 @@ class Partida extends Model
             'partida_id'
         );
     }
+
+    /**
+     * Tickets de calidad asociados a la partida.
+     */
+    public function ticketsCalidad(): HasMany
+    {
+        return $this->hasMany(
+            TicketCalidadPartida::class,
+            'partida_id'
+        );
+    }
 }

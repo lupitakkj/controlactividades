@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Actividad;
+use App\Models\Subtarea;
 use Illuminate\Http\Request;
 use App\Models\SesionTiempo;
 use App\Models\Comentario;
@@ -358,6 +359,84 @@ class ActividadController extends Controller
 
         return back();
     }
+    /**
+     * Crear una subtarea dentro de una actividad.
+     */
+    public function crearSubtarea(Request $request, Actividad $actividad)
+    {
+        $datos = $request->validate([
+            'titulo' => 'required|string|max:255',
+            'descripcion' => 'nullable|string|max:5000',
+            'user_id' => 'required|integer|exists:users,id',
+            'tiempo_estimado' => 'required|numeric|min:0.25|max:10000',
+            'avance' => 'nullable|integer|min:0|max:100',
+        ]);
+
+        $subtarea = $actividad->subtareas()->create([
+            'titulo' => $datos['titulo'],
+            'descripcion' => $datos['descripcion'] ?? null,
+            'user_id' => $datos['user_id'],
+            'tiempo_estimado' => $datos['tiempo_estimado'],
+            'avance' => $datos['avance'] ?? 0,
+        ]);
+
+        $actividad->load(['subtareas.user']);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Subtarea creada correctamente.',
+            'subtarea' => $subtarea->load('user'),
+            'subtareas' => $actividad->subtareas,
+            'avance_subtareas' => $actividad->avance_subtareas,
+        ], 201);
+    }
+
+    /**
+     * Actualizar los datos o el avance de una subtarea.
+     */
+    public function actualizarSubtarea(Request $request, Actividad $actividad, $subtarea)
+    {
+        $registro = $actividad->subtareas()->findOrFail($subtarea);
+
+        $datos = $request->validate([
+            'titulo' => 'sometimes|required|string|max:255',
+            'descripcion' => 'sometimes|nullable|string|max:5000',
+            'user_id' => 'sometimes|required|integer|exists:users,id',
+            'tiempo_estimado' => 'sometimes|required|numeric|min:0.25|max:10000',
+            'avance' => 'sometimes|required|integer|min:0|max:100',
+        ]);
+
+        $registro->update($datos);
+
+        $actividad->load(['subtareas.user']);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Subtarea actualizada correctamente.',
+            'subtarea' => $registro->fresh('user'),
+            'subtareas' => $actividad->subtareas,
+            'avance_subtareas' => $actividad->avance_subtareas,
+        ]);
+    }
+
+    /**
+     * Eliminar una subtarea perteneciente a la actividad indicada.
+     */
+    public function eliminarSubtarea(Actividad $actividad, $subtarea)
+    {
+        $registro = $actividad->subtareas()->findOrFail($subtarea);
+        $registro->delete();
+
+        $actividad->load(['subtareas.user']);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Subtarea eliminada correctamente.',
+            'subtareas' => $actividad->subtareas,
+            'avance_subtareas' => $actividad->avance_subtareas,
+        ]);
+    }
+
     public function update(Request $request, Actividad $actividad)
     {
         $request->validate([

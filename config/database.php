@@ -64,6 +64,26 @@ return [
             ]) : [],
         ],
 
+        'ticketsapp' => [
+            'driver' => 'mysql',
+            'host' => env('TICKETS_DB_HOST', 'sql100.infinityfree.com'),
+            'port' => env('TICKETS_DB_PORT', '3306'),
+            'database' => env('TICKETS_DB_DATABASE', 'if0_41594800_ticketsapp'),
+            'username' => env('TICKETS_DB_USERNAME', 'if0_41594800'),
+            'password' => env('TICKETS_DB_PASSWORD', ''),
+            'unix_socket' => '',
+            'charset' => 'utf8mb4',
+            'collation' => 'utf8mb4_unicode_ci',
+            'prefix' => '',
+            'prefix_indexes' => true,
+            'strict' => true,
+            'engine' => null,
+            'options' => extension_loaded('pdo_mysql') ? array_filter([
+                (PHP_VERSION_ID >= 80500 ? Mysql::ATTR_SSL_CA : PDO::MYSQL_ATTR_SSL_CA)
+                => env('MYSQL_ATTR_SSL_CA'),
+            ]) : [],
+        ],
+
         'mariadb' => [
             'driver' => 'mariadb',
             'url' => env('DB_URL'),
@@ -149,7 +169,7 @@ return [
 
         'options' => [
             'cluster' => env('REDIS_CLUSTER', 'redis'),
-            'prefix' => env('REDIS_PREFIX', Str::slug((string) env('APP_NAME', 'laravel')).'-database-'),
+            'prefix' => env('REDIS_PREFIX', Str::slug((string) env('APP_NAME', 'laravel')) . '-database-'),
             'persistent' => env('REDIS_PERSISTENT', false),
         ],
 

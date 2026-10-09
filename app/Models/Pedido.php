@@ -71,6 +71,17 @@ class Pedido extends Model
         );
     }
 
+    /**
+     * Tickets de calidad asociados al pedido.
+     */
+    public function ticketsCalidad(): HasMany
+    {
+        return $this->hasMany(
+            TicketCalidad::class,
+            'pedido_id'
+        );
+    }
+
 
     public function controlOperativo(): HasOne
     {
@@ -105,8 +116,8 @@ class Pedido extends Model
 
             static::$procesosActivosCache =
                 Proceso::where('activo', true)
-                    ->orderBy('orden')
-                    ->get();
+                ->orderBy('orden')
+                ->get();
         }
 
         return static::$procesosActivosCache;
@@ -254,7 +265,7 @@ class Pedido extends Model
 
             $despieces =
                 $partida->despieceProcesos
-                    ->keyBy('proceso_id');
+                ->keyBy('proceso_id');
 
 
             $sumaPorcentajes = 0;
@@ -285,6 +296,19 @@ class Pedido extends Model
                 if (!$despiece) {
 
                     $todosLosProcesosResueltos = false;
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | PROCESO PENDIENTE
+                    |--------------------------------------------------------------------------
+                    |
+                    | Un proceso activo sin registro equivale a 0%.
+                    | Debe participar en el promedio, exactamente igual que
+                    | en DespieceController.
+                    |
+                    */
+
+                    $cantidadProcesosAplicables++;
 
                     continue;
                 }
@@ -370,7 +394,6 @@ class Pedido extends Model
                 $avancePartida =
                     $sumaPorcentajes /
                     $cantidadProcesosAplicables;
-
             } else {
 
                 $avancePartida = 0;

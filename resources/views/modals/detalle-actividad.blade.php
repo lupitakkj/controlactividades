@@ -1,3 +1,146 @@
+<!-- Ajustes compactos del modal de detalle -->
+<style>
+    /* Estados vacíos para archivos, comentarios e historial */
+    #detalleModal .estado-vacio-actividad {
+        min-height: 190px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: .65rem;
+        padding: 1.5rem 1rem;
+        text-align: center;
+        border: 1px dashed #dbe3ef;
+        border-radius: 1rem;
+        background: linear-gradient(180deg, #fbfdff 0%, #f8fafc 100%);
+        color: #64748b;
+    }
+    #detalleModal .estado-vacio-actividad .estado-vacio-icono {
+        width: 3.5rem;
+        height: 3.5rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 1.1rem;
+        background: #eff6ff;
+        color: #2563eb;
+        font-size: 1.55rem;
+        margin-bottom: .15rem;
+    }
+    #detalleModal .estado-vacio-actividad strong {
+        color: #334155;
+        font-size: .9rem;
+        font-weight: 700;
+    }
+    #detalleModal .estado-vacio-actividad p {
+        max-width: 24rem;
+        font-size: .8rem;
+        line-height: 1.5;
+        margin: 0;
+    }
+    #detalleModal #historialPausasContainer .estado-vacio-actividad {
+        min-height: 155px;
+    }
+
+    /* Reduce el tamaño general sin quitar información ni controles. */
+    #detalleModal > div { padding: .75rem !important; }
+    #detalleModal > div > div {
+        max-width: 68rem;
+        max-height: 90vh;
+        border-radius: 1.25rem;
+    }
+    #detalleModal > div > div > .relative.bg-slate-900 {
+        padding: 1rem 1.5rem !important;
+    }
+    #detalleModal .overflow-y-auto.flex-1 > div {
+        padding: 1rem !important;
+        gap: 1rem !important;
+    }
+    #detalleModal .p-5 { padding: .875rem !important; }
+    #detalleModal .px-5 { padding-left: 1rem !important; padding-right: 1rem !important; }
+    #detalleModal .py-4 { padding-top: .75rem !important; padding-bottom: .75rem !important; }
+    #detalleModal .sm\:px-6 { padding-left: 1rem !important; padding-right: 1rem !important; }
+    #detalleModal .sm\:p-6 { padding: .875rem !important; }
+    #detalleModal .lg\:p-8 { padding: 1rem !important; }
+    #detalleModal .rounded-2xl { border-radius: 1rem !important; }
+    #detalleModal .gap-4 { gap: .75rem !important; }
+    #detalleModal .space-y-3 > :not([hidden]) ~ :not([hidden]) { margin-top: .5rem !important; }
+    #detalleModal .space-y-6 > :not([hidden]) ~ :not([hidden]) { margin-top: 1rem !important; }
+    #detalleModal h3 { line-height: 1.25; }
+    #detalleModal .text-2xl { font-size: 1.35rem !important; line-height: 1.7rem !important; }
+    #detalleModal .w-9.h-9 { width: 2rem !important; height: 2rem !important; border-radius: .65rem !important; }
+    #detalleModal .w-10.h-10 { width: 2.25rem !important; height: 2.25rem !important; }
+    #detalleModal textarea { min-height: 3.25rem; }
+    #detalleModal #descripcionActividad { min-height: 4.5rem !important; }
+    #detalleModal #historialPausasContainer > * { padding: .65rem !important; }
+    #detalleModal #archivosContainer,
+    #detalleModal #comentariosContainer { max-height: none !important; overflow: visible !important; }
+    #detalleModal .grid.grid-cols-1.lg\:grid-cols-2.items-start > section { min-width: 0; }
+    #detalleModal .grid.grid-cols-1.lg\:grid-cols-2.items-start > section .p-5 { padding: .75rem !important; }
+    #detalleModal #listaSubtareas > * { padding: .75rem !important; }
+    #detalleModal input:not([type="checkbox"]):not([type="file"]),
+    #detalleModal select,
+    #detalleModal textarea { font-size: .875rem; }
+    #detalleModal .shadow-sm { box-shadow: 0 1px 2px rgb(15 23 42 / .05) !important; }
+    @media (min-width: 1024px) {
+        #detalleModal .grid-cols-\[minmax\(0\,1\.65fr\)_minmax\(320px\,1fr\)\] { align-items: start; }
+        #detalleModal #detalleDisenador,
+        #detalleModal #detalleCliente,
+        #detalleModal #detalleCreacion,
+        #detalleModal #detalleInicio,
+        #detalleModal #detalleEntrega { overflow-wrap: anywhere; }
+    }
+    @media (max-width: 640px) {
+        #detalleModal > div { padding: .25rem !important; }
+        #detalleModal > div > div { max-height: 96vh; border-radius: 1rem; }
+        #detalleModal > div > div > .relative.bg-slate-900 { padding: .875rem 1rem !important; }
+        #detalleModal .overflow-y-auto.flex-1 > div { padding: .75rem !important; }
+    }
+
+    #detalleModal .tab-actividad { transition: background-color .15s, color .15s, border-color .15s; }
+    #detalleModal #panelActividadArchivos > section,
+    #detalleModal #panelActividadComentarios > section,
+    #detalleModal #panelActividadHistorial > section { width: 100%; }
+    /* Distribución principal: contenido amplio a la izquierda y panel informativo a la derecha. */
+    @media (min-width: 1024px) {
+        #detalleModal .grid-cols-\\[minmax\\(0\\,1\\.65fr\\)_minmax\\(320px\\,1fr\\)\\] {
+            display: grid !important;
+            grid-template-columns: minmax(0, 1.55fr) minmax(340px, .9fr) !important;
+            align-items: start;
+            width: 100% !important;
+            max-width: none !important;
+            grid-template-columns: minmax(0, 1.55fr) minmax(340px, .9fr) !important;
+        }
+
+        #detalleModal .grid.grid-cols-1.lg\:grid-cols-2 {
+            min-width: 0;
+            width: 100%;
+        }
+
+        #detalleModal #descripcionActividad {
+            min-height: 7rem !important;
+        }
+
+        #detalleModal #detalleDisenador,
+        #detalleModal #detalleCliente,
+        #detalleModal #detalleCreacion,
+        #detalleModal #detalleInicio,
+        #detalleModal #detalleEntrega {
+            min-width: 0;
+            overflow-wrap: anywhere;
+        }
+    }
+
+    @media (max-width: 1023px) {
+        #detalleModal .grid-cols-\\[minmax\\(0\\,1\\.65fr\\)_minmax\\(320px\\,1fr\\)\\] {
+            display: flex !important;
+            flex-direction: column;
+            width: 100%;
+        }
+    }
+
+</style>
+
 <!-- ========================================================= -->
 <!-- MODAL DETALLE DE ACTIVIDAD - REDISEÑO -->
 <!-- ========================================================= -->
@@ -31,7 +174,7 @@
 
                     <div class="flex items-center gap-2 mb-2">
                         <span class="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
-                            Detalle de actividad
+                            Titulo de actividad
                         </span>
 
                         <span class="text-slate-600">•</span>
@@ -91,96 +234,8 @@
 
                 <div class="p-5 sm:p-7 lg:p-8 space-y-6">
 
-                    <!-- ========================================= -->
-                    <!-- INFORMACIÓN GENERAL -->
-                    <!-- ========================================= -->
-
-                    <section class="bg-white rounded-2xl border border-slate-200 shadow-sm">
-
-                        <div class="px-5 sm:px-6 py-4 border-b border-slate-100">
-
-                            <div class="flex items-center gap-3">
-
-                                <div class="w-9 h-9 rounded-xl bg-slate-100 text-slate-600
-                                            flex items-center justify-center">
-                                    <i class="fa-solid fa-circle-info"></i>
-                                </div>
-
-                                <div>
-                                    <h3 class="font-bold text-slate-800">
-                                        Información general
-                                    </h3>
-
-                                    <p class="text-xs text-slate-500">
-                                        Datos principales de la actividad
-                                    </p>
-                                </div>
-
-                            </div>
-
-                        </div>
-
-                        <div class="p-5 sm:p-6">
-
-                            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-
-                                <div class="rounded-xl bg-slate-50 border border-slate-100 p-4">
-                                    <p class="text-xs font-semibold uppercase tracking-wide text-slate-400 mb-1">
-                                        Diseñador
-                                    </p>
-
-                                    <p id="detalleDisenador"
-                                        class="font-semibold text-slate-800 truncate">
-                                    </p>
-                                </div>
-
-                                <div class="rounded-xl bg-slate-50 border border-slate-100 p-4">
-                                    <p class="text-xs font-semibold uppercase tracking-wide text-slate-400 mb-1">
-                                        Cliente
-                                    </p>
-
-                                    <p id="detalleCliente"
-                                        class="font-semibold text-slate-800 truncate">
-                                        -
-                                    </p>
-                                </div>
-
-                                <div class="rounded-xl bg-slate-50 border border-slate-100 p-4">
-                                    <p class="text-xs font-semibold uppercase tracking-wide text-slate-400 mb-1">
-                                        Creación
-                                    </p>
-
-                                    <p id="detalleCreacion"
-                                        class="font-semibold text-slate-800">
-                                    </p>
-                                </div>
-
-                                <div class="rounded-xl bg-slate-50 border border-slate-100 p-4">
-                                    <p class="text-xs font-semibold uppercase tracking-wide text-slate-400 mb-1">
-                                        Inicio
-                                    </p>
-
-                                    <p id="detalleInicio"
-                                        class="font-semibold text-slate-800">
-                                    </p>
-                                </div>
-
-                                <div class="rounded-xl bg-slate-50 border border-slate-100 p-4">
-                                    <p class="text-xs font-semibold uppercase tracking-wide text-slate-400 mb-1">
-                                        Fecha de entrega
-                                    </p>
-
-                                    <p id="detalleEntrega"
-                                        class="font-semibold text-slate-800">
-                                    </p>
-                                </div>
-
-                            </div>
-
-                        </div>
-
-                    </section>
-
+                    <div class="grid grid-cols-1 lg:grid-cols-[minmax(0,1.65fr)_minmax(320px,1fr)] gap-4 items-start">
+                        <div class="min-w-0 space-y-4">
 
                     <!-- ========================================= -->
                     <!-- TIEMPOS -->
@@ -207,7 +262,7 @@
 
                         </div>
 
-                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
 
                             <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
                                 <div class="flex items-start justify-between">
@@ -361,7 +416,7 @@
                             <div id="mensajeSubtareas" class="hidden rounded-xl px-3 py-2 text-sm" role="status" aria-live="polite"></div>
                             <div id="subtareasContainer" class="space-y-3"></div>
 
-                            <form id="crearSubtareaForm" class="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-4 space-y-3">
+                            <form id="crearSubtareaForm" method="POST" action="#" class="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-4 space-y-3">
                                 @csrf
                                 <h4 class="font-semibold text-slate-800 text-sm">
                                     <i class="fa-solid fa-plus text-blue-600 mr-1"></i>
@@ -418,13 +473,37 @@
                     </section>
 
                     <!-- ========================================= -->
-                    <!-- ARCHIVOS + COMENTARIOS -->
                     <!-- ========================================= -->
+                    <!-- PESTAÑAS: ARCHIVOS, COMENTARIOS E HISTORIAL -->
+                    <!-- ========================================= -->
+                    <section class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                        <div class="px-4 py-3 border-b border-slate-200 bg-white">
+                            <div class="flex flex-wrap gap-1" role="tablist" aria-label="Contenido de la actividad">
+                                <button type="button" id="tabActividadArchivos" role="tab"
+                                    aria-controls="panelActividadArchivos" aria-selected="true"
+                                    onclick="cambiarPestanaActividad('archivos')"
+                                    class="tab-actividad px-4 py-2 rounded-lg border border-blue-200 bg-blue-50 text-blue-700 text-sm font-semibold">
+                                    <i class="fa-solid fa-paperclip mr-2"></i>Archivos
+                                    <span id="contadorArchivos" class="ml-1 rounded-md bg-white px-2 py-0.5 text-xs">0</span>
+                                </button>
+                                <button type="button" id="tabActividadComentarios" role="tab"
+                                    aria-controls="panelActividadComentarios" aria-selected="false"
+                                    onclick="cambiarPestanaActividad('comentarios')"
+                                    class="tab-actividad px-4 py-2 rounded-lg border border-transparent text-slate-600 hover:bg-slate-50 text-sm font-semibold">
+                                    <i class="fa-solid fa-comments mr-2"></i>Comentarios
+                                    <span id="contadorComentarios" class="ml-1 rounded-md bg-slate-100 px-2 py-0.5 text-xs">0</span>
+                                </button>
+                                <button type="button" id="tabActividadHistorial" role="tab"
+                                    aria-controls="panelActividadHistorial" aria-selected="false"
+                                    onclick="cambiarPestanaActividad('historial')"
+                                    class="tab-actividad px-4 py-2 rounded-lg border border-transparent text-slate-600 hover:bg-slate-50 text-sm font-semibold">
+                                    <i class="fa-solid fa-clock-rotate-left mr-2"></i>Historial
+                                    <span id="contadorPausas" class="ml-1 rounded-md bg-slate-100 px-2 py-0.5 text-xs">0</span>
+                                </button>
+                            </div>
+                        </div>
 
-                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-
-                        <!-- ARCHIVOS -->
-
+                        <div id="panelActividadArchivos" role="tabpanel" aria-labelledby="tabActividadArchivos" class="p-4 sm:p-5">
                         <section class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
 
                             <div class="px-5 py-4 border-b border-slate-100">
@@ -449,13 +528,6 @@
                                         </div>
 
                                     </div>
-
-                                    <span
-                                        id="contadorArchivos"
-                                        class="text-xs font-semibold px-2.5 py-1 rounded-lg
-                                               bg-slate-100 text-slate-500">
-                                        0
-                                    </span>
 
                                 </div>
 
@@ -521,10 +593,9 @@
                             </div>
 
                         </section>
+                        </div>
 
-
-                        <!-- COMENTARIOS -->
-
+                        <div id="panelActividadComentarios" role="tabpanel" aria-labelledby="tabActividadComentarios" class="hidden p-4 sm:p-5">
                         <section class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
 
                             <div class="px-5 py-4 border-b border-slate-100">
@@ -549,13 +620,6 @@
                                         </div>
 
                                     </div>
-
-                                    <span
-                                        id="contadorComentarios"
-                                        class="text-xs font-semibold px-2.5 py-1 rounded-lg
-                                               bg-slate-100 text-slate-500">
-                                        0
-                                    </span>
 
                                 </div>
 
@@ -629,8 +693,149 @@
                             </div>
 
                         </section>
+                        </div>
 
-                    </div>
+                        <div id="panelActividadHistorial" role="tabpanel" aria-labelledby="tabActividadHistorial" class="hidden p-4 sm:p-5">
+                    <section class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                        <div class="px-5 sm:px-6 py-4 border-b border-slate-100">
+                            <div class="flex items-center justify-between gap-3">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-9 h-9 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center">
+                                        <i class="fa-solid fa-mug-hot"></i>
+                                    </div>
+                                    <div>
+                                        <h3 class="font-bold text-slate-800">Historial de pausas</h3>
+                                        <p class="text-xs text-slate-500">Motivo, responsable y fecha de cada pausa</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="p-5 sm:p-6">
+                            <div id="historialPausasContainer" class="space-y-3">
+                                <div class="estado-vacio-actividad">
+                                    <div class="estado-vacio-icono"><i class="fa-solid fa-mug-hot"></i></div>
+                                    <strong>Sin pausas registradas</strong>
+                                    <p>Cuando pauses esta actividad, aquí aparecerán el motivo, la persona responsable y la fecha.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+                        </div>
+                    </section>
+
+                    <script>
+                        function cambiarPestanaActividad(pestana) {
+                            const nombres = ['archivos', 'comentarios', 'historial'];
+                            nombres.forEach(nombre => {
+                                const panel = document.getElementById('panelActividad' + nombre.charAt(0).toUpperCase() + nombre.slice(1));
+                                const boton = document.getElementById('tabActividad' + nombre.charAt(0).toUpperCase() + nombre.slice(1));
+                                if (!panel || !boton) return;
+                                const activo = nombre === pestana;
+                                panel.classList.toggle('hidden', !activo);
+                                boton.setAttribute('aria-selected', activo ? 'true' : 'false');
+                                boton.classList.toggle('bg-blue-50', activo);
+                                boton.classList.toggle('text-blue-700', activo);
+                                boton.classList.toggle('border-blue-200', activo);
+                                boton.classList.toggle('text-slate-600', !activo);
+                                boton.classList.toggle('border-transparent', !activo);
+                            });
+                        }
+                        window.cambiarPestanaActividad = cambiarPestanaActividad;
+                    </script>
+                        </div> <!-- /columna izquierda -->
+
+                        <div class="min-w-0 space-y-4">
+
+                    <!-- ========================================= -->
+                    <!-- INFORMACIÓN GENERAL -->
+                    <!-- ========================================= -->
+
+                    <section class="bg-white rounded-2xl border border-slate-200 shadow-sm">
+
+                        <div class="px-5 sm:px-6 py-4 border-b border-slate-100">
+
+                            <div class="flex items-center gap-3">
+
+                                <div class="w-9 h-9 rounded-xl bg-slate-100 text-slate-600
+                                            flex items-center justify-center">
+                                    <i class="fa-solid fa-circle-info"></i>
+                                </div>
+
+                                <div>
+                                    <h3 class="font-bold text-slate-800">
+                                        Información general
+                                    </h3>
+
+                                    <p class="text-xs text-slate-500">
+                                        Datos principales de la actividad
+                                    </p>
+                                </div>
+
+                            </div>
+
+                        </div>
+
+                        <div class="p-5 sm:p-6">
+
+                            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-3">
+
+                                <div class="rounded-xl bg-slate-50 border border-slate-100 p-4">
+                                    <p class="text-xs font-semibold uppercase tracking-wide text-slate-400 mb-1">
+                                        Diseñador
+                                    </p>
+
+                                    <p id="detalleDisenador"
+                                        class="font-semibold text-slate-800 truncate">
+                                    </p>
+                                </div>
+
+                                <div class="rounded-xl bg-slate-50 border border-slate-100 p-4">
+                                    <p class="text-xs font-semibold uppercase tracking-wide text-slate-400 mb-1">
+                                        Cliente
+                                    </p>
+
+                                    <p id="detalleCliente"
+                                        class="font-semibold text-slate-800 truncate">
+                                        -
+                                    </p>
+                                </div>
+
+                                <div class="rounded-xl bg-slate-50 border border-slate-100 p-4">
+                                    <p class="text-xs font-semibold uppercase tracking-wide text-slate-400 mb-1">
+                                        Creación
+                                    </p>
+
+                                    <p id="detalleCreacion"
+                                        class="font-semibold text-slate-800">
+                                    </p>
+                                </div>
+
+                                <div class="rounded-xl bg-slate-50 border border-slate-100 p-4">
+                                    <p class="text-xs font-semibold uppercase tracking-wide text-slate-400 mb-1">
+                                        Inicio
+                                    </p>
+
+                                    <p id="detalleInicio"
+                                        class="font-semibold text-slate-800">
+                                    </p>
+                                </div>
+
+                                <div class="rounded-xl bg-slate-50 border border-slate-100 p-4">
+                                    <p class="text-xs font-semibold uppercase tracking-wide text-slate-400 mb-1">
+                                        Fecha de entrega
+                                    </p>
+
+                                    <p id="detalleEntrega"
+                                        class="font-semibold text-slate-800">
+                                    </p>
+                                </div>
+
+                            </div>
+
+                        </div>
+
+                    </section>
+
 
 
                     <!-- ========================================= -->
@@ -710,6 +915,8 @@
 
                     @endrole
 
+                        </div> <!-- /columna derecha -->
+                    </div> <!-- /grid principal -->
 
                 </div>
 
@@ -984,6 +1191,50 @@
 </div>
 
 
+<!-- MODAL PERSONALIZADO PARA PAUSAR ACTIVIDAD -->
+<div id="modalPausaActividad" class="hidden fixed inset-0 z-[80] bg-slate-950/75 backdrop-blur-sm"
+     role="dialog" aria-modal="true" aria-labelledby="tituloModalPausa" aria-hidden="true"
+     onclick="if (event.target === this) cerrarModalPausa()">
+    <div class="flex min-h-screen items-center justify-center p-4">
+        <div class="w-full max-w-lg overflow-hidden rounded-2xl border border-slate-700 bg-slate-900 shadow-2xl">
+            <div class="flex items-start gap-4 border-b border-slate-700 px-6 py-5">
+                <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-amber-500/15 text-amber-400">
+                    <i class="fa-solid fa-mug-hot text-xl"></i>
+                </div>
+                <div class="min-w-0 flex-1">
+                    <h2 id="tituloModalPausa" class="text-lg font-bold text-white">Pausar actividad</h2>
+                    <p class="mt-1 text-sm text-slate-400">La actividad dejará de contabilizar tiempo trabajado.</p>
+                </div>
+                <button type="button" onclick="cerrarModalPausa()" aria-label="Cerrar modal"
+                        class="rounded-lg p-2 text-slate-400 transition hover:bg-slate-800 hover:text-white">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            <div class="space-y-3 px-6 py-5">
+                <label for="motivoPausaActividad" class="block text-sm font-semibold text-slate-200">
+                    ¿Por qué necesitas pausar esta actividad? <span class="text-amber-400">*</span>
+                </label>
+                <textarea id="motivoPausaActividad" rows="4" maxlength="1000"
+                          class="w-full resize-y rounded-xl border border-slate-600 bg-slate-800 px-4 py-3 text-sm text-white placeholder-slate-500 outline-none transition focus:border-amber-400 focus:ring-2 focus:ring-amber-400/20"
+                          placeholder="Ej. Hora de comida, reunión, falta de información..."
+                          onkeydown="if (event.key === 'Escape') cerrarModalPausa(); if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) confirmarPausaActividad()"></textarea>
+                <p id="errorMotivoPausa" class="hidden text-sm text-red-400" role="alert"></p>
+                <p class="text-xs text-slate-400">El motivo quedará guardado en el historial con tu usuario y la fecha y hora.</p>
+            </div>
+            <div class="flex flex-col-reverse gap-2 border-t border-slate-700 bg-slate-950/40 px-6 py-4 sm:flex-row sm:justify-end">
+                <button type="button" onclick="cerrarModalPausa()"
+                        class="rounded-xl border border-slate-600 px-4 py-2.5 text-sm font-semibold text-slate-200 transition hover:bg-slate-800">
+                    Volver
+                </button>
+                <button id="btnConfirmarPausa" type="button" onclick="confirmarPausaActividad()"
+                        class="inline-flex items-center justify-center gap-2 rounded-xl bg-amber-500 px-4 py-2.5 text-sm font-semibold text-slate-950 transition hover:bg-amber-400">
+                    <i class="fa-solid fa-pause"></i> Confirmar pausa
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
     /*
      * ============================================================
@@ -1025,13 +1276,10 @@
             comentarios: comentarios.length
         });
 
-        if (contadorArchivos) {
-            contadorArchivos.textContent = String(archivos.length);
-        }
+        if (contadorArchivos) contadorArchivos.textContent = String(archivos.length);
+        if (contadorComentarios) contadorComentarios.textContent = String(comentarios.length);
 
-        if (contadorComentarios) {
-            contadorComentarios.textContent = String(comentarios.length);
-        }
+        // Los contadores están únicamente en las pestañas del encabezado.
     }
 
 
@@ -1128,6 +1376,52 @@
         }
     }
 
+    async function cargarSubtareasGuardadas(actividad) {
+        if (!actividad || !actividad.id || actividad.__subtareasCargando || actividad.__subtareasCargadas) {
+            return;
+        }
+
+        actividad.__subtareasCargando = true;
+
+        try {
+            const respuesta = await fetch(`/actividad/${actividad.id}/subtareas`, {
+                method: 'GET',
+                headers: {
+                    'Accept': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                cache: 'no-store'
+            });
+
+            let resultado = {};
+            try {
+                resultado = await respuesta.json();
+            } catch (_) {
+                throw new Error('El servidor no devolvió una respuesta válida al consultar las subtareas.');
+            }
+
+            if (!respuesta.ok) {
+                throw new Error(resultado.message || `No se pudieron consultar las subtareas (HTTP ${respuesta.status}).`);
+            }
+
+            actividad.subtareas = obtenerListaSubtareas(resultado.subtareas);
+            actividad.avance_subtareas = resultado.avance_subtareas ?? actividad.avance_subtareas ?? 0;
+            actividad.__subtareasCargadas = true;
+            window.actividadDetalleActual = actividad;
+
+            // Actualiza la lista con los datos persistidos, sin recargar toda la página.
+            renderizarSubtareas(actividad);
+        } catch (error) {
+            console.error('Error al cargar subtareas guardadas:', error);
+            mostrarMensajeSubtareas(
+                error.message || 'No se pudieron cargar las subtareas guardadas.',
+                true
+            );
+        } finally {
+            actividad.__subtareasCargando = false;
+        }
+    }
+
     function renderizarSubtareas(actividad) {
         if (!actividad) return;
 
@@ -1147,9 +1441,17 @@
 
         if (formulario && actividadSubtareasActual) {
             // Guardar siempre el ID y la ruta de la actividad abierta.
-            formulario.dataset.actividadId = String(actividadSubtareasActual);
-            formulario.dataset.url = `/actividad/${actividadSubtareasActual}/subtareas`;
+            const idActual = String(actividadSubtareasActual);
+            formulario.dataset.actividadId = idActual;
+            formulario.dataset.url = `/actividad/${idActual}/subtareas`;
+            formulario.method = 'POST';
+            formulario.action = new URL(formulario.dataset.url, window.location.origin).href;
+            if (modalDetalle) modalDetalle.dataset.actividadId = idActual;
         }
+
+        // Al abrir el modal, consultar siempre los datos persistidos una vez
+        // por objeto de actividad. Esto permite recuperar subtareas tras recargar.
+        cargarSubtareasGuardadas(actividad);
 
         if (!contenedor) return;
         contenedor.innerHTML = '';
@@ -1208,6 +1510,7 @@
 
                     actividad.subtareas = resultado.subtareas || [];
                     actividad.avance_subtareas = resultado.avance_subtareas;
+                    actividad.__subtareasCargadas = true;
                     renderizarSubtareas(actividad);
                     mostrarMensajeSubtareas(resultado.message || 'Subtarea eliminada.');
                 } catch (error) {
@@ -1281,6 +1584,7 @@
 
                     actividad.subtareas = resultado.subtareas || [];
                     actividad.avance_subtareas = resultado.avance_subtareas;
+                    actividad.__subtareasCargadas = true;
                     renderizarSubtareas(actividad);
                     mostrarMensajeSubtareas(resultado.message || 'Avance actualizado.');
                 } catch (error) {
@@ -1313,17 +1617,16 @@
                 const modalDetalle = document.getElementById('detalleModal');
                 // Usar el primer ID válido y no una cadena vacía de dataset.
                 const posiblesIds = [
-                    formulario.dataset.actividadId,
                     modalDetalle?.dataset?.actividadId,
+                    formulario.dataset.actividadId,
                     window.actividadDetalleActual?.id,
                     window.actividadSeleccionadaId,
-                    actividadSubtareasActual,
-                    actividadSeleccionadaId
+                    actividadSubtareasActual
                 ];
                 const actividadActualId = posiblesIds.find(valor =>
                     valor !== null && valor !== undefined &&
                     String(valor).trim() !== '' &&
-                    Number.isFinite(Number(valor)) && Number(valor) > 0
+                    Number.isSafeInteger(Number(valor)) && Number(valor) > 0
                 );
 
                 if (actividadActualId === undefined) {
@@ -1337,6 +1640,8 @@
                 actividadSubtareasActual = Number(actividadActualId);
                 formulario.dataset.actividadId = String(actividadActualId);
                 formulario.dataset.url = `/actividad/${actividadActualId}/subtareas`;
+                formulario.method = 'POST';
+                formulario.action = new URL(formulario.dataset.url, window.location.origin).href;
 
                 if (modalDetalle) {
                     modalDetalle.dataset.actividadId = String(actividadActualId);
@@ -1377,6 +1682,7 @@
                     actividad.id = actividadActualId;
                     actividad.subtareas = resultado.subtareas || [];
                     actividad.avance_subtareas = resultado.avance_subtareas;
+                    actividad.__subtareasCargadas = true;
                     window.actividadDetalleActual = actividad;
 
                     renderizarSubtareas(actividad);
@@ -1444,6 +1750,8 @@
                 // El formulario debe conservar el ID de la actividad seleccionada.
                 formularioSubtareas.dataset.actividadId = String(actividad.id);
                 formularioSubtareas.dataset.url = `/actividad/${actividad.id}/subtareas`;
+                formularioSubtareas.method = 'POST';
+                formularioSubtareas.action = new URL(formularioSubtareas.dataset.url, window.location.origin).href;
             }
         }
 

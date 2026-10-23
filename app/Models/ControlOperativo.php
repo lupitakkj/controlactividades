@@ -14,6 +14,7 @@ class ControlOperativo extends Model
         'prioridad',
         'fecha_produccion',
         'estado_operativo',
+        'resultado_entrega',
         'comentario',
         'responsable',
     ];

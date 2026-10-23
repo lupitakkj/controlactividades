@@ -5,7 +5,11 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ActividadController;
 use App\Http\Controllers\AgendaController;
+use App\Http\Controllers\AlmacenController;
+use App\Http\Controllers\AlmacenSalidaController;
 use App\Http\Controllers\CatalogoMaterialController;
+use App\Http\Controllers\CompraOrdenController;
+use App\Http\Controllers\CompraRecepcionController;
 use App\Http\Controllers\ReporteController;
 use App\Http\Controllers\UsuarioController;
 use App\Http\Controllers\ExistenciasController;
@@ -16,6 +20,8 @@ use App\Http\Controllers\DashboardEjecutivoController;
 use App\Http\Controllers\DespieceController;
 use App\Http\Controllers\PedidosTerminadosController;
 use App\Http\Controllers\ProduccionProductoController;
+use App\Http\Controllers\ProveedorController;
+use App\Http\Controllers\ReporteEntradasController;
 use App\Http\Controllers\TicketCalidadController;
 use App\Models\Partida;
 use Illuminate\Support\Facades\DB;
@@ -27,6 +33,11 @@ Route::middleware('auth')->group(function () {
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
     Route::get('/dashboard', function () {
+
+        // Compras inicia directamente en el módulo de órdenes de compra.
+        if (auth()->user()->hasRole('Compras')) {
+            return redirect()->route('compras.ordenes.index');
+        }
 
         if (
             !auth()->user()->hasAnyRole([
@@ -48,6 +59,9 @@ Route::middleware('auth')->group(function () {
         ->name('actividad.iniciar');
     Route::post('/actividad/{id}/pausar', [ActividadController::class, 'pausar'])
         ->name('actividad.pausar');
+
+    Route::get('/actividad/{actividad}/bitacora-pausas', [ActividadController::class, 'listarPausas'])
+        ->name('actividad.bitacora-pausas');
     Route::post('/actividad/{id}/terminar', [ActividadController::class, 'terminar'])
         ->name('actividad.terminar');
     Route::post('/actividad/mover/{id}', [ActividadController::class, 'mover'])
@@ -99,7 +113,7 @@ Route::middleware('auth')->group(function () {
         ->middleware('can:ver importacion pedidos')
         ->name('importaciones.index');
 
-    Route::post('/importacion-pedidos/importar', [ImportacionController::class, 'importar'])
+    Route::post('/importacion-pedidos/procesar-archivo', [ImportacionController::class, 'importar'])
         ->middleware('can:importar pedidos')
         ->name('importaciones.importar');
 
@@ -290,6 +304,71 @@ Route::middleware('auth')->group(function () {
     ])
         ->middleware('can:ver tickets calidad')
         ->name('tickets-calidad.archivo.descargar');
+
+    Route::get(
+        '/actividad/{actividad}/subtareas',
+        [ActividadController::class, 'listarSubtareas']
+    )->name('actividad.subtareas.listar');
+
+
+
+    Route::prefix('compras')->name('compras.')->group(function () {
+        Route::get('/proveedores', [ProveedorController::class, 'index'])->name('proveedores.index');
+        Route::post('/proveedores', [ProveedorController::class, 'store'])->name('proveedores.store');
+        Route::put('/proveedores/{proveedor}', [ProveedorController::class, 'update'])->name('proveedores.update');
+        Route::patch('/proveedores/{proveedor}/estado', [ProveedorController::class, 'cambiarEstado'])->name('proveedores.estado');
+
+        Route::get('/almacenes', [AlmacenController::class, 'index'])->name('almacenes.index');
+        Route::post('/almacenes', [AlmacenController::class, 'store'])->name('almacenes.store');
+        Route::put('/almacenes/{almacen}', [AlmacenController::class, 'update'])->name('almacenes.update');
+        Route::patch('/almacenes/{almacen}/estado', [AlmacenController::class, 'cambiarEstado'])->name('almacenes.estado');
+
+        Route::get('/ordenes', [CompraOrdenController::class, 'index'])->name('ordenes.index');
+        Route::get('/ordenes/crear', [CompraOrdenController::class, 'create'])->name('ordenes.create');
+        Route::post('/ordenes/leer-pdf', [CompraOrdenController::class, 'leerPdf'])->name('ordenes.leer-pdf');
+        Route::post('/ordenes', [CompraOrdenController::class, 'store'])->name('ordenes.store');
+        Route::get('/ordenes/{orden}', [CompraOrdenController::class, 'show'])->name('ordenes.show');
+
+        Route::post('/ordenes/proveedores', [CompraOrdenController::class, 'guardarProveedorDesdeOrden'])
+            ->name('ordenes.proveedores.store');
+        Route::post('/ordenes/{orden}/recepciones', [CompraRecepcionController::class, 'store'])
+            ->name('recepciones.store');
+        Route::post('/ordenes/{orden}/cerrar-con-faltantes', [CompraRecepcionController::class, 'cerrarConFaltantes'])
+            ->name('recepciones.cerrar-faltantes');
+        Route::get('/recepciones/{recepcion}/evidencia', [CompraRecepcionController::class, 'descargarEvidencia'])
+            ->name('recepciones.evidencia');
+        Route::get('/reportes/entradas', [ReporteEntradasController::class, 'index'])
+            ->name('reportes.entradas.index');
+
+        Route::get('/reportes/entradas/exportar', [ReporteEntradasController::class, 'exportar'])
+            ->name('reportes.entradas.exportar');
+
+        Route::get('/ordenes/{orden}/editar', [CompraOrdenController::class, 'edit'])->name('ordenes.edit');
+        Route::put('/ordenes/{orden}', [CompraOrdenController::class, 'update'])->name('ordenes.update');
+    });
+
+    Route::get('/salidas-almacen', [AlmacenSalidaController::class, 'index'])->name('almacen-salidas.index');
+    Route::get('/salidas-almacen/crear', [AlmacenSalidaController::class, 'create'])->name('almacen-salidas.create');
+    Route::post('/salidas-almacen', [AlmacenSalidaController::class, 'store'])->name('almacen-salidas.store');
+    Route::get('/salidas-almacen/exportar', [AlmacenSalidaController::class, 'exportarListado'])->name('almacen-salidas.exportar-listado');
+    Route::get('/salidas-almacen/{salida}/exportar', [AlmacenSalidaController::class, 'exportarSalida'])->name('almacen-salidas.exportar');
+    Route::get('/salidas-almacen/notificaciones', [AlmacenSalidaController::class, 'notificaciones'])->name('almacen-salidas.notificaciones');
+    Route::get('/salidas-almacen/notificaciones/{notificacion}/leer', [AlmacenSalidaController::class, 'marcarNotificacionLeida'])->name('almacen-salidas.notificaciones.leer');
+    Route::get('/salidas-almacen/{salida}', [AlmacenSalidaController::class, 'show'])->name('almacen-salidas.show');
+    Route::post('/salidas-almacen/{salida}/solicitar-cancelacion', [AlmacenSalidaController::class, 'solicitarCancelacion'])->name('almacen-salidas.cancelaciones.solicitar');
+    Route::post('/salidas-almacen/solicitudes/{solicitud}/resolver', [AlmacenSalidaController::class, 'resolverCancelacion'])->name('almacen-salidas.cancelaciones.resolver');
+    Route::get('/salidas-almacen', [AlmacenSalidaController::class, 'index'])->name('almacen-salidas.index');
+    Route::get('/salidas-almacen/crear', [AlmacenSalidaController::class, 'create'])->name('almacen-salidas.create');
+    Route::post('/salidas-almacen', [AlmacenSalidaController::class, 'store'])->name('almacen-salidas.store');
+    Route::get('/salidas-almacen/notificaciones', [AlmacenSalidaController::class, 'notificaciones'])->name('almacen-salidas.notificaciones');
+    Route::get('/salidas-almacen/notificaciones/{notificacion}/leer', [AlmacenSalidaController::class, 'marcarNotificacionLeida'])->name('almacen-salidas.notificaciones.leer');
+    Route::get('/salidas-almacen/{salida}', [AlmacenSalidaController::class, 'show'])->name('almacen-salidas.show');
+    Route::post('/salidas-almacen/{salida}/solicitar-cancelacion', [AlmacenSalidaController::class, 'solicitarCancelacion'])->name('almacen-salidas.cancelaciones.solicitar');
+    Route::post('/salidas-almacen/solicitudes/{solicitud}/resolver', [AlmacenSalidaController::class, 'resolverCancelacion'])->name('almacen-salidas.cancelaciones.resolver');
+
+
+    Route::patch('/control-operativo/{pedido}/resultado-entrega', [ControlOperativoController::class, 'actualizarResultadoEntrega'])
+        ->name('control-operativo.resultado-entrega');
 });
 
 require __DIR__ . '/auth.php';

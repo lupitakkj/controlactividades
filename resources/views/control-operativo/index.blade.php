@@ -6,65 +6,78 @@
         <div class="w-full max-w-[1800px] mx-auto px-4">
 
             {{-- ENCABEZADO --}}
-            <div class="bg-white overflow-visible shadow-sm sm:rounded-lg mb-6 relative z-50">
+            <div class="bg-white overflow-visible shadow-sm sm:rounded-2xl mb-5 relative z-50 border border-slate-100">
 
-                <div class="p-5">
+                <div class="p-4 sm:p-5">
 
-                    <div class="flex items-center justify-between gap-6">
+                    @php
+                        // Indicadores calculados con los pedidos ya cargados en esta vista.
+                        $totalPedidosVista = $pedidos->count();
+                        $pedidosEnProcesoVista = $pedidos->filter(function ($pedido) {
+                            $estado = mb_strtolower(trim((string) ($pedido->controlOperativo?->estado_operativo ?? 'Por Iniciar')));
+                            return $estado === 'en proceso';
+                        })->count();
+                        $pedidosTerminadosVista = $pedidos->filter(function ($pedido) {
+                            $estado = mb_strtolower(trim((string) ($pedido->controlOperativo?->estado_operativo ?? 'Por Iniciar')));
+                            return $estado === 'terminado';
+                        })->count();
+                        $pedidosAtrasadosVista = $pedidos->filter(function ($pedido) {
+                            $estado = mb_strtolower(trim((string) ($pedido->controlOperativo?->estado_operativo ?? 'Por Iniciar')));
+                            $fechaEntrega = $pedido->fecha_entrega ?? null;
+                            if (!$fechaEntrega || in_array($estado, ['terminado', 'cancelado'], true)) {
+                                return false;
+                            }
+                            try {
+                                return \Illuminate\Support\Carbon::parse($fechaEntrega)->startOfDay()->lt(now()->startOfDay());
+                            } catch (\Throwable $e) {
+                                return false;
+                            }
+                        })->count();
+                    @endphp
+
+                    <div class="flex flex-col 2xl:flex-row 2xl:items-center gap-2">
 
                         {{-- TÍTULO --}}
-                        <div class="min-w-[220px]">
-
-                            <h3 class="text-lg font-semibold text-gray-800">
-                                Control Operativo
-                            </h3>
-
-                            <p class="text-sm text-gray-500 mt-1">
-                                Seguimiento de pedidos y producción.
-                            </p>
-
+                        <div class="flex items-center gap-2 min-w-[220px] 2xl:w-[255px] shrink-0">
+                            <div class="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-50 text-blue-600 border border-blue-100 shrink-0">
+                                <svg class="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+                                    <rect x="3.5" y="5" width="17" height="16" rx="2.5"></rect>
+                                    <path d="M8 3v4M16 3v4M4 9h16M8 13h3v3H8z"></path>
+                                </svg>
+                            </div>
+                            <div>
+                                <h3 class="text-xl font-bold tracking-tight text-slate-900">Control Operativo</h3>
+                                <p class="text-xs text-slate-500 mt-1">Seguimiento de pedidos y producción.</p>
+                            </div>
                         </div>
-
 
                         {{-- INDICADORES --}}
-                        <div class="flex items-center gap-3">
-
-                            {{-- PEDIDOS ACTIVOS --}}
-                            <div
-                                class="text-white rounded-lg px-5 py-3 min-w-[145px] shadow-sm"
-                                style="background-color: #F58220;">
-
-                                <div class="text-xs font-semibold uppercase tracking-wide">
-                                    Pedidos activos
-                                </div>
-
-                                <div class="text-3xl font-bold leading-none mt-1">
-                                    {{ $pedidosActivos->count() }}
-                                </div>
-
+                        <div class="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-5 gap-1.5 flex-1 min-w-0">
+                            <div class="flex min-h-[54px] items-center gap-2 rounded-lg px-2 py-1.5 text-white shadow-sm" style="background:linear-gradient(135deg,#ff9417,#ff7b00)">
+                                <span class="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-white/20 text-base">✚</span>
+                                <div class="min-w-0"><div class="text-[10px] font-semibold leading-tight">Pedidos activos</div><div class="text-xl font-bold leading-tight">{{ $pedidosActivos->count() }}</div></div>
                             </div>
-
-
-                            {{-- AVANCE GLOBAL --}}
-                            <div
-                                class="text-white rounded-lg px-5 py-3 min-w-[145px] shadow-sm"
-                                style="background-color: #00AEEF;">
-
-                                <div class="text-xs font-semibold uppercase tracking-wide">
-                                    Avance global
-                                </div>
-
-                                <div class="text-3xl font-bold leading-none mt-1">
-                                    {{ number_format($avanceGlobal * 100, 0) }}%
-                                </div>
-
+                            <div class="flex min-h-[54px] items-center gap-2 rounded-lg px-2 py-1.5 text-white shadow-sm" style="background:linear-gradient(135deg,#08b8f0,#009fe3)">
+                                <span class="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-white/20 text-base">◉</span>
+                                <div class="min-w-0"><div class="text-[10px] font-semibold leading-tight">Avance global</div><div class="text-xl font-bold leading-tight">{{ number_format($avanceGlobal * 100, 0) }}%</div></div>
                             </div>
-
+                            <div class="flex min-h-[54px] items-center gap-2 rounded-lg px-2 py-1.5 text-white shadow-sm" style="background:linear-gradient(135deg,#8b5cf6,#7048df)">
+                                <span class="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-white/20 text-base">▣</span>
+                                <div class="min-w-0"><div class="text-[10px] font-semibold leading-tight">En proceso</div><div class="text-xl font-bold leading-tight">{{ $pedidosEnProcesoVista }}</div></div>
+                            </div>
+                            <div class="flex min-h-[54px] items-center gap-2 rounded-lg px-2 py-1.5 text-white shadow-sm" style="background:linear-gradient(135deg,#10b981,#059669)">
+                                <span class="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-white/20 text-base">✓</span>
+                                <div class="min-w-0"><div class="text-[10px] font-semibold leading-tight">Terminados</div><div class="text-xl font-bold leading-tight">{{ $pedidosTerminadosVista }}</div></div>
+                            </div>
+                            <div class="flex min-h-[54px] items-center gap-2 rounded-lg px-2 py-1.5 text-white shadow-sm" style="background:linear-gradient(135deg,#fb4554,#ef233c)">
+                                <span class="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-white/20 text-base">⚠</span>
+                                <div class="min-w-0"><div class="text-[10px] font-semibold leading-tight">Atrasados</div><div class="text-xl font-bold leading-tight">{{ $pedidosAtrasadosVista }}</div></div>
+                            </div>
                         </div>
 
-
+                    <div class="mt-0 flex flex-wrap 2xl:flex-nowrap items-center justify-end gap-2 2xl:ml-1 border-t border-slate-100 2xl:border-t-0 pt-2 2xl:pt-0 shrink-0">
                         {{-- FILTRO DE AVANCE --}}
-                        <div class="flex items-center gap-3">
+                        <div class="flex items-center gap-2 whitespace-nowrap">
 
                             <label
                                 for="filtroAvance"
@@ -74,8 +87,9 @@
 
                             <select
                                 id="filtroAvance"
-                                class="border border-gray-300 rounded-lg px-3 py-2
-                           text-sm bg-white
+                                style="appearance: auto; -webkit-appearance: menulist; background-image: none; padding-right: 1.75rem;"
+                                class="border border-gray-300 rounded-lg px-2.5 py-1.5
+                           text-xs bg-white
                            focus:ring-blue-500 focus:border-blue-500">
 
                                 <option value="todos">
@@ -100,17 +114,12 @@
 
                             </select>
 
-                            <span
-                                id="contadorFiltro"
-                                class="text-sm text-gray-500">
-                            </span>
+
 
                         </div>
 
-
-                        {{-- TOTAL + COLUMNAS --}}
-                        <div class="flex items-center gap-4">
-
+                        {{-- CONTROLES DE COLUMNAS; el contador dinámico conserva solo los pedidos filtrados --}}
+                        <div class="flex items-center gap-2">
 
                             {{-- BOTÓN COLUMNAS --}}
                             <div class="relative">
@@ -118,10 +127,10 @@
                                 <button
                                     type="button"
                                     id="btnColumnas"
-                                    class="inline-flex items-center gap-2 px-4 py-2
+                                    class="inline-flex items-center gap-1.5 px-3 py-1.5
                                bg-gray-100 hover:bg-gray-200
-                               text-gray-700 text-sm font-medium
-                               rounded-lg border border-gray-300">
+                               text-gray-700 text-xs font-medium
+                               rounded-lg border border-gray-300 whitespace-nowrap">
 
                                     ⚙️ Columnas
 
@@ -223,25 +232,6 @@
                                                 </span>
 
                                             </label>
-
-
-                                            {{-- IMPORTE --}}
-                                            <label class="flex items-center gap-3 cursor-pointer">
-
-                                                <input
-                                                    type="checkbox"
-                                                    class="columna-check w-4 h-4 rounded border-gray-400 text-blue-600 focus:ring-blue-500"
-                                                    style="appearance: auto; -webkit-appearance: checkbox;"
-                                                    data-columna="importe"
-                                                    checked>
-
-                                                <span class="text-sm text-gray-700">
-                                                    Importe
-                                                </span>
-
-                                            </label>
-
-
                                             {{-- FECHA ENTREGA --}}
                                             <label class="flex items-center gap-3 cursor-pointer">
 
@@ -326,22 +316,11 @@
                                             </label>
 
 
-                                            {{-- ESTADO --}}
+                                            {{-- ENTREGA DE INFORMACIÓN --}}
                                             <label class="flex items-center gap-3 cursor-pointer">
-
-                                                <input
-                                                    type="checkbox"
-                                                    class="columna-check w-4 h-4 rounded border-gray-400 text-blue-600 focus:ring-blue-500"
-                                                    style="appearance: auto; -webkit-appearance: checkbox;"
-                                                    data-columna="estado"
-                                                    checked>
-
-                                                <span class="text-sm text-gray-700">
-                                                    Estado
-                                                </span>
-
+                                                <input type="checkbox" class="columna-check w-4 h-4 rounded border-gray-400 text-blue-600 focus:ring-blue-500" style="appearance: auto; -webkit-appearance: checkbox;" data-columna="resultado-entrega" checked>
+                                                <span class="text-sm text-gray-700">Entrega de información</span>
                                             </label>
-
 
                                             {{-- SEMÁFORO --}}
                                             <label class="flex items-center gap-3 cursor-pointer">
@@ -445,27 +424,122 @@
             </div>
 
 
-            {{-- FILTROS AVANZADOS --}}
-            <div class="bg-white shadow-sm sm:rounded-lg mb-6">
-                <div class="p-5">
-                    <div class="flex flex-wrap items-end gap-4">
+            {{-- CALENDARIO DE PRODUCCIÓN --}}
+            <section id="panelCalendarioProduccion" class="bg-white shadow-sm sm:rounded-2xl mb-4 border border-slate-100 overflow-hidden">
+                <div class="p-3 lg:p-4">
+                    <div class="grid grid-cols-1 xl:grid-cols-[minmax(300px,0.95fr)_minmax(380px,1.25fr)_minmax(250px,0.72fr)] gap-3 items-stretch">
+                        <div class="w-full min-w-0 rounded-xl bg-white border border-slate-100 p-3">
+                            <div class="flex items-center gap-2.5 mb-3 min-w-0">
+                                <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-600 text-xl">▦</span>
+                                <div class="min-w-0">
+                                    <h4 class="text-base font-semibold text-gray-800">Agenda de producción</h4>
+                                    <p class="text-xs text-gray-500 mt-0.5">Pedidos programados por fecha de producción.</p>
+                                </div>
+                            </div>
+                            <div class="flex items-center justify-center gap-2 mb-2.5">
+                                <button type="button" id="calMesAnterior" aria-label="Mes anterior"
+                                    class="w-9 h-9 shrink-0 rounded-lg border border-slate-200 bg-white hover:bg-blue-50 text-slate-600">‹</button>
+                                <button type="button" id="calIrHoy" class="h-9 px-4 shrink-0 rounded-lg border border-slate-200 bg-blue-50/60 hover:bg-blue-100 text-xs font-semibold text-slate-700">Hoy</button>
+                                <div class="h-9 min-w-0 flex-1 max-w-[190px] flex items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-800 capitalize">
+                                    <span id="calMesAnio"></span><span class="text-slate-400">⌄</span>
+                                </div>
+                                <button type="button" id="calMesSiguiente" aria-label="Mes siguiente"
+                                    class="w-9 h-9 shrink-0 rounded-lg border border-slate-200 bg-white hover:bg-blue-50 text-slate-600">›</button>
+                            </div>
+                            <div class="grid grid-cols-7 gap-1 text-center text-[10px] font-semibold text-slate-600 mb-1.5">
+                                <div>Lun</div><div>Mar</div><div>Mié</div><div>Jue</div><div>Vie</div><div>Sáb</div><div>Dom</div>
+                            </div>
+                            <div id="calDias" class="grid grid-cols-7 gap-0 border-l border-t border-slate-100 rounded-b-lg overflow-hidden"></div>
+                            <div class="flex flex-wrap gap-x-3 gap-y-1.5 mt-3 text-[10px] text-gray-600">
+                                <span class="inline-flex items-center gap-1"><i class="w-2 h-2 rounded-full bg-orange-500"></i>Por iniciar</span>
+                                <span class="inline-flex items-center gap-1"><i class="w-2 h-2 rounded-full bg-sky-500"></i>En proceso</span>
+                                <span class="inline-flex items-center gap-1"><i class="w-2 h-2 rounded-full bg-green-500"></i>Terminado</span>
+                                <span class="inline-flex items-center gap-1"><i class="w-2 h-2 rounded-full bg-red-500"></i>Atrasado</span>
+                            </div>
+                        </div>
+                        <div class="flex-1 min-w-0 rounded-xl border border-slate-100 p-3">
+                            <div class="flex flex-wrap items-center justify-between gap-2 mb-2.5">
+                                <div>
+                                    <h5 class="font-semibold text-gray-800">Pedidos del día</h5>
+                                    <p id="calFechaSeleccionada" class="text-sm text-gray-500"></p>
+                                </div>
+                                <span id="calTotalDia" class="text-xs font-semibold rounded-full bg-blue-50 text-blue-700 px-3 py-1">0 pedidos</span>
+                            </div>
+                            <div id="calListaPedidos" class="space-y-1.5 max-h-[260px] overflow-y-auto pr-1">
+                                <p class="text-sm text-gray-400 italic">Selecciona un día para consultar sus pedidos.</p>
+                            </div>
+                            <p class="mt-2 text-[11px] text-gray-400">La fecha se toma de “Fecha Producción”.</p>
+                        </div>
 
-                        <div class="min-w-[260px] flex-1">
-                            <label for="filtroBusqueda" class="block text-xs font-semibold text-gray-600 uppercase mb-1">
+                        {{-- PRÓXIMOS PEDIDOS --}}
+                        <aside class="min-w-0 rounded-xl border border-slate-100 bg-white p-3 flex flex-col">
+                            <div class="flex items-center justify-between gap-2 border-b border-slate-100 pb-3 mb-2">
+                                <div class="flex items-center gap-2 min-w-0">
+                                    <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-600 text-lg">◷</span>
+                                    <div class="min-w-0">
+                                        <h5 class="font-semibold text-gray-800 text-sm">Próximos pedidos</h5>
+                                        <p class="text-[11px] text-gray-500">Por fecha de producción</p>
+                                    </div>
+                                </div>
+                                <button type="button" id="verAgendaCompleta" class="text-[11px] font-semibold text-blue-600 hover:text-blue-800 whitespace-nowrap">Ver agenda →</button>
+                            </div>
+                            <div id="listaProximosProduccion" class="space-y-1.5 flex-1 min-h-[120px] max-h-[220px] overflow-y-auto">
+                                <p class="text-xs text-slate-400">Cargando pedidos...</p>
+                            </div>
+                            <div class="mt-3 rounded-xl border border-red-100 bg-red-50 p-3">
+                                <div class="flex items-center gap-2">
+                                    <span class="flex h-9 w-9 items-center justify-center rounded-lg bg-red-100 text-red-600 text-lg">⚠</span>
+                                    <div><p class="text-[11px] font-semibold text-red-600">Sin fecha de producción</p><p id="totalSinFechaProduccion" class="text-xl font-bold leading-tight text-red-700">0</p></div>
+                                </div>
+                                <button type="button" id="verSinFechaProduccion" class="mt-2 w-full rounded-lg border border-red-200 bg-white px-2 py-1.5 text-[11px] font-semibold text-red-700 hover:bg-red-100">Ver pedidos sin fecha →</button>
+                            </div>
+                        </aside>
+                    </div>
+                    <div class="grid grid-cols-2 xl:grid-cols-4 gap-2.5 mt-3" id="resumenSemanalProduccion">
+                        <div class="rounded-xl border border-blue-100 bg-blue-50/80 px-3 py-2 flex items-center gap-2.5">
+                            <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-blue-100 text-blue-600 text-lg">▦</span>
+                            <div><p class="text-[11px] text-blue-800">Pedidos esta semana</p><p id="calSemanaTotal" class="text-lg font-bold leading-tight text-slate-800">0</p></div>
+                        </div>
+                        <div class="rounded-xl border border-emerald-100 bg-emerald-50/80 px-3 py-2 flex items-center gap-2.5">
+                            <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-emerald-100 text-emerald-600 text-lg">✓</span>
+                            <div><p class="text-[11px] text-emerald-800">Terminados esta semana</p><p id="calSemanaTerminados" class="text-lg font-bold leading-tight text-slate-800">0</p></div>
+                        </div>
+                        <div class="rounded-xl border border-orange-100 bg-orange-50/80 px-3 py-2 flex items-center gap-2.5">
+                            <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-orange-100 text-orange-600 text-lg">◷</span>
+                            <div><p class="text-[11px] text-orange-800">Por iniciar esta semana</p><p id="calSemanaIniciar" class="text-lg font-bold leading-tight text-slate-800">0</p></div>
+                        </div>
+                        <div class="rounded-xl border border-red-100 bg-red-50/80 px-3 py-2 flex items-center gap-2.5">
+                            <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-red-100 text-red-600 text-lg">⚠</span>
+                            <div><p class="text-[11px] text-red-700">Atrasados esta semana</p><p id="calSemanaAtrasados" class="text-lg font-bold leading-tight text-slate-800">0</p></div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            {{-- TABLA --}}
+            {{-- TABLA --}}
+            <div class="bg-white shadow-sm sm:rounded-lg overflow-hidden">
+
+            {{-- FILTROS INTEGRADOS A LA TABLA --}}
+            <div class="border-b border-slate-200 bg-slate-50/80 px-4 py-3">
+                <div class="flex flex-wrap items-end gap-x-3 gap-y-2">
+
+                        <div class="min-w-[220px] flex-[2]">
+                            <label for="filtroBusqueda" class="block text-[11px] font-semibold text-slate-500 mb-1">
                                 Buscar
                             </label>
                             <input
                                 type="text"
                                 id="filtroBusqueda"
                                 placeholder="Pedido, cliente, su pedido o enviar a..."
-                                class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500">
+                                class="w-full min-w-0 border border-slate-200 rounded-lg px-2.5 py-2 text-xs bg-white focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                         </div>
 
-                        <div class="min-w-[150px]">
-                            <label for="filtroPrioridad" class="block text-xs font-semibold text-gray-600 uppercase mb-1">
+                        <div class="min-w-[95px] flex-1">
+                            <label for="filtroPrioridad" class="block text-[11px] font-semibold text-slate-500 mb-1">
                                 Prioridad
                             </label>
-                            <select id="filtroPrioridad" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white focus:ring-blue-500 focus:border-blue-500">
+                            <select id="filtroPrioridad" class="w-full min-w-0 border border-slate-200 rounded-lg px-2.5 py-2 text-xs bg-white focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                                 <option value="todos">Todas</option>
                                 <option value="1">1</option>
                                 <option value="2">2</option>
@@ -475,11 +549,11 @@
                             </select>
                         </div>
 
-                        <div class="min-w-[165px]">
-                            <label for="filtroEstado" class="block text-xs font-semibold text-gray-600 uppercase mb-1">
+                        <div class="min-w-[110px] flex-1">
+                            <label for="filtroEstado" class="block text-[11px] font-semibold text-slate-500 mb-1">
                                 Estado
                             </label>
-                            <select id="filtroEstado" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white focus:ring-blue-500 focus:border-blue-500">
+                            <select id="filtroEstado" class="w-full min-w-0 border border-slate-200 rounded-lg px-2.5 py-2 text-xs bg-white focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                                 <option value="todos">Todos</option>
                                 <option value="Por Iniciar">Por Iniciar</option>
                                 <option value="En proceso">En proceso</option>
@@ -488,11 +562,11 @@
                             </select>
                         </div>
 
-                        <div class="min-w-[165px]">
-                            <label for="filtroSemaforo" class="block text-xs font-semibold text-gray-600 uppercase mb-1">
+                        <div class="min-w-[110px] flex-1">
+                            <label for="filtroSemaforo" class="block text-[11px] font-semibold text-slate-500 mb-1">
                                 Semáforo
                             </label>
-                            <select id="filtroSemaforo" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white focus:ring-blue-500 focus:border-blue-500">
+                            <select id="filtroSemaforo" class="w-full min-w-0 border border-slate-200 rounded-lg px-2.5 py-2 text-xs bg-white focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                                 <option value="todos">Todos</option>
                                 <option value="EN TIEMPO">EN TIEMPO</option>
                                 <option value="EN RIESGO">EN RIESGO</option>
@@ -503,71 +577,66 @@
                             </select>
                         </div>
 
-                        <div class="min-w-[150px]">
-                            <label for="filtroInterno" class="block text-xs font-semibold text-gray-600 uppercase mb-1">
+                        <div class="min-w-[95px] flex-1">
+                            <label for="filtroInterno" class="block text-[11px] font-semibold text-slate-500 mb-1">
                                 Pedido Interno
                             </label>
-                            <select id="filtroInterno" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white focus:ring-blue-500 focus:border-blue-500">
+                            <select id="filtroInterno" class="w-full min-w-0 border border-slate-200 rounded-lg px-2.5 py-2 text-xs bg-white focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                                 <option value="todos">Todos</option>
                                 <option value="si">Sí</option>
                                 <option value="no">No</option>
                             </select>
                         </div>
 
-                        <div class="min-w-[155px]">
-                            <label for="filtroProduccionDesde" class="block text-xs font-semibold text-gray-600 uppercase mb-1">
+                        <div class="min-w-[125px] flex-1">
+                            <label for="filtroProduccionDesde" class="block text-[11px] font-semibold text-slate-500 mb-1">
                                 Producción desde
                             </label>
-                            <input type="date" id="filtroProduccionDesde" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500">
+                            <input type="date" id="filtroProduccionDesde" class="w-full min-w-0 border border-slate-200 rounded-lg px-2.5 py-2 text-xs bg-white focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                         </div>
 
-                        <div class="min-w-[155px]">
-                            <label for="filtroProduccionHasta" class="block text-xs font-semibold text-gray-600 uppercase mb-1">
+                        <div class="min-w-[125px] flex-1">
+                            <label for="filtroProduccionHasta" class="block text-[11px] font-semibold text-slate-500 mb-1">
                                 Producción hasta
                             </label>
-                            <input type="date" id="filtroProduccionHasta" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500">
+                            <input type="date" id="filtroProduccionHasta" class="w-full min-w-0 border border-slate-200 rounded-lg px-2.5 py-2 text-xs bg-white focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                         </div>
 
-                        <div class="min-w-[155px]">
-                            <label for="filtroEntregaDesde" class="block text-xs font-semibold text-gray-600 uppercase mb-1">
+                        <div class="min-w-[125px] flex-1">
+                            <label for="filtroEntregaDesde" class="block text-[11px] font-semibold text-slate-500 mb-1">
                                 Entrega desde
                             </label>
-                            <input type="date" id="filtroEntregaDesde" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500">
+                            <input type="date" id="filtroEntregaDesde" class="w-full min-w-0 border border-slate-200 rounded-lg px-2.5 py-2 text-xs bg-white focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                         </div>
 
-                        <div class="min-w-[155px]">
-                            <label for="filtroEntregaHasta" class="block text-xs font-semibold text-gray-600 uppercase mb-1">
+                        <div class="min-w-[125px] flex-1">
+                            <label for="filtroEntregaHasta" class="block text-[11px] font-semibold text-slate-500 mb-1">
                                 Entrega hasta
                             </label>
-                            <input type="date" id="filtroEntregaHasta" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500">
+                            <input type="date" id="filtroEntregaHasta" class="w-full min-w-0 border border-slate-200 rounded-lg px-2.5 py-2 text-xs bg-white focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
                         </div>
 
                         <button
                             type="button"
                             id="limpiarFiltros"
-                            class="px-4 py-2 rounded-lg border border-gray-300 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-medium">
+                            class="px-3 py-2 rounded-lg border border-slate-200 bg-white hover:bg-slate-100 text-slate-600 text-xs font-semibold whitespace-nowrap">
                             Limpiar filtros
                         </button>
 
                     </div>
 
-                    <div class="mt-4 flex items-center justify-between gap-4 text-sm">
+                    <div class="mt-2 flex items-center justify-between gap-4 text-xs">
                         <span id="resumenFiltros" class="text-gray-500"></span>
                         <span id="contadorFiltroAvanzado" class="font-semibold text-gray-700"></span>
                     </div>
-                </div>
             </div>
 
-            {{-- TABLA --}}
-            {{-- TABLA --}}
-            <div class="bg-white shadow-sm sm:rounded-lg">
-
-                <div class="p-6">
+                <div class="px-2 pt-2 pb-1">
 
                     <div
                         id="contenedorTabla"
                         class="overflow-auto"
-                        style="height: calc(100vh - 330px); overflow-y: auto; overflow-x: auto; position: relative;">
+                        style="height: calc(100vh - 140px); min-height: 600px; overflow-y: auto; overflow-x: auto; position: relative;">
 
                         <table
                             id="tablaPedidos"
@@ -640,23 +709,6 @@
                                             </span>
                                         </button>
                                     </th>
-
-                                    {{-- IMPORTE --}}
-                                    <th
-                                        data-columna="importe"
-                                        class="col-importe px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase">
-                                        <button
-                                            type="button"
-                                            class="btn-ordenar w-full inline-flex items-center justify-between gap-2 group"
-                                            data-sort="importe">
-                                            <span>Importe</span>
-                                            <span class="icono-orden text-gray-400 text-[10px] leading-none">
-                                                <span class="flecha-arriba">▲</span>
-                                                <span class="flecha-abajo">▼</span>
-                                            </span>
-                                        </button>
-                                    </th>
-
                                     {{-- FECHA ENTREGA --}}
                                     <th
                                         data-columna="fecha-entrega"
@@ -744,15 +796,13 @@
 
                                     </th>
 
-                                    {{-- ESTADO --}}
-                                    <th
-                                        data-columna="estado"
-                                        class="col-estado px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase">
+                                    {{-- ENTREGA DE INFORMACIÓN --}}
+                                    <th data-columna="resultado-entrega" class="col-resultado-entrega px-3 py-3 text-center text-xs font-semibold text-gray-600 uppercase min-w-[190px]">
                                         <button
                                             type="button"
                                             class="btn-ordenar w-full inline-flex items-center justify-between gap-2 group"
-                                            data-sort="estado">
-                                            <span>Estado</span>
+                                            data-sort="resultado-entrega">
+                                            <span>Entrega de información</span>
                                             <span class="icono-orden text-gray-400 text-[10px] leading-none">
                                                 <span class="flecha-arriba">▲</span>
                                                 <span class="flecha-abajo">▼</span>
@@ -843,6 +893,7 @@
                                 $control = $pedido->controlOperativo;
 
                                 $prioridad = $control?->prioridad;
+                                $resultadoEntrega = $control?->resultado_entrega;
 
                                 $fechaProduccion =
                                 $control?->fecha_produccion;
@@ -960,7 +1011,6 @@
                                     data-cliente="{{ e($pedido->cliente ?? '') }}"
                                     data-su-pedido="{{ e($pedido->su_pedido ?? '') }}"
                                     data-enviar-a="{{ e($pedido->enviar_a ?? '') }}"
-                                    data-importe="{{ (float) $pedido->importe_total }}"
                                     data-fecha-entrega="{{ $pedido->fecha_entrega ? $pedido->fecha_entrega->format('Y-m-d') : '' }}"
                                     data-prioridad="{{ $prioridad ?? '' }}"
                                     data-fecha-produccion="{{ $fechaProduccion ? $fechaProduccion->format('Y-m-d') : '' }}"
@@ -1012,18 +1062,6 @@
                                         {{ $pedido->enviar_a ?? '—' }}
 
                                     </td>
-
-
-                                    {{-- IMPORTE --}}
-                                    <td
-                                        data-columna="importe"
-                                        class="col-importe px-4 py-4 whitespace-nowrap text-sm text-gray-700 text-right">
-
-                                        ${{ number_format((float) $pedido->importe_total, 2) }}
-
-                                    </td>
-
-
                                     {{-- FECHA ENTREGA --}}
                                     <td
                                         data-columna="fecha-entrega"
@@ -1078,7 +1116,7 @@
 
                                         <input
                                             type="date"
-                                            class="fecha-produccion-input border border-gray-300 rounded-lg px-2 py-1 text-sm focus:ring-blue-500 focus:border-blue-500"
+                                            class="fecha-produccion-input block w-full min-w-0 box-border border border-gray-300 rounded-lg px-2 py-1 text-sm focus:ring-blue-500 focus:border-blue-500"
                                             data-url="{{ route('control-operativo.fecha-produccion', $pedido) }}"
                                             value="{{ $fechaProduccion
                                                     ? $fechaProduccion->format('Y-m-d')
@@ -1175,44 +1213,16 @@
                                         </div>
                                         </td>
 
-
-                                        {{-- ESTADO --}}
-                                        <td
-                                            data-columna="estado"
-                                            class="col-estado px-4 py-4 whitespace-nowrap text-center">
-
-                                            <select
-                                                class="estado-input rounded-md border border-gray-300
-                                                    px-3 py-1.5 text-sm font-semibold
-                                                    cursor-pointer
-                                                    focus:ring-blue-500 focus:border-blue-500"
-                                                data-url="{{ route('control-operativo.estado', $pedido) }}"
-                                                data-estado-original="{{ $estado }}">
-
-                                                <option value="Por Iniciar"
-                                                    {{ $estado === 'Por Iniciar' ? 'selected' : '' }}>
-                                                    Por Iniciar
-                                                </option>
-
-
-                                                <option value="En proceso"
-                                                    {{ $estado === 'En proceso' ? 'selected' : '' }}>
-                                                    En proceso
-                                                </option>
-
-                                                <option value="Cancelado"
-                                                    {{ $estado === 'Cancelado' ? 'selected' : '' }}>
-                                                    Cancelado
-                                                </option>
-
-                                                <option value="Terminado"
-                                                    {{ $estado === 'Terminado' ? 'selected' : '' }}>
-                                                    Terminado
-                                                </option>
-
-                                            </select>
-
-                                        </td>
+                                        {{-- ENTREGA DE INFORMACIÓN (VENTAS) --}}
+                                        <td data-columna="resultado-entrega" class="col-resultado-entrega px-3 py-3 text-center align-middle">
+    <select class="resultado-entrega-input w-full max-w-[210px] rounded-lg border border-gray-300 px-2 py-2 text-xs font-semibold focus:ring-blue-500 focus:border-blue-500"
+            data-url="{{ route('control-operativo.resultado-entrega', $pedido) }}">
+        <option value="" {{ !$resultadoEntrega ? 'selected' : '' }}>Seleccionar...</option>
+        <option value="Pendiente" {{ $resultadoEntrega === 'Pendiente' ? 'selected' : '' }}>Pendiente</option>
+        <option value="Información incompleta" {{ $resultadoEntrega === 'Información incompleta' ? 'selected' : '' }}>Información incompleta</option>
+        <option value="Información completa" {{ $resultadoEntrega === 'Información completa' ? 'selected' : '' }}>Información completa</option>
+    </select>
+</td>
 
                                         {{-- SEMÁFORO --}}
                                         <td
@@ -1298,12 +1308,16 @@
                                             class="col-comentario px-3 py-2 min-w-[340px] align-top">
 
                                             {{-- ACTIVIDADES --}}
+                                            @php
+                                                $actividadesTerminadas = $actividades->where('completada', true);
+                                            @endphp
                                             <div class="actividades-container space-y-2">
 
                                                 @forelse($actividades as $actividad)
 
                                                 <div
-                                                    class="actividad-item flex items-start gap-2 p-2 rounded-md border border-gray-200 bg-gray-50"
+                                                    class="actividad-item flex items-start gap-2 p-2 rounded-md border border-gray-200 bg-gray-50 {{ $actividad->completada ? 'actividad-terminada hidden opacity-60' : '' }}"
+                                                    data-completada="{{ $actividad->completada ? '1' : '0' }}"
                                                     data-actividad-id="{{ $actividad->id }}"
                                                     data-url-actualizar="{{ route('control-operativo.actividad.actualizar', $actividad) }}"
                                                     data-url-eliminar="{{ route('control-operativo.actividad.eliminar', $actividad) }}">
@@ -1348,6 +1362,14 @@
                                                 @endforelse
 
                                             </div>
+
+                                            {{-- MOSTRAR / OCULTAR ACTIVIDADES TERMINADAS --}}
+                                            <button
+                                                type="button"
+                                                class="toggle-actividades-terminadas mt-2 text-xs font-medium text-gray-600 hover:text-blue-700 {{ $actividadesTerminadas->isEmpty() ? 'hidden' : '' }}"
+                                                aria-expanded="false">
+                                                Mostrar terminadas ({{ $actividadesTerminadas->count() }})
+                                            </button>
 
                                             {{-- AGREGAR ACTIVIDAD --}}
                                             <button
@@ -1420,6 +1442,20 @@
             box-sizing: border-box;
         }
 
+        /* Alinear verticalmente el contenido de todas las celdas de cada pedido.
+           Las actividades pueden ocupar varias líneas y aumentar la altura de la fila;
+           el resto de las columnas queda centrado respecto a esa altura. */
+        #tablaPedidos tbody td {
+            vertical-align: middle !important;
+        }
+
+        /* Mantener controles y etiquetas centrados dentro de su celda. */
+        #tablaPedidos tbody td:not([data-columna="comentario"]) > select,
+        #tablaPedidos tbody td:not([data-columna="comentario"]) > input,
+        #tablaPedidos tbody td:not([data-columna="comentario"]) > button {
+            vertical-align: middle;
+        }
+
         /* Anchos iniciales. Se pueden cambiar arrastrando el borde. */
         #tablaPedidos th[data-columna="pedido"],
         #tablaPedidos td[data-columna="pedido"] {
@@ -1455,13 +1491,6 @@
             width: 100px !important;
             min-width: 100px !important;
         }
-
-        #tablaPedidos th[data-columna="importe"],
-        #tablaPedidos td[data-columna="importe"] {
-            width: 100px !important;
-            min-width: 100px !important;
-        }
-
         #tablaPedidos th[data-columna="fecha-entrega"],
         #tablaPedidos td[data-columna="fecha-entrega"] {
             width: 105px !important;
@@ -1490,12 +1519,6 @@
         #tablaPedidos td[data-columna="proceso-menor-avance"] {
             width: 120px !important;
             min-width: 120px !important;
-        }
-
-        #tablaPedidos th[data-columna="estado"],
-        #tablaPedidos td[data-columna="estado"] {
-            width: 100px !important;
-            min-width: 100px !important;
         }
 
         #tablaPedidos th[data-columna="semaforo"],
@@ -1646,7 +1669,6 @@
 
         /* Pedido, fechas y controles se mantienen compactos. */
         #tablaPedidos td.col-pedido,
-        #tablaPedidos td.col-importe,
         #tablaPedidos td.col-fecha-entrega,
         #tablaPedidos td.col-prioridad,
         #tablaPedidos td.col-fecha-produccion,
@@ -1772,13 +1794,6 @@
             font-weight: 700;
             color: #0f172a;
         }
-
-        /* Importe */
-        #tablaPedidos td[data-columna="importe"] {
-            font-weight: 600;
-            color: #0f172a;
-        }
-
         /* Campos de entrada dentro de la tabla */
         #tablaPedidos input:not([type="checkbox"]),
         #tablaPedidos select,
@@ -2030,13 +2045,11 @@
                 'cliente': 130,
                 'su-pedido': 110,
                 'enviar-a': 100,
-                'importe': 100,
                 'fecha-entrega': 105,
                 'prioridad': 70,
                 'fecha-produccion': 110,
                 'avance': 75,
                 'proceso-menor-avance': 120,
-                'estado': 100,
                 'semaforo': 105,
                 'dias': 100,
                 'pedido-interno': 100,
@@ -2964,7 +2977,6 @@
             }
 
             function actualizarResumenFiltros(visibles) {
-                contadorFiltro.textContent = visibles + ' pedidos';
                 contadorFiltroAvanzado.textContent = visibles + ' de ' + filasPedidos.length + ' pedidos';
 
                 const activos = [];
@@ -3033,7 +3045,6 @@
             };
 
             const columnasNumericas = new Set([
-                'importe',
                 'prioridad',
                 'avance',
                 'dias',
@@ -3050,13 +3061,12 @@
                 'cliente': 'cliente',
                 'su-pedido': 'suPedido',
                 'enviar-a': 'enviarA',
-                'importe': 'importe',
                 'fecha-entrega': 'fechaEntrega',
                 'prioridad': 'prioridad',
                 'fecha-produccion': 'fechaProduccion',
                 'avance': 'avance',
                 'proceso-menor-avance': 'procesoMenorAvance',
-                'estado': 'estado',
+                'resultado-entrega': null,
                 'semaforo': 'semaforo',
                 'dias': 'dias',
                 'pedido-interno': 'pedidoInterno',
@@ -3072,6 +3082,10 @@
                             return elemento.textContent.trim();
                         })
                         .join(' | ');
+                }
+                if (columna === 'resultado-entrega') {
+                    const selector = fila.querySelector('.resultado-entrega-input');
+                    return selector ? selector.value : '';
                 }
                 const atributo = atributosOrden[columna];
                 return atributo ? (fila.dataset[atributo] || '') : '';
@@ -4327,6 +4341,12 @@
                             |
                             */
 
+                            const filaFechaActualizada = campo.closest('.fila-pedido');
+                            if (filaFechaActualizada) {
+                                filaFechaActualizada.dataset.fechaProduccion = campo.value || '';
+                            }
+                            document.dispatchEvent(new CustomEvent('fecha-produccion-actualizada'));
+
                             campo.style.borderColor = '#22c55e';
 
                             setTimeout(function() {
@@ -4351,6 +4371,41 @@
 
             });
 
+
+            // ================================================================
+            // MOSTRAR / OCULTAR ACTIVIDADES TERMINADAS
+            // ================================================================
+
+            function actualizarBotonActividadesTerminadas(contenedor, abiertoActual) {
+                if (!contenedor) return;
+
+                const boton = contenedor.parentElement.querySelector('.toggle-actividades-terminadas');
+                const terminadas = Array.from(contenedor.querySelectorAll('.actividad-item'))
+                    .filter(item => item.dataset.completada === '1');
+
+                if (!boton) return;
+
+                boton.textContent = (abiertoActual ? 'Ocultar terminadas (' : 'Mostrar terminadas (') + terminadas.length + ')';
+                boton.setAttribute('aria-expanded', abiertoActual ? 'true' : 'false');
+                boton.dataset.abierto = abiertoActual ? '1' : '0';
+                boton.classList.toggle('hidden', terminadas.length === 0);
+
+                terminadas.forEach(item => {
+                    item.classList.toggle('hidden', !abiertoActual);
+                });
+            }
+
+            document.addEventListener('click', function(event) {
+                const boton = event.target.closest('.toggle-actividades-terminadas');
+                if (!boton) return;
+
+                const celda = boton.closest('.col-comentario');
+                const contenedor = celda ? celda.querySelector('.actividades-container') : null;
+                if (!contenedor) return;
+
+                const abrir = boton.dataset.abierto !== '1';
+                actualizarBotonActividadesTerminadas(contenedor, abrir);
+            });
 
             // ================================================================
             // COMPLETAR / DESCOMPLETAR ACTIVIDAD
@@ -4454,31 +4509,20 @@
                         }
 
 
-                        // --------------------------------------------------------
-                        // CAMBIAR APARIENCIA
-                        // --------------------------------------------------------
+                        // Mantener la actividad en el DOM para poder consultarla después.
+                        // Las completadas se ocultan por defecto, pero se pueden mostrar con el botón.
+                        const contenedorActividades = actividadElemento.closest('.actividades-container');
 
                         if (completada) {
-
-                            actividadElemento.classList.add(
-                                'opacity-60'
-                            );
-
-                            actividadElemento.classList.add(
-                                'bg-gray-100'
-                            );
-
+                            actividadElemento.dataset.completada = '1';
+                            actividadElemento.classList.add('actividad-terminada', 'opacity-60');
+                            actividadElemento.classList.add('hidden');
                         } else {
-
-                            actividadElemento.classList.remove(
-                                'opacity-60'
-                            );
-
-                            actividadElemento.classList.remove(
-                                'bg-gray-100'
-                            );
-
+                            actividadElemento.dataset.completada = '0';
+                            actividadElemento.classList.remove('actividad-terminada', 'opacity-60', 'hidden');
                         }
+
+                        actualizarBotonActividadesTerminadas(contenedorActividades, false);
 
                     })
 
@@ -4669,6 +4713,59 @@
         });
 
         // ================================================================
+        // ENTREGA DE INFORMACIÓN (VENTAS)
+        // ================================================================
+        document.querySelectorAll('.resultado-entrega-input').forEach(function(select) {
+            select.dataset.valorAnterior = select.value;
+
+            function aplicarEstiloResultado(elemento) {
+                elemento.classList.remove('border-green-300', 'bg-green-50', 'text-green-800', 'border-red-300', 'bg-red-50', 'text-red-800', 'border-amber-300', 'bg-amber-50', 'text-amber-800', 'border-slate-300', 'bg-slate-50', 'text-slate-700');
+                if (elemento.value === 'Información completa') {
+                    elemento.classList.add('border-green-300', 'bg-green-50', 'text-green-800');
+                } else if (elemento.value === 'Información incompleta') {
+                    elemento.classList.add('border-red-300', 'bg-red-50', 'text-red-800');
+                } else if (elemento.value === 'Pendiente') {
+                    elemento.classList.add('border-amber-300', 'bg-amber-50', 'text-amber-800');
+                } else if (elemento.value === 'Pendiente') {
+                    elemento.classList.add('border-slate-300', 'bg-slate-50', 'text-slate-700');
+                }
+            }
+
+            aplicarEstiloResultado(select);
+            select.addEventListener('change', function() {
+                const control = this;
+                const valorAnterior = control.dataset.valorAnterior ?? '';
+                control.disabled = true;
+
+                fetch(control.dataset.url, {
+                    method: 'PATCH',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify({ resultado_entrega: control.value || null })
+                })
+                .then(function(response) {
+                    if (!response.ok) throw new Error('Error al guardar entrega de información');
+                    return response.json();
+                })
+                .then(function(data) {
+                    if (!data.success) throw new Error('No se pudo guardar el entrega de información');
+                    control.dataset.valorAnterior = control.value;
+                    aplicarEstiloResultado(control);
+                })
+                .catch(function(error) {
+                    console.error(error);
+                    control.value = valorAnterior;
+                    aplicarEstiloResultado(control);
+                    alert('No se pudo guardar el entrega de información. Verifica tu conexión e inténtalo de nuevo.');
+                })
+                .finally(function() { control.disabled = false; });
+            });
+        });
+
+        // ================================================================
         // ESTADO OPERATIVO
         // ================================================================
 
@@ -4796,6 +4893,11 @@
                         campo.dataset.estadoOriginal =
                             data.estado_operativo;
 
+                        const filaEstadoActualizada = campo.closest('.fila-pedido');
+                        if (filaEstadoActualizada) {
+                            filaEstadoActualizada.dataset.estado = data.estado_operativo || nuevoEstado;
+                        }
+                        document.dispatchEvent(new CustomEvent('estado-operativo-actualizado'));
 
                         /*
                         |--------------------------------------------------------------------------
@@ -4874,4 +4976,300 @@
 
         });
     </script>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const panel = document.getElementById('panelCalendarioProduccion');
+            if (!panel) return;
+
+            const tabla = document.getElementById('tablaPedidos');
+            const contenedorDias = document.getElementById('calDias');
+            const etiquetaMes = document.getElementById('calMesAnio');
+            const etiquetaFecha = document.getElementById('calFechaSeleccionada');
+            const etiquetaTotal = document.getElementById('calTotalDia');
+            const listaPedidos = document.getElementById('calListaPedidos');
+
+            const hoy = new Date();
+            hoy.setHours(0, 0, 0, 0);
+            let mesVisible = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
+            let fechaSeleccionada = new Date(hoy);
+
+            const pad = numero => String(numero).padStart(2, '0');
+            const claveFecha = fecha => `${fecha.getFullYear()}-${pad(fecha.getMonth() + 1)}-${pad(fecha.getDate())}`;
+            const fechaLocal = valor => {
+                if (!valor || !/^\d{4}-\d{2}-\d{2}$/.test(valor)) return null;
+                const partes = valor.split('-').map(Number);
+                return new Date(partes[0], partes[1] - 1, partes[2]);
+            };
+            const mismoDia = (a, b) => claveFecha(a) === claveFecha(b);
+            const textoFecha = fecha => fecha.toLocaleDateString('es-MX', {
+                weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'
+            });
+            const obtenerFilas = () => Array.from(tabla.querySelectorAll('tbody tr.fila-pedido'));
+
+            function pedidosPorFecha() {
+                const mapa = new Map();
+                obtenerFilas().forEach(fila => {
+                    const fecha = fila.dataset.fechaProduccion;
+                    if (!fecha) return;
+                    if (!mapa.has(fecha)) mapa.set(fecha, []);
+                    mapa.get(fecha).push(fila);
+                });
+                return mapa;
+            }
+
+            function claseEstado(fila, fecha) {
+                const estado = (fila.dataset.estado || '').toLowerCase();
+                if (estado === 'terminado') return 'border-green-200 bg-green-50';
+                if (estado === 'cancelado') return 'border-gray-200 bg-gray-50';
+                const fechaDia = fechaLocal(fecha);
+                if (fechaDia && fechaDia < hoy) return 'border-red-200 bg-red-50';
+                if (estado === 'en proceso') return 'border-sky-200 bg-sky-50';
+                return 'border-orange-200 bg-orange-50';
+            }
+
+            function colorPunto(fila, fecha) {
+                const estado = (fila.dataset.estado || '').toLowerCase();
+                if (estado === 'terminado') return 'bg-green-500';
+                if (estado === 'cancelado') return 'bg-gray-400';
+                const fechaDia = fechaLocal(fecha);
+                if (fechaDia && fechaDia < hoy) return 'bg-red-500';
+                if (estado === 'en proceso') return 'bg-sky-500';
+                return 'bg-orange-500';
+            }
+
+            function renderizarLista() {
+                const fecha = claveFecha(fechaSeleccionada);
+                const pedidos = pedidosPorFecha().get(fecha) || [];
+                etiquetaFecha.textContent = textoFecha(fechaSeleccionada);
+                etiquetaTotal.textContent = `${pedidos.length} ${pedidos.length === 1 ? 'pedido' : 'pedidos'}`;
+                listaPedidos.replaceChildren();
+
+                if (!pedidos.length) {
+                    const vacio = document.createElement('p');
+                    vacio.className = 'text-sm text-gray-400 italic py-4';
+                    vacio.textContent = 'No hay pedidos programados para esta fecha.';
+                    listaPedidos.appendChild(vacio);
+                    return;
+                }
+
+                pedidos.forEach(fila => {
+                    const tarjeta = document.createElement('button');
+                    tarjeta.type = 'button';
+                    tarjeta.className = `w-full text-left border rounded-lg border-l-4 px-3 py-2 hover:shadow-sm transition ${claseEstado(fila, fecha)}`;
+
+                    const linea = document.createElement('div');
+                    linea.className = 'flex flex-wrap items-center justify-between gap-2';
+
+                    const pedido = document.createElement('span');
+                    pedido.className = 'font-semibold text-xs text-gray-800';
+                    pedido.textContent = `Pedido ${fila.dataset.pedido || '—'}`;
+
+                    const estado = document.createElement('span');
+                    estado.className = 'text-[10px] font-semibold text-gray-600';
+                    estado.textContent = fila.dataset.estado || 'Por Iniciar';
+
+                    const cliente = document.createElement('p');
+                    cliente.className = 'text-[11px] text-gray-600 mt-1';
+                    cliente.textContent = fila.dataset.cliente || 'Sin cliente registrado';
+
+                    const avance = document.createElement('p');
+                    avance.className = 'text-[10px] text-gray-500 mt-1';
+                    const valorAvance = fila.dataset.avance;
+                    avance.textContent = `Avance: ${valorAvance === '' ? 'Sin datos' : `${Math.round(Number(valorAvance) * 100)}%`}`;
+
+                    linea.append(pedido, estado);
+                    tarjeta.append(linea, cliente, avance);
+                    tarjeta.addEventListener('click', () => {
+                        fila.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        fila.classList.add('ring-2', 'ring-blue-400');
+                        window.setTimeout(() => fila.classList.remove('ring-2', 'ring-blue-400'), 1800);
+                    });
+                    listaPedidos.appendChild(tarjeta);
+                });
+            }
+
+            function actualizarResumenSemanal() {
+                const inicio = new Date(hoy);
+                inicio.setDate(inicio.getDate() - ((inicio.getDay() + 6) % 7));
+                const fin = new Date(inicio);
+                fin.setDate(fin.getDate() + 6);
+                const filasSemana = obtenerFilas().filter(fila => {
+                    const fecha = fechaLocal(fila.dataset.fechaProduccion || '');
+                    return fecha && fecha >= inicio && fecha <= fin;
+                });
+                const terminados = filasSemana.filter(fila => (fila.dataset.estado || '').toLowerCase() === 'terminado').length;
+                const porIniciar = filasSemana.filter(fila => (fila.dataset.estado || '').toLowerCase() === 'por iniciar').length;
+                const atrasados = filasSemana.filter(fila => {
+                    const estado = (fila.dataset.estado || '').toLowerCase();
+                    const semaforo = (fila.dataset.semaforo || '').toLowerCase();
+                    return estado !== 'terminado' && estado !== 'cancelado' && (semaforo.includes('atras') || (fechaLocal(fila.dataset.fechaProduccion || '') < hoy));
+                }).length;
+                const set = (id, valor) => { const el = document.getElementById(id); if (el) el.textContent = valor; };
+                set('calSemanaTotal', filasSemana.length);
+                set('calSemanaTerminados', terminados);
+                set('calSemanaIniciar', porIniciar);
+                set('calSemanaAtrasados', atrasados);
+            }
+
+            function renderizarCalendario() {
+                etiquetaMes.textContent = mesVisible.toLocaleDateString('es-MX', {
+                    month: 'long', year: 'numeric'
+                });
+                contenedorDias.replaceChildren();
+
+                const mapa = pedidosPorFecha();
+                const primerDia = new Date(mesVisible.getFullYear(), mesVisible.getMonth(), 1);
+                const desplazamiento = (primerDia.getDay() + 6) % 7;
+                const diasMes = new Date(mesVisible.getFullYear(), mesVisible.getMonth() + 1, 0).getDate();
+                const totalCeldas = Math.ceil((desplazamiento + diasMes) / 7) * 7;
+
+                for (let i = 0; i < totalCeldas; i++) {
+                    const numeroDia = i - desplazamiento + 1;
+                    const fecha = new Date(mesVisible.getFullYear(), mesVisible.getMonth(), numeroDia);
+                    const esMesActual = fecha.getMonth() === mesVisible.getMonth();
+                    const clave = claveFecha(fecha);
+                    const pedidos = mapa.get(clave) || [];
+                    const boton = document.createElement('button');
+                    boton.type = 'button';
+                    boton.className = 'relative flex flex-col items-center justify-start gap-0 h-[40px] sm:h-[42px] px-0.5 pt-1 border-r border-b border-slate-100 rounded-none text-[11px] transition-colors';
+                    boton.setAttribute('aria-label', `${fecha.getDate()}, ${pedidos.length} pedidos`);
+
+                    if (!esMesActual) {
+                        boton.classList.add('text-slate-300', 'bg-white');
+                    } else {
+                        boton.classList.add('text-slate-800', 'bg-white', 'hover:bg-blue-50');
+                    }
+                    if (mismoDia(fecha, fechaSeleccionada)) {
+                        boton.classList.remove('bg-white', 'text-slate-800', 'text-slate-300');
+                        boton.classList.add('bg-blue-600', 'text-white', 'shadow-inner');
+                    } else if (mismoDia(fecha, hoy)) {
+                        boton.classList.add('font-bold', 'ring-1', 'ring-blue-300');
+                    }
+                    if (pedidos.length) boton.classList.add('font-semibold');
+
+                    const numero = document.createElement('span');
+                    numero.className = 'relative z-10 leading-4';
+                    numero.textContent = fecha.getDate();
+                    boton.appendChild(numero);
+
+                    if (pedidos.length) {
+                        const basePuntos = document.createElement('span');
+                        basePuntos.className = `mt-1 flex min-h-[9px] w-full items-center justify-center gap-[3px] rounded-full ${mismoDia(fecha, fechaSeleccionada) ? 'bg-blue-600' : 'bg-blue-50'}`;
+                        pedidos.slice(0, 4).forEach(fila => {
+                            const punto = document.createElement('i');
+                            punto.className = `block w-[5px] h-[5px] shrink-0 rounded-full ${mismoDia(fecha, fechaSeleccionada) ? 'bg-white' : colorPunto(fila, clave)}`;
+                            basePuntos.appendChild(punto);
+                        });
+                        boton.appendChild(basePuntos);
+                    }
+
+                    boton.addEventListener('click', () => {
+                        fechaSeleccionada = fecha;
+                        mesVisible = new Date(fecha.getFullYear(), fecha.getMonth(), 1);
+                        renderizarCalendario();
+                        renderizarLista();
+                    });
+                    contenedorDias.appendChild(boton);
+                }
+            }
+
+            document.getElementById('calMesAnterior').addEventListener('click', () => {
+                mesVisible = new Date(mesVisible.getFullYear(), mesVisible.getMonth() - 1, 1);
+                renderizarCalendario();
+            });
+            document.getElementById('calMesSiguiente').addEventListener('click', () => {
+                mesVisible = new Date(mesVisible.getFullYear(), mesVisible.getMonth() + 1, 1);
+                renderizarCalendario();
+            });
+            document.getElementById('calIrHoy').addEventListener('click', () => {
+                fechaSeleccionada = new Date(hoy);
+                mesVisible = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
+                renderizarCalendario();
+                renderizarLista();
+            });
+
+            // El controlador de fecha emite este evento únicamente después de guardar correctamente.
+            document.addEventListener('fecha-produccion-actualizada', () => {
+                renderizarCalendario();
+                renderizarLista();
+                actualizarResumenSemanal();
+            });
+            document.addEventListener('estado-operativo-actualizado', () => {
+                renderizarCalendario();
+                renderizarLista();
+                actualizarResumenSemanal();
+            });
+
+            renderizarCalendario();
+            renderizarLista();
+            actualizarResumenSemanal();
+        });
+    </script>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const lista = document.getElementById('listaProximosProduccion');
+            const totalSinFecha = document.getElementById('totalSinFechaProduccion');
+            const botonAgenda = document.getElementById('verAgendaCompleta');
+            const botonSinFecha = document.getElementById('verSinFechaProduccion');
+            const contenedorTabla = document.getElementById('contenedorTabla');
+
+            function leerFilasProduccion() {
+                return Array.from(document.querySelectorAll('#tablaPedidos tbody tr.fila-pedido'))
+                    .filter(fila => !fila.querySelector('td[colspan]'))
+                    .map(fila => ({
+                        fila,
+                        pedido: (fila.dataset.pedido || fila.querySelector('[data-columna="pedido"]')?.innerText || 'Pedido').trim(),
+                        cliente: (fila.dataset.cliente || fila.querySelector('[data-columna="cliente"]')?.innerText || '').trim(),
+                        fecha: (fila.dataset.fechaProduccion || '').trim(),
+                        estado: (fila.dataset.estado || '').trim().toLowerCase(),
+                        semaforo: (fila.dataset.semaforo || '').trim().toLowerCase()
+                    }));
+            }
+
+            function fechaCorta(valor) {
+                if (!valor) return 'Sin fecha';
+                const partes = valor.split('-');
+                return partes.length === 3 ? `${partes[2]} ${['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'][Number(partes[1])-1] || ''}` : valor;
+            }
+
+            function actualizarPanelPedidos() {
+                if (!lista) return;
+                const filas = leerFilasProduccion();
+                const hoy = new Date(); hoy.setHours(0,0,0,0);
+                const fechaHoy = `${hoy.getFullYear()}-${String(hoy.getMonth()+1).padStart(2,'0')}-${String(hoy.getDate()).padStart(2,'0')}`;
+                const activos = filas.filter(p => !['terminado','cancelado'].includes(p.estado));
+                const sinFecha = activos.filter(p => !p.fecha);
+                const proximos = activos.filter(p => p.fecha && p.fecha >= fechaHoy).sort((a,b) => a.fecha.localeCompare(b.fecha)).slice(0,6);
+                if (totalSinFecha) totalSinFecha.textContent = sinFecha.length;
+                lista.innerHTML = '';
+                if (!proximos.length) {
+                    lista.innerHTML = '<p class="text-xs text-slate-400 py-3">No hay próximos pedidos programados.</p>';
+                } else {
+                    proximos.forEach(p => {
+                        const item = document.createElement('button');
+                        item.type = 'button';
+                        item.className = 'w-full flex items-center gap-2 rounded-lg border-b border-slate-100 px-1.5 py-2 text-left hover:bg-blue-50';
+                        const color = p.semaforo.includes('atras') ? 'bg-red-500' : p.estado.includes('terminado') ? 'bg-green-500' : p.estado.includes('proceso') ? 'bg-blue-500' : 'bg-orange-400';
+                        item.innerHTML = `<span class="w-1.5 h-1.5 rounded-full ${color} shrink-0"></span><span class="w-[58px] shrink-0 text-[11px] font-semibold text-slate-700">${fechaCorta(p.fecha)}</span><span class="min-w-0 flex-1"><span class="block truncate text-xs font-semibold text-slate-700">Pedido ${p.pedido.replace(/^0+/, '') || '0'}</span><span class="block truncate text-[10px] text-slate-500">${p.cliente.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}</span></span><span class="text-slate-400">›</span>`;
+                        item.addEventListener('click', () => { p.fila.scrollIntoView({behavior:'smooth', block:'center'}); p.fila.classList.add('bg-blue-50'); setTimeout(() => p.fila.classList.remove('bg-blue-50'), 1600); });
+                        lista.appendChild(item);
+                    });
+                }
+                if (botonAgenda) botonAgenda.onclick = () => { document.getElementById('panelCalendarioProduccion')?.scrollIntoView({behavior:'smooth',block:'start'}); };
+                if (botonSinFecha) botonSinFecha.onclick = () => {
+                    const campo = document.getElementById('filtroProduccionDesde');
+                    if (campo) { campo.value = ''; campo.dispatchEvent(new Event('input',{bubbles:true})); }
+                    const filasActuales = leerFilasProduccion();
+                    filasActuales.forEach(p => { if (!p.fecha && !['terminado','cancelado'].includes(p.estado)) p.fila.style.outline = '2px solid #f87171'; else p.fila.style.outline = ''; });
+                    if (contenedorTabla) contenedorTabla.scrollIntoView({behavior:'smooth',block:'start'});
+                };
+            }
+            actualizarPanelPedidos();
+            document.addEventListener('fecha-produccion-actualizada', actualizarPanelPedidos);
+            document.addEventListener('estado-operativo-actualizado', actualizarPanelPedidos);
+        });
+    </script>
+
 </x-app-layout>

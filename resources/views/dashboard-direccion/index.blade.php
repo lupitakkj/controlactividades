@@ -589,7 +589,7 @@
                                 </h2>
 
                                 <p class="text-sm text-gray-500 mt-1">
-                                    Meta de venta semanal
+                                    Meta semanal según fecha de producción
                                 </p>
                             </div>
 
@@ -669,6 +669,9 @@
 
                                 <p class="text-xs text-gray-800 mt-1">
                                     Periodo: {{ $inicioSemana->locale('es')->translatedFormat('F Y') }}
+                                </p>
+                                <p class="text-xs text-gray-500 mt-1">
+                                    Programado según fecha de producción
                                 </p>
                             </div>
 
@@ -759,7 +762,7 @@
             </h2>
 
             <p class="text-sm text-gray-500 mt-1">
-                Valor de pedidos según fecha programada y fecha real de terminación
+                Valor por fecha programada de producción y fecha real de terminación
             </p>
 
 
@@ -2263,7 +2266,7 @@
             encabezadoFecha.textContent =
                 esEntregado ?
                 'Fecha terminado' :
-                'Fecha entrega';
+                'Producción / entrega';
 
 
             lista.innerHTML = '';
@@ -2311,10 +2314,9 @@
                         'hover:bg-gray-50 transition';
 
 
-                    const fecha =
-                        esEntregado ?
-                        pedido.fecha_terminado :
-                        pedido.fecha_entrega;
+                    const fecha = esEntregado
+                        ? (pedido.fecha_terminado ?? '—')
+                        : `Prod.: ${pedido.fecha_produccion ?? 'Sin fecha'} · Entrega: ${pedido.fecha_entrega ?? 'Sin fecha'}`;
 
 
                     const importe =

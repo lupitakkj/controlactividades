@@ -11,6 +11,18 @@
                 action="{{ route('dashboard') }}"
                 class="flex items-center gap-3 flex-1">
 
+                {{-- Mes de las actividades: por defecto se muestra el mes actual --}}
+                <div class="flex flex-col gap-1">
+                    <label for="filtroMes" class="text-xs font-semibold text-slate-300">Mes de actividades</label>
+                    <input
+                        id="filtroMes"
+                        type="month"
+                        name="mes"
+                        value="{{ $mesSeleccionado ?? request('mes', now()->format('Y-m')) }}"
+                        class="w-44 h-11 rounded-xl border border-slate-600 bg-slate-800 text-white px-3"
+                        aria-label="Seleccionar mes de actividades">
+                </div>
+
                 {{-- Buscar --}}
                 <input
                     type="text"
@@ -439,8 +451,23 @@
 
                 const formularioSubtareas = document.getElementById('crearSubtareaForm');
                 if (formularioSubtareas) {
-                    formularioSubtareas.dataset.actividadId = String(actividad.id);
-                    formularioSubtareas.dataset.url = `/actividad/${actividad.id}/subtareas`;
+                    const idAnterior = formularioSubtareas.dataset.actividadId || '';
+                    const idNuevo = String(actividad.id);
+
+                    // No trasladar el borrador de una subtarea a otra actividad.
+                    if (idAnterior && idAnterior !== idNuevo) {
+                        formularioSubtareas.reset();
+                        const mensaje = document.getElementById('mensajeSubtareas');
+                        if (mensaje) {
+                            mensaje.textContent = '';
+                            mensaje.classList.add('hidden');
+                        }
+                    }
+
+                    formularioSubtareas.dataset.actividadId = idNuevo;
+                    formularioSubtareas.dataset.url = `/actividad/${idNuevo}/subtareas`;
+                    formularioSubtareas.method = 'POST';
+                    formularioSubtareas.action = new URL(formularioSubtareas.dataset.url, window.location.origin).href;
                 }
 
                 const modalDetalle = document.getElementById('detalleModal');
@@ -581,6 +608,8 @@
                 if (formularioSubtareasFinal) {
                     formularioSubtareasFinal.dataset.actividadId = idActividadFinal;
                     formularioSubtareasFinal.dataset.url = `/actividad/${idActividadFinal}/subtareas`;
+                    formularioSubtareasFinal.method = 'POST';
+                    formularioSubtareasFinal.action = new URL(formularioSubtareasFinal.dataset.url, window.location.origin).href;
                 }
 
                 if (modalDetalleFinal) {
@@ -699,7 +728,42 @@
             const abrirModalOriginal = window.abrirModal;
 
             const abrirModalConContadores = function (actividad) {
+                // Sincronizar SIEMPRE el ID y la URL del formulario después de
+                // ejecutar la función original que abre el detalle.
                 abrirModalOriginal(actividad);
+
+                if (actividad && actividad.id != null) {
+                    const idActividad = String(actividad.id);
+                    const formularioSubtareas = document.getElementById('crearSubtareaForm');
+                    const modalDetalle = document.getElementById('detalleModal');
+
+                    window.actividadDetalleActual = actividad;
+                    window.actividadSeleccionadaId = Number(actividad.id);
+
+                    if (formularioSubtareas) {
+                        formularioSubtareas.dataset.actividadId = idActividad;
+                        formularioSubtareas.dataset.url = `/actividad/${idActividad}/subtareas`;
+                        formularioSubtareas.method = 'POST';
+                        formularioSubtareas.action = new URL(
+                            formularioSubtareas.dataset.url,
+                            window.location.origin
+                        ).href;
+                    }
+
+                    if (modalDetalle) {
+                        modalDetalle.dataset.actividadId = idActividad;
+                    }
+
+                    if (typeof window.renderizarSubtareas === 'function') {
+                        window.renderizarSubtareas(actividad);
+                    }
+
+                    console.log('SUBTAREAS SINCRONIZADAS AL ABRIR', {
+                        actividad_id: idActividad,
+                        url: formularioSubtareas?.dataset.url,
+                        action: formularioSubtareas?.action
+                    });
+                }
 
                 const archivos = Array.isArray(actividad?.archivos)
                     ? actividad.archivos

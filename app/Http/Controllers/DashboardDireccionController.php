@@ -163,7 +163,7 @@ class DashboardDireccionController extends Controller
         | proyección:
         |
         | - Pedido pendiente:
-        |       usa fecha_entrega.
+        |       usa controlOperativo.fecha_produccion.
         |
         | - Pedido terminado:
         |       usa fecha_terminado.
@@ -211,15 +211,19 @@ class DashboardDireccionController extends Controller
                 |
                 */
 
-                if (empty($pedido->fecha_entrega)) {
+                // Para pedidos pendientes, la semana corresponde a la fecha
+                // de producción registrada por Producción, no a la entrega.
+                $fechaProduccion = $pedido->controlOperativo?->fecha_produccion;
+
+                if (empty($fechaProduccion)) {
                     return false;
                 }
 
-                $fechaEntrega = Carbon::parse(
-                    $pedido->fecha_entrega
+                $fechaProduccion = Carbon::parse(
+                    $fechaProduccion
                 )->startOfDay();
 
-                return $fechaEntrega->between(
+                return $fechaProduccion->between(
                     $inicioSemana->copy()->startOfDay(),
                     $finSemana->copy()->endOfDay()
                 );
@@ -280,17 +284,27 @@ class DashboardDireccionController extends Controller
         $pedidosPlaneacionMensual = $pedidos->filter(
             function ($pedido) use ($inicioMes, $finMes) {
 
-                if (empty($pedido->fecha_entrega)) {
-                    return false;
+                // Los pedidos terminados se asignan al mes en que realmente
+                // terminaron; los pendientes, al mes de su fecha de producción.
+                if (!empty($pedido->fecha_terminado)) {
+                    $fechaReferencia = Carbon::parse(
+                        $pedido->fecha_terminado
+                    )->startOfDay();
+                } else {
+                    $fechaProduccion = $pedido->controlOperativo?->fecha_produccion;
+
+                    if (empty($fechaProduccion)) {
+                        return false;
+                    }
+
+                    $fechaReferencia = Carbon::parse(
+                        $fechaProduccion
+                    )->startOfDay();
                 }
 
-                $fechaEntrega = Carbon::parse(
-                    $pedido->fecha_entrega
-                )->startOfDay();
-
-                return $fechaEntrega->between(
+                return $fechaReferencia->between(
                     $inicioMes->copy()->startOfDay(),
-                    $finMes->copy()->startOfDay()
+                    $finMes->copy()->endOfDay()
                 );
             }
         );
@@ -982,11 +996,13 @@ class DashboardDireccionController extends Controller
             | PEDIDOS DE LA SEMANA
             |--------------------------------------------------------------------------
             |
-            | Pedido entregado:
-            |     semana de fecha_terminado.
+            | Pedido terminado:
+            |     se contabiliza únicamente en la semana de fecha_terminado.
             |
             | Pedido pendiente:
-            |     semana de fecha_entrega.
+            |     se contabiliza únicamente en la semana de fecha_produccion
+            |     registrada por Producción. La fecha_entrega no determina
+            |     la semana de esta proyección.
             |
             */
 
@@ -994,9 +1010,9 @@ class DashboardDireccionController extends Controller
                 function ($pedido) use ($inicio, $fin) {
 
                     /*
-                    | Pedido ya terminado
+                    | Los pedidos terminados se contabilizan únicamente
+                    | en la semana de su fecha real de terminación.
                     */
-
                     if (!empty($pedido->fecha_terminado)) {
 
                         $fechaTerminado = Carbon::parse(
@@ -1009,20 +1025,23 @@ class DashboardDireccionController extends Controller
                         );
                     }
 
-
                     /*
-                    | Pedido pendiente
+                    | Los pedidos pendientes se contabilizan únicamente
+                    | en la semana indicada por Producción mediante
+                    | controlOperativo.fecha_produccion.
+                    | fecha_entrega se conserva para mostrar el compromiso
+                    | con el cliente, pero no mueve el pedido a otra semana.
                     */
+                    $fechaProduccion =
+                        $pedido->controlOperativo?->fecha_produccion;
 
-                    if (empty($pedido->fecha_entrega)) {
+                    if (empty($fechaProduccion)) {
                         return false;
                     }
 
-                    $fechaEntrega = Carbon::parse(
-                        $pedido->fecha_entrega
-                    )->startOfDay();
-
-                    return $fechaEntrega->between(
+                    return Carbon::parse(
+                        $fechaProduccion
+                    )->startOfDay()->between(
                         $inicio->copy()->startOfDay(),
                         $fin->copy()->endOfDay()
                     );
@@ -1097,6 +1116,13 @@ class DashboardDireccionController extends Controller
                         'cliente' => $pedido->cliente,
 
                         'importe' => (float) $pedido->importe_total,
+
+                        'fecha_produccion' =>
+                        !empty($pedido->controlOperativo?->fecha_produccion)
+                            ? Carbon::parse(
+                                $pedido->controlOperativo->fecha_produccion
+                            )->format('d/m/Y')
+                            : null,
 
                         'fecha_entrega' =>
                         !empty($pedido->fecha_entrega)

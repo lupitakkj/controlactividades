@@ -434,9 +434,10 @@
 
         'Administrador',
 
+        'Supervisor',
+
         'RH',
 
-        'Compras',
 
         'Producción',
 
@@ -601,6 +602,31 @@
 
 
 
+        {{-- CONTROL OPERATIVO: visible para Supervisor y para los roles operativos autorizados --}}
+        @if(
+            auth()->user()->hasRole('Supervisor') ||
+            !auth()->user()->hasAnyRole(['Diseñador', 'Almacén', 'Compras'])
+        )
+        <a
+            href="{{ route('control.operativo') }}"
+            class="group flex items-center px-3 py-2.5 mb-1 rounded-lg transition-all duration-200"
+            x-bind:class="sidebarOpen ? 'gap-3' : 'justify-center'"
+            {{ request()->routeIs('control.operativo')
+                ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/30'
+                : 'text-slate-300 hover:bg-slate-800 hover:text-white' }}>
+            <i class="fa-solid fa-list-check w-5 text-center
+                {{ request()->routeIs('control.operativo')
+                    ? 'text-white'
+                    : 'text-slate-500 group-hover:text-blue-400' }}"></i>
+            <span x-show="sidebarOpen" x-transition.opacity class="text-sm font-medium whitespace-nowrap text-white">
+                Control Operativo
+            </span>
+        </a>
+        @endif
+
+        {{-- Los diseñadores solo ven Dashboard y Agenda Corporativa. --}}
+        @unless(auth()->user()->hasAnyRole(['Diseñador', 'Supervisor']))
+
         {{-- =====================================================
 
              SEPARADOR
@@ -630,6 +656,8 @@
 
 
 
+
+        @if(!auth()->user()->hasAnyRole(['Almacén', 'Compras']))
 
         {{-- =====================================================
 
@@ -679,62 +707,21 @@
 
 
 
-        {{-- =====================================================
+        @endif
 
-             CONTROL OPERATIVO
-
-        ====================================================== --}}
-
-        <a
-
-            href="{{ route('control.operativo') }}"
-
-            class="group flex items-center px-3 py-2.5 mb-1 rounded-lg transition-all duration-200"
-
-            x-bind:class="sidebarOpen ? 'gap-3' : 'justify-center'"
-
-            {{ request()->routeIs('control.operativo')
-
-                        ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/30'
-
-                        : 'text-slate-300 hover:bg-slate-800 hover:text-white' }}">
-
-
-
-            <i class="fa-solid fa-list-check w-5 text-center
-
-                {{ request()->routeIs('control.operativo')
-
-                    ? 'text-white'
-
-                    : 'text-slate-500 group-hover:text-blue-400' }}">
-
-            </i>
-
-
-
-            <span x-show="sidebarOpen" x-transition.opacity class="text-sm font-medium whitespace-nowrap text-white">
-
-                Control Operativo
-
-            </span>
-
-
-
-        </a>
 
         {{-- =====================================================
             TICKETS DE CALIDAD
             VENTAS / GERENCIA VENTAS / CALIDAD /
             GERENTE PRODUCCIÓN / ADMINISTRADOR
             ====================================================== --}}
-            @if(auth()->user()->hasAnyRole([
-            'Ventas',
-            'Gerencia Ventas',
-            'Calidad',
-            'Gerente Producción',
-            'Administrador'
-            ]))
+        @if(auth()->user()->hasAnyRole([
+        'Ventas',
+        'Gerencia Ventas',
+        'Calidad',
+        'Gerente Producción',
+        'Administrador'
+        ]))
 
         <a
             href="{{ route('tickets-calidad.index') }}"
@@ -764,6 +751,8 @@
         @endif
 
 
+
+        @if(!auth()->user()->hasAnyRole(['Almacén', 'Compras']))
 
         {{-- =====================================================
 
@@ -811,7 +800,93 @@
 
 
 
+        @endif
 
+
+        {{-- PROVEEDORES --}}
+        @if(auth()->user()->hasAnyRole(['Administrador', 'Compras']))
+        <a href="{{ route('compras.proveedores.index') }}"
+            class="group flex items-center px-3 py-2.5 mb-1 rounded-lg transition-all duration-200
+       {{ request()->routeIs('compras.proveedores.*')
+            ? 'bg-blue-600 text-white'
+            : 'text-slate-300 hover:bg-slate-800 hover:text-white' }}"
+            x-bind:class="sidebarOpen ? 'gap-3' : 'justify-center'">
+
+            <i class="fa-solid fa-building w-5 text-center"></i>
+            <span x-show="sidebarOpen"
+                x-transition.opacity
+                class="text-sm font-medium whitespace-nowrap">
+                Proveedores
+            </span>
+        </a>
+        @endif
+
+        {{-- ALMACENES --}}
+        @if(auth()->user()->hasAnyRole(['Administrador', 'Compras', 'Almacén']))
+        <a href="{{ route('compras.almacenes.index') }}"
+            class="group flex items-center px-3 py-2.5 mb-1 rounded-lg transition-all duration-200
+       {{ request()->routeIs('compras.almacenes.*')
+            ? 'bg-blue-600 text-white'
+            : 'text-slate-300 hover:bg-slate-800 hover:text-white' }}"
+            x-bind:class="sidebarOpen ? 'gap-3' : 'justify-center'">
+
+            <i class="fa-solid fa-warehouse w-5 text-center"></i>
+            <span x-show="sidebarOpen"
+                x-transition.opacity
+                class="text-sm font-medium whitespace-nowrap">
+                Almacenes
+            </span>
+        </a>
+        @endif
+
+        {{-- ÓRDENES DE COMPRA --}}
+        @if(auth()->user()->hasAnyRole(['Administrador', 'Compras', 'Almacén']))
+        <a href="{{ route('compras.ordenes.index') }}"
+            class="group flex items-center px-3 py-2.5 mb-1 rounded-lg transition-all duration-200
+       {{ request()->routeIs('compras.ordenes.*')
+            ? 'bg-blue-600 text-white'
+            : 'text-slate-300 hover:bg-slate-800 hover:text-white' }}"
+            x-bind:class="sidebarOpen ? 'gap-3' : 'justify-center'">
+
+            <i class="fa-solid fa-file-invoice-dollar w-5 text-center"></i>
+            <span x-show="sidebarOpen"
+                x-transition.opacity
+                class="text-sm font-medium whitespace-nowrap">
+                Órdenes de compra
+            </span>
+        </a>
+        @endif
+
+        {{-- REPORTE DE ENTRADAS: SOLO COMPRAS Y ADMINISTRADOR --}}
+        @if(auth()->user()->hasAnyRole(['Administrador', 'Compras']))
+        <a href="{{ url('/compras/reportes/entradas') }}"
+            class="group flex items-center px-3 py-2.5 mb-1 rounded-lg transition-all duration-200
+            {{ request()->is('compras/reportes/entradas*')
+                ? 'bg-blue-600 text-white'
+                : 'text-slate-300 hover:bg-slate-800 hover:text-white' }}"
+            x-bind:class="sidebarOpen ? 'gap-3' : 'justify-center'">
+
+            <i class="fa-solid fa-file-excel w-5 text-center"></i>
+            <span x-show="sidebarOpen"
+                x-transition.opacity
+                class="text-sm font-medium whitespace-nowrap">
+                Reporte de entradas
+            </span>
+        </a>
+        @endif
+
+        
+
+
+        @if(auth()->user()->hasAnyRole(['Almacén', 'Compras', 'Administrador']))
+        <a href="{{ route('almacen-salidas.index') }}"
+            class="group flex items-center px-3 py-2.5 mb-1 rounded-lg transition-all duration-200
+       {{ request()->routeIs('almacen-salidas.*') ? 'bg-blue-600 text-white' : 'text-slate-300 hover:bg-slate-800 hover:text-white' }}">
+            <i class="fa-solid fa-dolly w-5 text-center"></i>
+            <span x-show="sidebarOpen" x-transition.opacity class="text-sm font-medium whitespace-nowrap">Salidas de almacén</span>
+        </a>
+        @endif
+        @endunless
 
         {{-- =====================================================
 

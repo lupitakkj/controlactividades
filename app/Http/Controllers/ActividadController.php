@@ -178,29 +178,65 @@ class ActividadController extends Controller
         return back();
     }
 
-    public function pausar($id)
+    public function pausar(Request $request, $id)
     {
+        $datos = $request->validate([
+            'motivo_pausa' => 'required|string|min:3|max:1000',
+        ], [
+            'motivo_pausa.required' => 'Debes indicar el motivo de la pausa.',
+            'motivo_pausa.min' => 'El motivo debe contener al menos 3 caracteres.',
+            'motivo_pausa.max' => 'El motivo no puede superar los 1000 caracteres.',
+        ]);
+
         $actividad = Actividad::findOrFail($id);
 
+        // Cerrar la sesión de tiempo que se encuentre activa.
         $sesion = SesionTiempo::where('actividad_id', $id)
             ->whereNull('fin')
             ->first();
 
         if ($sesion) {
-
             $sesion->fin = now();
-
-            $sesion->minutos =
-                $sesion->inicio->diffInMinutes($sesion->fin);
-
+            $sesion->minutos = $sesion->inicio->diffInMinutes($sesion->fin);
             $sesion->save();
         }
 
         $actividad->estado = 'pausada';
-
         $actividad->save();
 
-        return back();
+        // Guardar el motivo, usuario y fecha en la bitácora.
+        $this->registrarBitacora(
+            $actividad->id,
+            'PAUSAR_ACTIVIDAD',
+            'Motivo de pausa: ' . trim($datos['motivo_pausa'])
+        );
+
+        return back()->with('success', 'Actividad pausada y motivo registrado.');
+    }
+
+    /**
+     * Devuelve el historial de pausas de una actividad para el modal de detalle.
+     */
+    public function listarPausas(Actividad $actividad)
+    {
+        $pausas = Bitacora::with('user')
+            ->where('actividad_id', $actividad->id)
+            ->where('accion', 'PAUSAR_ACTIVIDAD')
+            ->orderByDesc('created_at')
+            ->get()
+            ->map(function ($registro) {
+                return [
+                    'id' => $registro->id,
+                    'usuario' => $registro->user->name ?? 'Usuario',
+                    'descripcion' => $registro->descripcion,
+                    'fecha' => optional($registro->created_at)->toIso8601String(),
+                ];
+            });
+
+        return response()->json([
+            'success' => true,
+            'pausas' => $pausas,
+        ]);
     }
 
     public function terminar($id)
@@ -515,6 +551,17 @@ class ActividadController extends Controller
 
         return response()->json([
             'success' => true
+        ]);
+    }
+
+    public function listarSubtareas(Actividad $actividad)
+    {
+        $actividad->load(['subtareas.user']);
+
+        return response()->json([
+            'success' => true,
+            'subtareas' => $actividad->subtareas,
+            'avance_subtareas' => $actividad->avance_subtareas,
         ]);
     }
 }

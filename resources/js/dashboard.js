@@ -101,17 +101,23 @@ window.abrirModal = function (actividad) {
 
     archivosContainer.innerHTML = "";
 
-    if (!actividad.archivos || actividad.archivos.length === 0) {
+    const archivos = Array.isArray(actividad.archivos)
+        ? actividad.archivos
+        : (Array.isArray(actividad.archivos?.data) ? actividad.archivos.data : []);
 
+    if (archivos.length === 0) {
         archivosContainer.innerHTML = `
-        <div class="text-gray-400 italic">
-            No hay archivos adjuntos.
-        </div>
-    `;
-
+            <div class="estado-vacio-actividad flex flex-col items-center justify-center text-center px-5 py-10 rounded-xl border border-dashed border-slate-200 bg-white">
+                <div class="flex items-center justify-center w-16 h-16 rounded-full bg-blue-50 text-blue-600 mb-4">
+                    <i class="fa-solid fa-paperclip text-2xl"></i>
+                </div>
+                <h4 class="font-semibold text-slate-800 mb-1">Aún no hay archivos</h4>
+                <p class="text-sm text-slate-500 max-w-sm">Adjunta documentos o imágenes relacionados con esta actividad y aparecerán aquí.</p>
+            </div>
+        `;
     } else {
 
-        actividad.archivos.forEach(archivo => {
+        archivos.forEach(archivo => {
 
             const fecha = new Date(archivo.created_at);
 
@@ -193,30 +199,42 @@ window.abrirModal = function (actividad) {
 
     container.innerHTML = '';
 
-    if (actividad.comentarios) {
+    const comentarios = Array.isArray(actividad.comentarios)
+        ? actividad.comentarios
+        : (Array.isArray(actividad.comentarios?.data) ? actividad.comentarios.data : []);
 
-        actividad.comentarios.forEach(comentario => {
+    if (comentarios.length === 0) {
+        container.innerHTML = `
+            <div class="estado-vacio-actividad flex flex-col items-center justify-center text-center px-5 py-10 rounded-xl border border-dashed border-slate-200 bg-white">
+                <div class="flex items-center justify-center w-16 h-16 rounded-full bg-blue-50 text-blue-600 mb-4">
+                    <i class="fa-regular fa-comments text-2xl"></i>
+                </div>
+                <h4 class="font-semibold text-slate-800 mb-1">Aún no hay comentarios</h4>
+                <p class="text-sm text-slate-500 max-w-sm">Escribe un comentario para compartir avances, indicaciones o información importante sobre esta actividad.</p>
+            </div>
+        `;
+    } else {
+        comentarios.forEach(comentario => {
+            const tarjeta = document.createElement('article');
+            tarjeta.className = 'rounded-xl border border-slate-200 bg-white p-4 shadow-sm';
 
-            container.innerHTML += `
+            const encabezado = document.createElement('div');
+            encabezado.className = 'font-semibold text-sm text-slate-800 mb-2';
+            encabezado.textContent = comentario.user?.name ?? 'Usuario';
 
-                    <div class="bg-gray-100 rounded-xl p-3">
+            const texto = document.createElement('p');
+            texto.className = 'text-sm leading-relaxed text-slate-600 whitespace-pre-wrap break-words';
+            texto.textContent = comentario.comentario ?? '';
 
-                        <div class="font-bold mb-1">
-                            ${comentario.user.name}
-                        </div>
-
-                        <div class="text-gray-700">
-                            ${comentario.comentario}
-                        </div>
-
-                    </div>
-
-                `;
+            tarjeta.append(encabezado, texto);
+            container.appendChild(tarjeta);
         });
     }
 
     document.getElementById('detalleModal')
         .classList.remove('hidden');
+
+    cargarHistorialPausas(actividad.id);
 }
 
 window.cerrarModal = function () {
@@ -325,19 +343,144 @@ function iniciarActividad(id) {
     }, 1800);
 
 }
+let actividadPendienteDePausa = null;
+
 function pausarActividad(id) {
+    const formulario = document.getElementById("formPausar" + id);
+    const modal = document.getElementById('modalPausaActividad');
+    const campo = document.getElementById('motivoPausaActividad');
+    const error = document.getElementById('errorMotivoPausa');
 
-    mostrarLottie(
-        "Coffee Time.json",
-        "☕ Pausando actividad..."
-    );
+    if (!formulario) {
+        window.alert('No se encontró el formulario para pausar esta actividad.');
+        return;
+    }
+    if (!modal || !campo) {
+        window.alert('No se encontró el modal de pausa. Actualiza la página e inténtalo de nuevo.');
+        return;
+    }
 
-    setTimeout(() => {
+    actividadPendienteDePausa = id;
+    campo.value = '';
+    if (error) error.classList.add('hidden');
+    modal.classList.remove('hidden');
+    modal.setAttribute('aria-hidden', 'false');
+    document.body.classList.add('overflow-hidden');
+    setTimeout(() => campo.focus(), 100);
+}
 
-        document.getElementById("formPausar" + id).submit();
+function cerrarModalPausa() {
+    const modal = document.getElementById('modalPausaActividad');
+    if (modal) {
+        modal.classList.add('hidden');
+        modal.setAttribute('aria-hidden', 'true');
+    }
+    document.body.classList.remove('overflow-hidden');
+    actividadPendienteDePausa = null;
+}
 
-    }, 1800);
+function confirmarPausaActividad() {
+    const id = actividadPendienteDePausa;
+    const campo = document.getElementById('motivoPausaActividad');
+    const error = document.getElementById('errorMotivoPausa');
+    const formulario = id ? document.getElementById('formPausar' + id) : null;
+    const motivo = (campo?.value || '').trim();
 
+    if (motivo.length < 3) {
+        if (error) {
+            error.textContent = 'Escribe un motivo de al menos 3 caracteres.';
+            error.classList.remove('hidden');
+        }
+        campo?.focus();
+        return;
+    }
+    if (!formulario) {
+        if (error) {
+            error.textContent = 'No se encontró el formulario para pausar esta actividad.';
+            error.classList.remove('hidden');
+        }
+        return;
+    }
+
+    let campoMotivo = formulario.querySelector('input[name="motivo_pausa"]');
+    if (!campoMotivo) {
+        campoMotivo = document.createElement('input');
+        campoMotivo.type = 'hidden';
+        campoMotivo.name = 'motivo_pausa';
+        formulario.appendChild(campoMotivo);
+    }
+    campoMotivo.value = motivo;
+    cerrarModalPausa();
+    mostrarLottie('Coffee Time.json', '☕ Pausando actividad...');
+    setTimeout(() => formulario.submit(), 1800);
+}
+
+window.pausarActividad = pausarActividad;
+window.cerrarModalPausa = cerrarModalPausa;
+window.confirmarPausaActividad = confirmarPausaActividad;
+
+async function cargarHistorialPausas(id) {
+    const contenedor = document.getElementById('historialPausasContainer');
+    const contador = document.getElementById('contadorPausas');
+    if (!contenedor || !contador) return;
+
+    contenedor.innerHTML = '<p class="text-sm text-slate-500">Cargando historial...</p>';
+    contador.textContent = '…';
+
+    try {
+        const respuesta = await fetch(`/actividad/${id}/bitacora-pausas`, {
+            headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+            cache: 'no-store'
+        });
+        const datos = await respuesta.json();
+        if (!respuesta.ok || !datos.success) throw new Error('No se pudo cargar el historial.');
+
+        const pausas = Array.isArray(datos.pausas) ? datos.pausas : [];
+        contador.textContent = String(pausas.length);
+        contenedor.innerHTML = '';
+
+        if (!pausas.length) {
+            contenedor.innerHTML = `
+                <div class="estado-vacio-actividad flex flex-col items-center justify-center text-center px-5 py-8 rounded-xl border border-dashed border-amber-200 bg-white">
+                    <div class="flex items-center justify-center w-14 h-14 rounded-full mb-3" style="background:#fff7ed;color:#d97706">
+                        <i class="fa-solid fa-mug-hot text-xl"></i>
+                    </div>
+                    <h4 class="font-semibold text-slate-800 mb-1">Sin pausas registradas</h4>
+                    <p class="text-sm text-slate-500 max-w-sm">Cuando se pause esta actividad, aquí verás el motivo, quién la pausó y la fecha.</p>
+                </div>
+            `;
+            return;
+        }
+
+        pausas.forEach(pausa => {
+            const tarjeta = document.createElement('article');
+            tarjeta.className = 'rounded-xl border border-amber-100 bg-amber-50/60 p-4';
+
+            const encabezado = document.createElement('div');
+            encabezado.className = 'flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 mb-2';
+
+            const usuario = document.createElement('p');
+            usuario.className = 'text-sm font-semibold text-slate-800';
+            usuario.textContent = pausa.usuario || 'Usuario';
+
+            const fecha = document.createElement('p');
+            fecha.className = 'text-xs text-slate-500';
+            fecha.textContent = pausa.fecha ? new Date(pausa.fecha).toLocaleString('es-MX') : 'Fecha no disponible';
+            encabezado.append(usuario, fecha);
+
+            const motivo = document.createElement('p');
+            motivo.className = 'text-sm text-slate-700 whitespace-pre-wrap break-words';
+            const descripcion = String(pausa.descripcion || 'Sin descripción');
+            motivo.textContent = descripcion.replace(/^Motivo de pausa:\s*/i, '');
+
+            tarjeta.append(encabezado, motivo);
+            contenedor.appendChild(tarjeta);
+        });
+    } catch (error) {
+        console.error('Error al cargar historial de pausas:', error);
+        contador.textContent = 'Error';
+        contenedor.innerHTML = '<p class="text-sm text-red-600">No se pudo cargar el historial de pausas. Intenta cerrar y abrir el detalle nuevamente.</p>';
+    }
 }
 function reanudarActividad(id) {
 
@@ -401,6 +544,8 @@ function actualizarLista() {
     const lista = document.getElementById("listaArchivos");
 
     const input = document.getElementById("archivos");
+
+    if (!lista || !input) return;
 
     lista.innerHTML = "";
 

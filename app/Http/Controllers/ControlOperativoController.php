@@ -49,16 +49,10 @@ class ControlOperativoController extends Controller
             */
 
         $pedidosActivos = $pedidos->filter(function ($pedido) {
-
-            $estado = strtoupper(
-                trim(
-                    $pedido->controlOperativo?->estado_operativo ?? ''
-                )
-            );
-
+            // Mantener el mismo criterio que el filtro "Pendientes"
+            // de la tabla: pedidos con avance menor al 100%.
             return $pedido->avance !== null
-                && $pedido->avance < 1
-                && $estado !== 'TERMINADO';
+                && $pedido->avance < 1;
         });
 
 
@@ -351,6 +345,36 @@ class ControlOperativoController extends Controller
         return response()->json([
             'success' => true,
             'prioridad' => $control->prioridad,
+        ]);
+    }
+
+    /**
+     * Actualizar resultado de entrega registrado por Ventas.
+     */
+    public function actualizarResultadoEntrega(Request $request, Pedido $pedido)
+    {
+        $request->validate([
+            'resultado_entrega' => [
+                'nullable',
+                'in:Pendiente,Información incompleta,Información completa',
+            ],
+        ]);
+
+        $control = $pedido->controlOperativo;
+
+        if (!$control) {
+            $control = $pedido->controlOperativo()->create([
+                'resultado_entrega' => $request->input('resultado_entrega'),
+                'estado_operativo' => 'Por Iniciar',
+            ]);
+        } else {
+            $control->resultado_entrega = $request->input('resultado_entrega');
+            $control->save();
+        }
+
+        return response()->json([
+            'success' => true,
+            'resultado_entrega' => $control->resultado_entrega,
         ]);
     }
 

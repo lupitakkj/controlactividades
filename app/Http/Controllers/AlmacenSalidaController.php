@@ -32,11 +32,13 @@ class AlmacenSalidaController extends Controller
     public function index()
     {
         $this->ver();
-        $salidas = AlmacenSalida::with(['pedido', 'almacen', 'creador'])
+        $salidas = AlmacenSalida::with(['pedido', 'pedidos', 'almacen', 'creador'])
             ->when(request('buscar'), function ($q, $buscar) {
                 $q->where(function ($sub) use ($buscar) {
                     $sub->where('folio', 'like', "%{$buscar}%")
-                        ->orWhereHas('pedido', fn ($p) => $p->where('pedido_no', 'like', "%{$buscar}%"));
+                        ->orWhereHas('pedido', fn ($p) => $p->where('pedido_no', 'like', "%{$buscar}%"))
+                        ->orWhereHas('pedidos', fn ($p) => $p->where('pedido_no', 'like', "%{$buscar}%"))
+                        ->orWhere('nombre_documento', 'like', "%{$buscar}%");
                 });
             })
             ->latest('id')->paginate(20)->withQueryString();
@@ -53,7 +55,10 @@ class AlmacenSalidaController extends Controller
     {
         $this->registrar();
         $almacenes = Almacen::where('activo', true)->orderBy('nombre')->get();
-        $pedidos = Pedido::orderByDesc('id')->limit(500)->get(['id', 'pedido_no', 'cliente']);
+        $pedidos = Pedido::whereNull('fecha_terminado')
+            ->orderByDesc('id')
+            ->limit(500)
+            ->get(['id', 'pedido_no', 'cliente']);
         $materiales = $this->existenciasPorAlmacen();
         return view('almacen-salidas.create', compact('almacenes', 'pedidos', 'materiales'));
     }
@@ -71,7 +76,7 @@ class AlmacenSalidaController extends Controller
 
         $salidas = DB::table('almacen_salidas_detalle as sd')
             ->join('almacen_salidas as s', 's.id', '=', 'sd.salida_id')
-            ->where('s.estado', 'registrada')
+            ->whereIn('s.estado', ['apartada', 'registrada'])
             ->when($almacenId, fn ($q) => $q->where('s.almacen_id', $almacenId))
             ->select('s.almacen_id', 'sd.clave_material')
             ->selectRaw('SUM(sd.cantidad) as salidas')
@@ -92,8 +97,14 @@ class AlmacenSalidaController extends Controller
     public function store(Request $request)
     {
         $this->registrar();
+
         $data = $request->validate([
-            'pedido_id' => ['required', 'exists:pedidos,id'],
+            'nombre_documento' => ['required', 'string', 'max:180'],
+            'pedido_ids' => ['nullable', 'array'],
+            'pedido_ids.*' => ['integer', 'distinct', 'exists:pedidos,id'],
+            'referencias_manuales' => ['nullable', 'array'],
+            'referencias_manuales.*.numero' => ['required', 'string', 'max:100'],
+            'referencias_manuales.*.nombre' => ['nullable', 'string', 'max:180'],
             'almacen_id' => ['required', 'exists:almacenes,id'],
             'fecha_salida' => ['required', 'date'],
             'recibido_por' => ['required', 'string', 'max:180'],
@@ -102,34 +113,74 @@ class AlmacenSalidaController extends Controller
             'materiales.*.clave_material' => ['required', 'string', 'max:100'],
             'materiales.*.cantidad' => ['required', 'numeric', 'gt:0'],
         ]);
+
+        $pedidoIds = collect($data['pedido_ids'] ?? [])->map(fn ($id) => (int) $id)->unique()->values();
+        $referenciasManuales = collect($data['referencias_manuales'] ?? [])
+            ->map(function ($ref) {
+                return [
+                    'numero' => trim((string) ($ref['numero'] ?? '')),
+                    'nombre' => trim((string) ($ref['nombre'] ?? '')),
+                ];
+            })
+            ->filter(fn ($ref) => $ref['numero'] !== '')
+            ->unique(fn ($ref) => mb_strtolower($ref['numero'] . '|' . $ref['nombre']))
+            ->values()
+            ->all();
+
+        if ($pedidoIds->isEmpty() && empty($referenciasManuales)) {
+            throw ValidationException::withMessages([
+                'pedido_ids' => 'Selecciona al menos una OP existente o agrega una referencia manual.',
+            ]);
+        }
+
+        // Los pedidos reales terminados no se aceptan aunque se envíe su ID manualmente.
+        if ($pedidoIds->isNotEmpty()) {
+            $pedidosValidos = Pedido::whereIn('id', $pedidoIds)
+                ->whereNull('fecha_terminado')
+                ->pluck('id')
+                ->map(fn ($id) => (int) $id);
+            if ($pedidosValidos->count() !== $pedidoIds->count()) {
+                throw ValidationException::withMessages([
+                    'pedido_ids' => 'Una o más órdenes seleccionadas ya están terminadas o no están disponibles.',
+                ]);
+            }
+        }
+
         abort_unless(Almacen::whereKey($data['almacen_id'])->where('activo', true)->exists(), 422, 'El almacén no está activo.');
 
-        $salida = DB::transaction(function () use ($data) {
-            // Serializa las salidas del mismo almacén para reducir el riesgo de sobreentrega concurrente.
+        $salida = DB::transaction(function () use ($data, $pedidoIds, $referenciasManuales) {
             Almacen::whereKey($data['almacen_id'])->lockForUpdate()->firstOrFail();
 
             $salida = AlmacenSalida::create([
-                'pedido_id' => $data['pedido_id'],
+                // Se conserva la relación antigua para compatibilidad; las demás van en la tabla pivote.
+                // Si no hay OP real, pedido_id queda null (la columna debe aceptar NULL).
+                'pedido_id' => $pedidoIds->first(),
+                'nombre_documento' => trim($data['nombre_documento']),
+                'referencias_manuales' => $referenciasManuales ?: null,
                 'almacen_id' => $data['almacen_id'],
                 'fecha_salida' => $data['fecha_salida'],
                 'recibido_por' => $data['recibido_por'],
                 'observaciones' => $data['observaciones'] ?? null,
-                'estado' => 'registrada',
+                'estado' => 'apartada',
                 'creado_por' => auth()->id(),
                 'folio' => 'TEMP-' . strtoupper(bin2hex(random_bytes(5))),
             ]);
-            $salida->update(['folio' => 'SA-' . now()->format('Ymd') . '-' . str_pad((string)$salida->id, 6, '0', STR_PAD_LEFT)]);
+            $salida->update(['folio' => 'SA-' . now()->format('Ymd') . '-' . str_pad((string) $salida->id, 6, '0', STR_PAD_LEFT)]);
 
-            $materiales = $this->existenciasPorAlmacen((int)$data['almacen_id'])->keyBy('clave_material');
+            if ($pedidoIds->isNotEmpty()) {
+                $salida->pedidos()->sync($pedidoIds->all());
+            }
+
+            $materiales = $this->existenciasPorAlmacen((int) $data['almacen_id'])->keyBy('clave_material');
             $agrupados = [];
             foreach ($data['materiales'] as $linea) {
                 $clave = trim($linea['clave_material']);
-                $agrupados[$clave] = ($agrupados[$clave] ?? 0) + (float)$linea['cantidad'];
+                $agrupados[$clave] = ($agrupados[$clave] ?? 0) + (float) $linea['cantidad'];
             }
 
             foreach ($agrupados as $clave => $cantidad) {
                 $material = $materiales->get($clave);
-                if (!$material || (float)$material->existencia + 0.00001 < $cantidad) {
+                if (!$material || (float) $material->existencia + 0.00001 < $cantidad) {
                     throw ValidationException::withMessages([
                         'materiales' => "Existencia insuficiente para {$clave}. Revisa la cantidad disponible y vuelve a intentar.",
                     ]);
@@ -143,13 +194,23 @@ class AlmacenSalidaController extends Controller
                 ]);
             }
 
-            $this->bitacora('salida_registrada', $salida, 'Salida registrada y descontada de las existencias.', ['pedido_id' => $salida->pedido_id, 'almacen_id' => $salida->almacen_id, 'materiales' => $agrupados]);
+            $this->bitacora(
+                'material_apartado',
+                $salida,
+                'Material apartado; pendiente de entrega por Almacén.',
+                [
+                    'pedido_ids' => $pedidoIds->all(),
+                    'referencias_manuales' => $referenciasManuales,
+                    'almacen_id' => $salida->almacen_id,
+                    'materiales' => $agrupados,
+                ]
+            );
+
             return $salida;
         });
 
-        return redirect()->route('almacen-salidas.show', $salida)->with('success', 'Salida registrada correctamente.');
+        return redirect()->route('almacen-salidas.show', $salida)->with('success', 'Material apartado correctamente. Quedó reservado y aún no se registra como salida.');
     }
-
 
     /**
      * Exporta el listado de salidas con el formato de Movimientos_SALIDAS.
@@ -160,7 +221,7 @@ class AlmacenSalidaController extends Controller
     {
         $this->ver();
 
-        $salidas = AlmacenSalida::with(['pedido', 'almacen', 'detalles'])
+        $salidas = AlmacenSalida::with(['pedido', 'pedidos', 'almacen', 'detalles'])
             ->when($request->filled('buscar'), function ($q) use ($request) {
                 $buscar = trim((string) $request->input('buscar'));
                 $q->where(function ($sub) use ($buscar) {
@@ -203,8 +264,18 @@ class AlmacenSalidaController extends Controller
         foreach ($salidas as $salida) {
             foreach ($salida->detalles as $detalle) {
                 // Documento = OP + número de pedido, quitando ceros iniciales.
-                $numeroPedido = ltrim((string) ($salida->pedido->pedido_no ?? ''), '0');
-                $documento = $numeroPedido !== '' ? 'OP' . $numeroPedido : '';
+                $documentos = $salida->pedidos->map(function ($pedido) {
+                    $numero = ltrim((string) $pedido->pedido_no, '0');
+                    return $numero !== '' ? 'OP' . $numero : '';
+                })->filter()->values()->all();
+                if (empty($documentos) && $salida->pedido) {
+                    $numero = ltrim((string) $salida->pedido->pedido_no, '0');
+                    if ($numero !== '') $documentos[] = 'OP' . $numero;
+                }
+                foreach (($salida->referencias_manuales ?? []) as $ref) {
+                    $documentos[] = trim(($ref['numero'] ?? '') . (!empty($ref['nombre']) ? ' - ' . $ref['nombre'] : ''));
+                }
+                $documento = implode(', ', array_unique(array_filter($documentos)));
 
                 // Clave cliente/proveedor y vendedor no se infieren si Rijaya no las tiene.
                 $row = [
@@ -244,10 +315,40 @@ class AlmacenSalidaController extends Controller
         ]);
     }
 
+    /**
+     * Confirma la entrega física de un apartado y lo convierte en salida registrada.
+     */
+    public function confirmarEntrega(Request $request, AlmacenSalida $salida)
+    {
+        $this->registrar();
+
+        DB::transaction(function () use ($salida) {
+            $salida = AlmacenSalida::whereKey($salida->id)->lockForUpdate()->firstOrFail();
+
+            if ($salida->estado !== 'apartada') {
+                throw ValidationException::withMessages([
+                    'salida' => 'Solo se puede confirmar la entrega de un material que esté apartado.',
+                ]);
+            }
+
+            $salida->update(['estado' => 'registrada']);
+
+            $this->bitacora(
+                'apartado_entregado',
+                $salida,
+                'Almacén confirmó la entrega física; el apartado quedó registrado como salida.',
+                ['almacen_id' => $salida->almacen_id]
+            );
+        });
+
+        return redirect()->route('almacen-salidas.show', $salida)
+            ->with('success', 'Entrega confirmada. La salida quedó registrada y el inventario se descontó.');
+    }
+
     public function show(AlmacenSalida $salida)
     {
         $this->ver();
-        $salida->load(['pedido', 'almacen', 'creador', 'detalles', 'solicitudesCancelacion.solicitante', 'solicitudesCancelacion.resolver']);
+        $salida->load(['pedido', 'pedidos', 'almacen', 'creador', 'detalles', 'solicitudesCancelacion.solicitante', 'solicitudesCancelacion.resolver']);
         return view('almacen-salidas.show', compact('salida'));
     }
 
@@ -255,8 +356,8 @@ class AlmacenSalidaController extends Controller
     {
         abort_unless(auth()->user()->hasAnyRole(['Almacén', 'Compras', 'Administrador']), 403);
         $data = $request->validate(['motivo' => ['required', 'string', 'min:5', 'max:3000']]);
-        if ($salida->estado !== 'registrada') {
-            throw ValidationException::withMessages(['salida' => 'Solo se puede solicitar la cancelación de una salida vigente.']);
+        if (!in_array($salida->estado, ['apartada', 'registrada'], true)) {
+            throw ValidationException::withMessages(['salida' => 'Solo se puede solicitar la cancelación de un apartado o salida vigente.']);
         }
         if ($salida->solicitudesCancelacion()->where('estado', 'pendiente')->exists()) {
             throw ValidationException::withMessages(['salida' => 'Esta salida ya tiene una solicitud pendiente.']);
@@ -303,8 +404,8 @@ class AlmacenSalidaController extends Controller
                 throw ValidationException::withMessages(['solicitud' => 'Otra persona autorizada debe resolver una solicitud que tú presentaste.']);
             }
             $salida = AlmacenSalida::whereKey($solicitud->salida_id)->lockForUpdate()->firstOrFail();
-            if ($salida->estado !== 'registrada') {
-                throw ValidationException::withMessages(['salida' => 'La salida ya no está vigente.']);
+            if (!in_array($salida->estado, ['apartada', 'registrada'], true)) {
+                throw ValidationException::withMessages(['salida' => 'El apartado o salida ya no está vigente.']);
             }
 
             $autoriza = $data['decision'] === 'autorizar';
@@ -328,7 +429,7 @@ class AlmacenSalidaController extends Controller
                 'user_id' => $solicitud->solicitado_por,
                 'tipo' => 'resultado_cancelacion',
                 'titulo' => $autoriza ? 'Cancelación autorizada' : 'Cancelación rechazada',
-                'mensaje' => $autoriza ? "La salida {$salida->folio} fue cancelada." : "La solicitud de {$salida->folio} fue rechazada.",
+                'mensaje' => $autoriza ? "El apartado/salida {$salida->folio} fue cancelado." : "La solicitud de {$salida->folio} fue rechazada.",
                 'url' => route('almacen-salidas.show', $salida),
             ]);
         });

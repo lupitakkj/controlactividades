@@ -12,11 +12,11 @@ class AlmacenSalida extends Model
     protected $table = 'almacen_salidas';
 
     protected $fillable = [
-        'folio', 'pedido_id', 'almacen_id', 'fecha_salida',
+        'folio', 'pedido_id', 'nombre_documento', 'referencias_manuales', 'almacen_id', 'fecha_salida',
         'recibido_por', 'observaciones', 'estado', 'creado_por',
     ];
 
-    protected $casts = ['fecha_salida' => 'datetime'];
+    protected $casts = ['fecha_salida' => 'datetime', 'referencias_manuales' => 'array'];
 
     public function pedido(): BelongsTo { return $this->belongsTo(Pedido::class, 'pedido_id'); }
     public function pedidos(): BelongsToMany { return $this->belongsToMany(Pedido::class, 'almacen_salidas_pedidos', 'salida_id', 'pedido_id')->withTimestamps(); }

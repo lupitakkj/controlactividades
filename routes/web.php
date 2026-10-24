@@ -369,6 +369,8 @@ Route::middleware('auth')->group(function () {
 
     Route::patch('/control-operativo/{pedido}/resultado-entrega', [ControlOperativoController::class, 'actualizarResultadoEntrega'])
         ->name('control-operativo.resultado-entrega');
+    Route::post('/salidas-almacen/{salida}/entregar', [AlmacenSalidaController::class, 'confirmarEntrega'])
+    ->name('almacen-salidas.entregar');
 });
 
 require __DIR__ . '/auth.php';

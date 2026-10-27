@@ -266,6 +266,12 @@
                                             </label>
 
 
+                                            {{-- ESTADO OPERATIVO --}}
+                                            <label class="flex items-center gap-3 cursor-pointer">
+                                                <input type="checkbox" class="columna-check w-4 h-4 rounded border-gray-400 text-blue-600 focus:ring-blue-500" style="appearance: auto; -webkit-appearance: checkbox;" data-columna="estado-operativo" checked>
+                                                <span class="text-sm text-gray-700">Estado operativo</span>
+                                            </label>
+
                                             {{-- FECHA PRODUCCIÓN --}}
                                             <label class="flex items-center gap-3 cursor-pointer">
 
@@ -741,6 +747,11 @@
                                         </button>
                                     </th>
 
+                                    {{-- ESTADO OPERATIVO --}}
+                                    <th data-columna="estado-operativo" class="px-3 py-3 text-center text-xs font-semibold text-gray-600 uppercase min-w-[145px]">
+                                        Estado operativo
+                                    </th>
+
                                     {{-- FECHA PRODUCCIÓN --}}
                                     <th
                                         data-columna="fecha-produccion"
@@ -1108,6 +1119,19 @@
 
                                     </td>
 
+
+                                    {{-- ESTADO OPERATIVO --}}
+                                    <td data-columna="estado-operativo" class="px-3 py-3 text-center align-middle">
+                                        <select
+                                            class="estado-input w-full min-w-[130px] rounded-lg border px-2 py-2 text-xs font-semibold cursor-pointer focus:ring-blue-500 focus:border-blue-500"
+                                            data-url="{{ route('control-operativo.estado', $pedido) }}"
+                                            data-estado-original="{{ $estado }}">
+                                            <option value="Por Iniciar" {{ $estado === 'Por Iniciar' ? 'selected' : '' }}>Por Iniciar</option>
+                                            <option value="En proceso" {{ $estado === 'En proceso' ? 'selected' : '' }}>En proceso</option>
+                                            <option value="Cancelado" {{ $estado === 'Cancelado' ? 'selected' : '' }}>Cancelado</option>
+                                            <option value="Terminado" {{ $estado === 'Terminado' ? 'selected' : '' }}>Terminado</option>
+                                        </select>
+                                    </td>
 
                                     {{-- FECHA PRODUCCIÓN --}}
                                     <td
@@ -2047,6 +2071,7 @@
                 'enviar-a': 100,
                 'fecha-entrega': 105,
                 'prioridad': 70,
+                'estado-operativo': 145,
                 'fecha-produccion': 110,
                 'avance': 75,
                 'proceso-menor-avance': 120,

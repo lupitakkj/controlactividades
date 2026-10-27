@@ -183,6 +183,11 @@ Route::middleware('auth')->group(function () {
         'index'
     ])->name('pedidos.terminados');
 
+    Route::get('/pedidos-terminados/{pedido}', [
+        PedidosTerminadosController::class,
+        'show'
+    ])->name('pedidos.terminados.show');
+
 
     Route::patch('/control-operativo/{pedido}/fecha-produccion', [
         ControlOperativoController::class,

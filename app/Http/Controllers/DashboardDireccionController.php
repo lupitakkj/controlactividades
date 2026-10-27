@@ -267,6 +267,44 @@ class DashboardDireccionController extends Controller
             ? ($programadoSemanal / $metaSemanal) * 100
             : 0;
 
+        /*
+         |--------------------------------------------------------------------------
+         | AVANCE DE ENTREGA DE LA PLANEACIÓN SEMANAL
+         |--------------------------------------------------------------------------
+         |
+         | Se utiliza la misma colección que calcula el total programado:
+         | - Los pedidos terminados se asignan por fecha_terminado.
+         | - Los pedidos pendientes se asignan por fecha_produccion.
+         |
+         | El importe entregado es una parte del total programado, NO se suma
+         | nuevamente al total. El pendiente se obtiene restándolo del total.
+         |
+         */
+
+        $pedidosEntregadosPlaneacionSemanal = $pedidosPlaneacionSemanal
+            ->filter(function ($pedido) {
+                return !empty($pedido->fecha_terminado);
+            });
+
+        $entregadoSemanal = $pedidosEntregadosPlaneacionSemanal->sum(
+            function ($pedido) {
+                return (float) $pedido->importe_total;
+            }
+        );
+
+        $pendienteEntregaSemanal = max(
+            0,
+            $programadoSemanal - $entregadoSemanal
+        );
+
+        $porcentajeEntregadoSemanal = $programadoSemanal > 0
+            ? min(100, max(0, ($entregadoSemanal / $programadoSemanal) * 100))
+            : 0;
+
+        $porcentajePendienteEntregaSemanal = $programadoSemanal > 0
+            ? min(100, max(0, ($pendienteEntregaSemanal / $programadoSemanal) * 100))
+            : 0;
+
 
 
 
@@ -1281,6 +1319,10 @@ class DashboardDireccionController extends Controller
             'programadoSemanal' => $programadoSemanal,
             'faltanteSemanal' => $faltanteSemanal,
             'porcentajeSemanal' => $porcentajeSemanal,
+            'entregadoSemanal' => $entregadoSemanal,
+            'pendienteEntregaSemanal' => $pendienteEntregaSemanal,
+            'porcentajeEntregadoSemanal' => $porcentajeEntregadoSemanal,
+            'porcentajePendienteEntregaSemanal' => $porcentajePendienteEntregaSemanal,
 
             'metaMensual' => $metaMensual,
             'programadoMensual' => $programadoMensual,

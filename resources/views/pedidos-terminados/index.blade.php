@@ -642,6 +642,10 @@
 
                                     </th>
 
+                                    <th class="px-4 py-3 text-center text-xs font-semibold text-gray-600 whitespace-nowrap">
+                                        DETALLE
+                                    </th>
+
                                 </tr>
 
                             </thead>
@@ -875,6 +879,19 @@
 
                                         </td>
 
+                                        {{-- DETALLE DEL PEDIDO --}}
+                                        <td class="px-4 py-3 text-center whitespace-nowrap">
+                                            <a href="{{ route('pedidos.terminados.show', $pedido) }}"
+                                               title="Ver detalle del pedido {{ $pedido->pedido_no }}"
+                                               aria-label="Ver detalle del pedido {{ $pedido->pedido_no }}"
+                                               class="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-blue-200 bg-blue-50 text-blue-700 transition hover:border-blue-500 hover:bg-blue-600 hover:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
+                                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                                    <path d="M2.5 12s3.5-7 9.5-7 9.5 7 9.5 7-3.5 7-9.5 7-9.5-7-9.5-7Z"/>
+                                                    <circle cx="12" cy="12" r="3"/>
+                                                </svg>
+                                            </a>
+                                        </td>
+
                                     </tr>
 
 
@@ -884,7 +901,7 @@
                                     <tr>
 
                                         <td
-                                            colspan="9"
+                                            colspan="10"
                                             class="px-4
                                                    py-12
                                                    text-center

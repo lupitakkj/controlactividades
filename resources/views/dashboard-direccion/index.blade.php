@@ -621,11 +621,28 @@
                                     </span>
                                 </div>
 
-                                <div class="w-full bg-gray-100 rounded-full h-3">
-                                    <div
-                                        class="bg-blue-500 h-3 rounded-full"
-                                        style="width: {{ min($porcentajeSemanal, 100) }}%">
-                                    </div>
+                                <div class="w-full bg-gray-100 rounded-full h-3 overflow-hidden flex"
+                                     title="Entregado: {{ number_format($porcentajeEntregadoSemanal, 1) }}% · Pendiente: {{ number_format($porcentajePendienteEntregaSemanal, 1) }}%">
+                                    @if($porcentajeEntregadoSemanal > 0)
+                                        <div
+                                            class="bg-green-500 h-3"
+                                            style="width: {{ $porcentajeEntregadoSemanal }}%">
+                                        </div>
+                                    @endif
+                                    @if($porcentajePendienteEntregaSemanal > 0)
+                                        <div
+                                            class="bg-blue-500 h-3"
+                                            style="width: {{ $porcentajePendienteEntregaSemanal }}%">
+                                        </div>
+                                    @endif
+                                </div>
+                                <div class="flex justify-between text-xs mt-2">
+                                    <span class="text-green-600">
+                                        Entregado: {{ number_format($porcentajeEntregadoSemanal, 1) }}%
+                                    </span>
+                                    <span class="text-blue-600">
+                                        Pendiente: {{ number_format($porcentajePendienteEntregaSemanal, 1) }}%
+                                    </span>
                                 </div>
                             </div>
 
@@ -633,24 +650,32 @@
 
                                 <div>
                                     <p class="text-xs text-gray-500">
-                                        Faltante
+                                        Pendiente de entrega
                                     </p>
 
                                     <p class="text-lg font-bold text-gray-800">
-                                        ${{ number_format($faltanteSemanal, 2) }}
+                                        ${{ number_format($pendienteEntregaSemanal, 2) }}
                                     </p>
                                 </div>
 
                                 <div class="text-right">
                                     <p class="text-xs text-gray-500">
-                                        Cumplimiento
+                                        Avance de entrega
                                     </p>
 
-                                    <p class="text-lg font-bold text-blue-600">
-                                        {{ number_format($porcentajeSemanal, 1) }}%
+                                    <p class="text-lg font-bold text-green-600">
+                                        {{ number_format($porcentajeEntregadoSemanal, 1) }}%
                                     </p>
                                 </div>
 
+                            </div>
+
+                            <div class="text-xs text-gray-500 border-t border-gray-100 pt-3">
+                                Cumplimiento de meta semanal:
+                                <span class="font-semibold text-blue-600">
+                                    {{ number_format($porcentajeSemanal, 1) }}%
+                                </span>
+                                · Meta: ${{ number_format($metaSemanal, 2) }}
                             </div>
 
                         </div>

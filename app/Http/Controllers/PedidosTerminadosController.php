@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Pedido;
+use App\Models\Proceso;
 use Illuminate\Http\Request;
 
 class PedidosTerminadosController extends Controller
@@ -99,4 +100,28 @@ class PedidosTerminadosController extends Controller
             compact('pedidosTerminados')
         );
     }
+
+    /**
+     * Muestra el detalle de un pedido terminado.
+     * La consulta es únicamente de lectura.
+     */
+    public function show(Pedido $pedido)
+    {
+        $pedido->load([
+            'partidas.despieceProcesos.proceso',
+        ]);
+
+        // El detalle pertenece al historial de pedidos terminados.
+        abort_unless($pedido->avance !== null && $pedido->avance >= 1, 404);
+
+        $procesosActivos = Proceso::where('activo', true)
+            ->orderBy('orden')
+            ->get();
+
+        return view(
+            'pedidos-terminados.show',
+            compact('pedido', 'procesosActivos')
+        );
+    }
+
 }

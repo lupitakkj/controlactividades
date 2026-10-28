@@ -116,6 +116,31 @@
 
                     <div class="flex flex-col lg:flex-row lg:items-center gap-3">
 
+                        {{-- EXPORTAR PARTIDAS POR MES DE PRODUCCIÓN --}}
+                        <form
+                            method="GET"
+                            action="{{ route('despiece.exportar') }}"
+                            class="flex flex-col sm:flex-row sm:items-center gap-2"
+                        >
+                            <label for="mesProduccionExportar" class="text-xs font-semibold text-gray-600 whitespace-nowrap">
+                                Mes de producción
+                            </label>
+                            <input
+                                type="month"
+                                id="mesProduccionExportar"
+                                name="mes"
+                                value="{{ now()->format('Y-m') }}"
+                                required
+                                class="px-3 py-2 text-sm border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                            >
+                            <button
+                                type="submit"
+                                class="px-4 py-2 text-sm font-semibold text-white bg-green-700 rounded-lg hover:bg-green-800 transition whitespace-nowrap"
+                            >
+                                ↓ Exportar Excel
+                            </button>
+                        </form>
+
                         {{-- BUSCADOR --}}
                         <div class="relative w-full lg:w-[520px]">
 

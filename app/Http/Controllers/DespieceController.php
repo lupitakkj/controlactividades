@@ -308,6 +308,184 @@ class DespieceController extends Controller
 
 
     /**
+     * Exportar las partidas del despiece por mes de producción.
+     *
+     * Genera un archivo XLSX compatible con Excel, sin depender de paquetes externos.
+     * Incluye todas las partidas de los pedidos cuya fecha_produccion
+     * esté dentro del mes seleccionado.
+     */
+    public function exportar(Request $request)
+    {
+        $datos = $request->validate([
+            'mes' => ['required', 'date_format:Y-m'],
+        ]);
+
+        // XLSX se construye con ZipArchive, sin instalar paquetes adicionales.
+        if (!class_exists(\ZipArchive::class)) {
+            return response(
+                'No se puede generar el archivo XLSX porque la extensión PHP ZipArchive no está habilitada en el hosting.',
+                500
+            );
+        }
+
+        $inicio = \Carbon\Carbon::createFromFormat('Y-m', $datos['mes'])
+            ->startOfMonth()
+            ->toDateString();
+
+        $fin = \Carbon\Carbon::createFromFormat('Y-m', $datos['mes'])
+            ->endOfMonth()
+            ->toDateString();
+
+        // La fecha de producción pertenece a control_operativo, no a pedidos.
+        $registros = \Illuminate\Support\Facades\DB::table('control_operativo as co')
+            ->join('pedidos as p', 'p.id', '=', 'co.pedido_id')
+            ->whereNotNull('co.fecha_produccion')
+            ->whereBetween('co.fecha_produccion', [$inicio, $fin])
+            ->select([
+                'p.id',
+                'p.pedido_no',
+                'co.fecha_produccion',
+                'co.estado_operativo',
+            ])
+            ->orderBy('co.fecha_produccion')
+            ->orderBy('p.pedido_no')
+            ->get();
+
+        $pedidosPorId = Pedido::query()
+            ->with(['partidas' => function ($query) {
+                $query->select([
+                    'id',
+                    'pedido_id',
+                    'clave',
+                    'descripcion',
+                    'cantidad',
+                ]);
+            }])
+            ->whereIn('id', $registros->pluck('id')->unique())
+            ->get()
+            ->keyBy('id');
+
+        // Escapa texto para XML y conserva acentos en el XLSX.
+        $xmlEscape = static function ($value): string {
+            return htmlspecialchars(
+                (string) ($value ?? ''),
+                ENT_QUOTES | ENT_XML1,
+                'UTF-8'
+            );
+        };
+
+        // Crea una celda Excel: texto inline o valor numérico.
+        $cell = static function (string $ref, $value, bool $numeric = false) use ($xmlEscape): string {
+            if ($numeric && $value !== null && $value !== '' && is_numeric($value)) {
+                return '<c r="' . $ref . '" t="n"><v>' . (string) $value . '</v></c>';
+            }
+
+            return '<c r="' . $ref . '" t="inlineStr"><is><t xml:space="preserve">'
+                . $xmlEscape($value)
+                . '</t></is></c>';
+        };
+
+        $rowsXml = '';
+        $rowNumber = 1;
+        $rowsXml .= '<row r="1">'
+            . $cell('A1', 'Pedido')
+            . $cell('B1', 'Clave')
+            . $cell('C1', 'Descripción')
+            . $cell('D1', 'Cantidad')
+            . $cell('E1', 'Estado')
+            . '</row>';
+
+        foreach ($registros as $registro) {
+            $pedido = $pedidosPorId->get($registro->id);
+            if (!$pedido) {
+                continue;
+            }
+
+            foreach ($pedido->partidas as $partida) {
+                $rowNumber++;
+                $estadoOriginal = mb_strtolower(trim((string) ($registro->estado_operativo ?? '')));
+                if (str_contains($estadoOriginal, 'terminad')) {
+                    $estadoExportar = 'Terminada';
+                } elseif (str_contains($estadoOriginal, 'proceso')) {
+                    $estadoExportar = 'En proceso';
+                } elseif (str_contains($estadoOriginal, 'iniciar')) {
+                    $estadoExportar = 'Por iniciar';
+                } else {
+                    $estadoExportar = $registro->estado_operativo ?: 'Sin estado';
+                }
+
+                $rowsXml .= '<row r="' . $rowNumber . '">'
+                    . $cell('A' . $rowNumber, $registro->pedido_no)
+                    . $cell('B' . $rowNumber, $partida->clave)
+                    . $cell('C' . $rowNumber, $partida->descripcion)
+                    . $cell('D' . $rowNumber, $partida->cantidad, true)
+                    . $cell('E' . $rowNumber, $estadoExportar)
+                    . '</row>';
+            }
+        }
+
+        $sheetXml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+            . '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" '
+            . 'xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">'
+            . '<cols>'
+            . '<col min="1" max="1" width="18" customWidth="1"/>'
+            . '<col min="2" max="2" width="20" customWidth="1"/>'
+            . '<col min="3" max="3" width="55" customWidth="1"/>'
+            . '<col min="4" max="4" width="14" customWidth="1"/>'
+            . '<col min="5" max="5" width="18" customWidth="1"/>'
+            . '</cols><sheetData>' . $rowsXml . '</sheetData></worksheet>';
+
+        $workbookXml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+            . '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" '
+            . 'xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">'
+            . '<sheets><sheet name="Despiece" sheetId="1" r:id="rId1"/></sheets></workbook>';
+
+        $contentTypesXml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+            . '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">'
+            . '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>'
+            . '<Default Extension="xml" ContentType="application/xml"/>'
+            . '<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>'
+            . '<Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>'
+            . '</Types>';
+
+        $rootRelsXml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+            . '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+            . '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>'
+            . '</Relationships>';
+
+        $workbookRelsXml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+            . '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+            . '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>'
+            . '</Relationships>';
+
+        $tempPath = tempnam(sys_get_temp_dir(), 'despiece_xlsx_');
+        if ($tempPath === false) {
+            return response('No fue posible preparar el archivo de exportación.', 500);
+        }
+
+        $zip = new \ZipArchive();
+        if ($zip->open($tempPath, \ZipArchive::OVERWRITE) !== true) {
+            @unlink($tempPath);
+            return response('No fue posible crear el archivo XLSX.', 500);
+        }
+
+        $zip->addFromString('[Content_Types].xml', $contentTypesXml);
+        $zip->addFromString('_rels/.rels', $rootRelsXml);
+        $zip->addFromString('xl/workbook.xml', $workbookXml);
+        $zip->addFromString('xl/_rels/workbook.xml.rels', $workbookRelsXml);
+        $zip->addFromString('xl/worksheets/sheet1.xml', $sheetXml);
+        $zip->close();
+
+        return response()->download(
+            $tempPath,
+            'despiece_' . $datos['mes'] . '.xlsx',
+            [
+                'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            ]
+        )->deleteFileAfterSend(true);
+    }
+
+    /**
      * =========================================================================
      * CALCULAR AVANCE DEL PEDIDO
      * =========================================================================

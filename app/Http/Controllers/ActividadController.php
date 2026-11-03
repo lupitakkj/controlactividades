@@ -123,8 +123,7 @@ class ActividadController extends Controller
         return back();
     }
 
-    public function iniciar($id)
-    {
+    public function iniciar($id){
         $actividad = Actividad::findOrFail($id);
 
         // Pausar cualquier actividad activa del usuario

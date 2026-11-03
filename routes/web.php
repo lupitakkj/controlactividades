@@ -22,6 +22,7 @@ use App\Http\Controllers\PedidosTerminadosController;
 use App\Http\Controllers\ProduccionProductoController;
 use App\Http\Controllers\ProveedorController;
 use App\Http\Controllers\ReporteEntradasController;
+use App\Http\Controllers\RutaClaveController;
 use App\Http\Controllers\RutaFabricacionController;
 use App\Http\Controllers\TicketCalidadController;
 use App\Models\Partida;
@@ -382,10 +383,32 @@ Route::middleware('auth')->group(function () {
     Route::post('/salidas-almacen/{salida}/entregar', [AlmacenSalidaController::class, 'confirmarEntrega'])
         ->name('almacen-salidas.entregar');
 
+
     Route::prefix('rutas-fabricacion')->name('rutas-fabricacion.')->group(function () {
         Route::get('/', [RutaFabricacionController::class, 'index'])->name('index');
         Route::get('/crear', [RutaFabricacionController::class, 'create'])->name('create');
         Route::post('/', [RutaFabricacionController::class, 'store'])->name('store');
+
+        // Seguimiento: declarar antes de las rutas dinámicas.
+        Route::get('/seguimiento', [RutaClaveController::class, 'seguimientoIndex'])
+            ->name('seguimiento');
+
+        Route::get('/seguimiento/{ruta}', [RutaClaveController::class, 'seguimientoRuta'])
+            ->name('seguimiento.detalle');
+
+        Route::get('/claves', [RutaClaveController::class, 'index'])->name('claves');
+        Route::post('/claves', [RutaClaveController::class, 'guardarClave'])->name('claves.guardar');
+        Route::delete('/claves/{regla}', [RutaClaveController::class, 'eliminarClave'])->name('claves.eliminar');
+
+        Route::post('/claves/previsualizar', [RutaClaveController::class, 'previsualizarClave'])
+            ->name('claves.previsualizar');
+        Route::post('/claves/confirmar', [RutaClaveController::class, 'confirmarSincronizacion'])
+            ->name('claves.confirmar');
+
+        Route::get('/asignar', [RutaClaveController::class, 'asignarIndex'])->name('asignar');
+        Route::post('/asignar/{partida}', [RutaClaveController::class, 'asignarManual'])
+            ->name('asignar.guardar');
+
         Route::get('/{ruta}/editar', [RutaFabricacionController::class, 'edit'])->name('edit');
         Route::put('/{ruta}', [RutaFabricacionController::class, 'update'])->name('update');
         Route::post('/{ruta}/duplicar', [RutaFabricacionController::class, 'duplicate'])->name('duplicate');

@@ -510,7 +510,8 @@
         @if(auth()->user()->hasAnyRole([
 
         'Administrador',
-
+        'Supervisor',
+        'Producción',
         'Gerente Producción'
 
         ]))

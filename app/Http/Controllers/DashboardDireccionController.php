@@ -315,8 +315,8 @@ class DashboardDireccionController extends Controller
 |--------------------------------------------------------------------------
 */
 
-        $inicioMes = $inicioSemana->copy()->startOfMonth();
-        $finMes = $inicioSemana->copy()->endOfMonth();
+$inicioMes = $hoy->copy()->startOfMonth();
+$finMes = $hoy->copy()->endOfMonth();
 
 
         $pedidosPlaneacionMensual = $pedidos->filter(
@@ -353,6 +353,38 @@ class DashboardDireccionController extends Controller
                 return (float) $pedido->importe_total;
             }
         );
+
+        // El entregado mensual se reconoce por la fecha real de terminación,
+        // aunque el pedido se hubiera programado para otro mes.
+        $entregadoMensual = $pedidosPlaneacionMensual
+            ->filter(function ($pedido) use ($inicioMes, $finMes) {
+                if (empty($pedido->fecha_terminado)) {
+                    return false;
+                }
+
+                return Carbon::parse($pedido->fecha_terminado)
+                    ->startOfDay()
+                    ->between(
+                        $inicioMes->copy()->startOfDay(),
+                        $finMes->copy()->endOfDay()
+                    );
+            })
+            ->sum(function ($pedido) {
+                return (float) $pedido->importe_total;
+            });
+
+        $porcentajeEntregadoMensual = $metaMensual > 0
+            ? ($entregadoMensual / $metaMensual) * 100
+            : 0;
+
+        $pendienteProgramadoMensual = max(
+            0,
+            $programadoMensual - $entregadoMensual
+        );
+
+        $porcentajePendienteProgramadoMensual = $metaMensual > 0
+            ? ($pendienteProgramadoMensual / $metaMensual) * 100
+            : 0;
 
 
         $faltanteMensual = max(
@@ -1017,6 +1049,14 @@ class DashboardDireccionController extends Controller
 
         $proyeccionSemanas = collect();
 
+        // Los pedidos que quedaron abiertos en semanas ya cerradas avanzan
+        // a la semana operativa vigente. Así el historial conserva solo lo
+        // terminado realmente en cada semana y el rezago sigue visible como
+        // pendiente en la semana actual.
+        $inicioSemanaOperativa = Carbon::parse(
+            $semanaOperativa->fecha_inicio
+        )->startOfDay();
+
 
         foreach ($proximasSemanas as $semanaFutura) {
 
@@ -1038,14 +1078,15 @@ class DashboardDireccionController extends Controller
             |     se contabiliza únicamente en la semana de fecha_terminado.
             |
             | Pedido pendiente:
-            |     se contabiliza únicamente en la semana de fecha_produccion
-            |     registrada por Producción. La fecha_entrega no determina
+            |     se contabiliza en su semana de producción. Si esa semana
+            |     ya cerró, se arrastra a la semana operativa vigente hasta
+            |     que se registre su terminación. La fecha_entrega no determina
             |     la semana de esta proyección.
             |
             */
 
             $pedidosSemana = $pedidos->filter(
-                function ($pedido) use ($inicio, $fin) {
+                function ($pedido) use ($inicio, $fin, $inicioSemanaOperativa) {
 
                     /*
                     | Los pedidos terminados se contabilizan únicamente
@@ -1077,9 +1118,19 @@ class DashboardDireccionController extends Controller
                         return false;
                     }
 
-                    return Carbon::parse(
+                    $fechaProduccion = Carbon::parse(
                         $fechaProduccion
-                    )->startOfDay()->between(
+                    )->startOfDay();
+
+                    // Un pedido abierto con fecha de producción anterior a
+                    // la semana actual se mantiene pendiente, pero su importe
+                    // se mueve hacia adelante y no deja pendiente la semana
+                    // histórica que ya cerró.
+                    if ($fechaProduccion->lt($inicioSemanaOperativa)) {
+                        $fechaProduccion = $inicioSemanaOperativa->copy();
+                    }
+
+                    return $fechaProduccion->between(
                         $inicio->copy()->startOfDay(),
                         $fin->copy()->endOfDay()
                     );
@@ -1299,6 +1350,8 @@ class DashboardDireccionController extends Controller
 
             'finSemana' => $finSemana,
 
+            'inicioMes' => $inicioMes,
+
 
 
 
@@ -1326,6 +1379,10 @@ class DashboardDireccionController extends Controller
 
             'metaMensual' => $metaMensual,
             'programadoMensual' => $programadoMensual,
+            'entregadoMensual' => $entregadoMensual,
+            'porcentajeEntregadoMensual' => $porcentajeEntregadoMensual,
+            'pendienteProgramadoMensual' => $pendienteProgramadoMensual,
+            'porcentajePendienteProgramadoMensual' => $porcentajePendienteProgramadoMensual,
             'faltanteMensual' => $faltanteMensual,
             'porcentajeMensual' => $porcentajeMensual,
 

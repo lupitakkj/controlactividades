@@ -693,7 +693,7 @@
                                 </p>
 
                                 <p class="text-xs text-gray-800 mt-1">
-                                    Periodo: {{ $inicioSemana->locale('es')->translatedFormat('F Y') }}
+                                    Periodo: {{ $inicioMes->locale('es')->translatedFormat('F Y') }}
                                 </p>
                                 <p class="text-xs text-gray-500 mt-1">
                                     Programado según fecha de producción
@@ -728,12 +728,40 @@
                                     </span>
                                 </div>
 
-                                <div class="w-full bg-gray-100 rounded-full h-3">
+                                <div
+                                    class="w-full bg-gray-100 rounded-full h-3 overflow-hidden flex"
+                                    title="Entregado: ${{ number_format($entregadoMensual, 2) }} · Pendiente programado: ${{ number_format($pendienteProgramadoMensual, 2) }}">
+                                    @if($porcentajeEntregadoMensual > 0)
                                     <div
-                                        class="bg-blue-500 h-3 rounded-full"
-                                        style="width: {{ min($porcentajeMensual, 100) }}%">
+                                        class="bg-green-500 h-3"
+                                        style="width: {{ min($porcentajeEntregadoMensual, 100) }}%">
                                     </div>
+                                    @endif
+                                    @if($porcentajePendienteProgramadoMensual > 0)
+                                    <div
+                                        class="bg-blue-500 h-3"
+                                        style="width: {{ min($porcentajePendienteProgramadoMensual, max(0, 100 - min($porcentajeEntregadoMensual, 100))) }}%">
+                                    </div>
+                                    @endif
                                 </div>
+                                <div class="mt-1 flex justify-between text-[10px] text-gray-500">
+                                    <span><span class="text-green-600">■</span> Entregado</span>
+                                    <span><span class="text-blue-600">■</span> Pendiente</span>
+                                </div>
+                            </div>
+
+                            <div class="flex justify-between items-center rounded-lg border border-green-100 bg-green-50 px-3 py-2">
+                                <div>
+                                    <p class="text-xs text-green-700">
+                                        Entregado este mes
+                                    </p>
+                                    <p class="text-lg font-bold text-green-700">
+                                        ${{ number_format($entregadoMensual, 2) }}
+                                    </p>
+                                </div>
+                                <p class="text-sm font-semibold text-green-700 text-right">
+                                    {{ number_format($porcentajeEntregadoMensual, 1) }}% de la meta
+                                </p>
                             </div>
 
                             <div class="flex justify-between items-center pt-2">

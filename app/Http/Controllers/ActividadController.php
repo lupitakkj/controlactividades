@@ -540,8 +540,8 @@ class ActividadController extends Controller
 
             foreach ($columna['tarjetas'] as $tarjeta) {
 
-                Actividad::where('id', $tarjeta['id'])
-                    ->update([
+                // Guardar mediante el modelo para auditar estado y orden antes/después.
+                Actividad::find($tarjeta['id'])?->update([
                         'estado' => $columna['estado'],
                         'orden'  => $tarjeta['orden']
                     ]);

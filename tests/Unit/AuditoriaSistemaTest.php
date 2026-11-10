@@ -36,7 +36,25 @@ beforeEach(function () {
         $table->decimal('cantidad_realizada', 12, 4);
         $table->timestamps();
     });
-    (require database_path('migrations/2026_11_10_150000_create_auditoria_eventos_table.php'))->up();
+    // Esquema aislado SQLite; el despliegue utiliza database/sql.
+    Schema::create('auditoria_eventos', function (Blueprint $table) {
+        $table->id();
+        $table->uuid('solicitud_id')->index();
+        // Sin FK: conservar la identidad histÃ³rica aunque se elimine el usuario.
+        $table->unsignedBigInteger('usuario_id')->nullable()->index();
+        $table->string('usuario_nombre')->nullable();
+        $table->string('accion', 30)->index();
+        $table->string('ruta')->nullable()->index();
+        $table->string('metodo', 10);
+        $table->text('url');
+        $table->unsignedSmallInteger('estado_http')->nullable();
+        $table->string('modelo')->nullable();
+        $table->string('registro_id')->nullable()->index();
+        $table->json('antes')->nullable();
+        $table->json('despues')->nullable();
+        $table->timestamp('created_at')->useCurrent()->index();
+        $table->index(['modelo', 'registro_id']);
+    });
     $this->actingAs(User::create(['name' => 'Operador de prueba', 'email' => 'audit@example.test', 'password' => 'privado']));
 });
 

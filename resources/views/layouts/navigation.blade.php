@@ -752,7 +752,7 @@
 
 
 
-        @if(!auth()->user()->hasAnyRole(['Almacén', 'Compras']))
+        @if(!auth()->user()->hasAnyRole(['Almacén', 'Compras', 'Operador de producción']))
 
         {{-- =====================================================
 
@@ -894,6 +894,7 @@
 
         ====================================================== --}}
 
+        @unless(auth()->user()->hasRole('Operador de producción'))
         <a
 
             href="{{ route('agenda.index') }}"
@@ -933,6 +934,7 @@
         </a>
 
 
+        @endunless
 
     </div>
 

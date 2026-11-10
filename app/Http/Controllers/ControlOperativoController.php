@@ -6,6 +6,11 @@ use App\Models\ActividadControlOperativo;
 use App\Models\Pedido;
 use App\Models\Proceso;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use PhpOffice\PhpSpreadsheet\Shared\Date as ExcelDate;
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Style\Fill;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 
 class ControlOperativoController extends Controller
 {
@@ -146,6 +151,76 @@ class ControlOperativoController extends Controller
                 'avanceGlobal'
             )
         );
+    }
+
+    /**
+     * Exporta los pedidos que quedaron visibles con los filtros actuales.
+     */
+    public function exportar(Request $request)
+    {
+        $datos = $request->validate([
+            'pedido_ids' => 'required|array|min:1|max:5000',
+            'pedido_ids.*' => 'required|integer|distinct',
+        ]);
+
+        $pedidos = Pedido::with('controlOperativo')
+            ->whereIn('id', $datos['pedido_ids'])
+            ->get()
+            ->keyBy('id');
+
+        $libro = new Spreadsheet();
+        $hoja = $libro->getActiveSheet();
+        $hoja->setTitle('Pedidos');
+        $hoja->fromArray(['Pedido', 'Cliente', 'Fecha Producción'], null, 'A1');
+
+        $hoja->getStyle('A1:C1')->getFont()->setBold(true)->getColor()->setRGB('FFFFFF');
+        $hoja->getStyle('A1:C1')->getFill()
+            ->setFillType(Fill::FILL_SOLID)
+            ->getStartColor()
+            ->setRGB('2563EB');
+        $hoja->freezePane('A2');
+        $hoja->setAutoFilter('A1:C1');
+
+        $fila = 2;
+        foreach ($datos['pedido_ids'] as $pedidoId) {
+            $pedido = $pedidos->get($pedidoId);
+            if (!$pedido) {
+                continue;
+            }
+
+            $hoja->setCellValueExplicit(
+                'A' . $fila,
+                (string) $pedido->pedido_no,
+                \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING
+            );
+            $hoja->setCellValue('B' . $fila, $pedido->cliente ?? '');
+
+            $fechaProduccion = $pedido->controlOperativo?->fecha_produccion;
+            if ($fechaProduccion) {
+                $hoja->setCellValue(
+                    'C' . $fila,
+                    ExcelDate::dateTimeToExcel($fechaProduccion->copy()->startOfDay())
+                );
+                $hoja->getStyle('C' . $fila)
+                    ->getNumberFormat()
+                    ->setFormatCode('dd/mm/yyyy');
+            }
+
+            $fila++;
+        }
+
+        $hoja->getColumnDimension('A')->setWidth(18);
+        $hoja->getColumnDimension('B')->setWidth(36);
+        $hoja->getColumnDimension('C')->setWidth(22);
+
+        $nombreArchivo = 'pedidos_control_operativo_' . now()->format('Ymd_His') . '.xlsx';
+
+        return response()->streamDownload(function () use ($libro) {
+            (new Xlsx($libro))->save('php://output');
+            $libro->disconnectWorksheets();
+        }, $nombreArchivo, [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        ]);
     }
 
 
@@ -345,6 +420,80 @@ class ControlOperativoController extends Controller
         return response()->json([
             'success' => true,
             'prioridad' => $control->prioridad,
+        ]);
+    }
+
+    public function actualizarAbastecimiento(Request $request, Pedido $pedido)
+    {
+        $datos = $request->validate([
+            'abastecimiento' => [
+                'nullable',
+                'in:otra_opcion,apartado,parcialidad,entregado,faltante_mp',
+            ],
+            'motivo' => 'required_if:abastecimiento,otra_opcion,apartado,parcialidad,entregado,faltante_mp|nullable|string|max:200',
+            'comentario' => 'nullable|string|max:1000',
+            'responsable' => 'nullable|string|max:255',
+            'fecha_limite' => 'nullable|date',
+        ]);
+
+        if (($datos['motivo'] ?? null) === 'Otro' && empty($datos['comentario'])) {
+            return response()->json([
+                'message' => 'Escribe un comentario para la opción Otro.',
+                'errors' => ['comentario' => ['Este campo es obligatorio cuando eliges Otro.']],
+            ], 422);
+        }
+
+        $resultado = DB::transaction(function () use ($pedido, $datos) {
+            $control = $pedido->controlOperativo;
+            if (!$control) {
+                $control = $pedido->controlOperativo()->create([
+                    'abastecimiento' => $datos['abastecimiento'] ?? null,
+                    'estado_operativo' => 'Por Iniciar',
+                ]);
+            } else {
+                $control->abastecimiento = $datos['abastecimiento'] ?? null;
+                $control->save();
+            }
+
+            $actividad = null;
+            if (!empty($datos['motivo'])) {
+                $etiquetas = [
+                    'otra_opcion' => 'Otra opción',
+                    'apartado' => 'Preparado',
+                    'parcialidad' => 'Parcialidad',
+                    'entregado' => 'Entregado',
+                    'faltante_mp' => 'Pendiente',
+                ];
+                $texto = 'Surtido de almacén a producción: ' . ($etiquetas[$datos['abastecimiento']] ?? 'Actualizado')
+                    . ' — ' . $datos['motivo'];
+                if (!empty($datos['comentario'])) {
+                    $texto .= ' — ' . trim($datos['comentario']);
+                }
+
+                $actividad = $pedido->actividadesControlOperativo()->create([
+                    'actividad' => $texto,
+                    'responsable' => $datos['responsable'] ?? null,
+                    'fecha_limite' => $datos['fecha_limite'] ?? null,
+                    'completada' => ($datos['abastecimiento'] ?? null) === 'entregado',
+                    'activa' => true,
+                ]);
+            }
+
+            return [$control, $actividad];
+        });
+
+        [$control, $actividad] = $resultado;
+
+        return response()->json([
+            'success' => true,
+            'abastecimiento' => $control->abastecimiento,
+            'actividad' => $actividad,
+            'url_actualizar' => $actividad
+                ? route('control-operativo.actividad.actualizar', $actividad)
+                : null,
+            'url_eliminar' => $actividad
+                ? route('control-operativo.actividad.eliminar', $actividad)
+                : null,
         ]);
     }
 

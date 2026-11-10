@@ -126,6 +126,10 @@ Route::middleware('auth')->group(function () {
         ControlOperativoController::class,
         'index'
     ])->name('control.operativo');
+    Route::post('/control-operativo/exportar', [
+        ControlOperativoController::class,
+        'exportar'
+    ])->name('control-operativo.exportar');
 
     Route::get('/prueba-despiece', function () {
 
@@ -237,6 +241,11 @@ Route::middleware('auth')->group(function () {
         ControlOperativoController::class,
         'actualizarPrioridad'
     ])->name('control-operativo.prioridad');
+
+    Route::patch('/control-operativo/{pedido}/abastecimiento', [
+        ControlOperativoController::class,
+        'actualizarAbastecimiento'
+    ])->name('control-operativo.abastecimiento');
 
     Route::patch('/control-operativo/{pedido}/estado', [
         ControlOperativoController::class,

@@ -1,49 +1,48 @@
 
 <style>
     .app-sidebar {
-        background: #fff;
-        border-color: #e2e8f0;
-        box-shadow: 4px 0 24px rgb(15 23 42 / 4%);
-        color: #334155;
+        background: #020617;
+        border-color: #1e293b;
+        box-shadow: 4px 0 24px rgb(0 0 0 / 20%);
+        color: #cbd5e1;
     }
-    .app-sidebar > .h-20 { border-color: #e2e8f0; }
-    .app-sidebar > .h-20 img { filter: brightness(0.2); }
-    .sidebar-links { scrollbar-width: thin; scrollbar-color: #cbd5e1 transparent; }
+    .app-sidebar > .h-20 { border-color: #1e293b; }
+    .sidebar-links { scrollbar-width: thin; scrollbar-color: #334155 transparent; }
     .sidebar-links .sidebar-link {
         min-height: 42px;
         gap: 12px;
         border: 1px solid transparent;
         border-radius: 10px;
-        color: #475569;
+        color: #cbd5e1;
         position: relative;
     }
     .sidebar-link > span { color: inherit; font-size: 13px; font-weight: 500; }
     .sidebar-link > i { color: #94a3b8; font-size: 15px; flex-shrink: 0; }
-    .sidebar-links .sidebar-link:hover { background: #f1f5f9; color: #0f172a; }
-    .sidebar-links .sidebar-link:hover > i { color: #2563eb; }
+    .sidebar-links .sidebar-link:hover { background: #1e293b; color: #fff; }
+    .sidebar-links .sidebar-link:hover > i { color: #60a5fa; }
     .sidebar-links .sidebar-link.is-active {
-        background: #eff6ff;
-        border-color: #dbeafe;
-        color: #1d4ed8;
+        background: #2563eb;
+        border-color: #2563eb;
+        color: #fff;
     }
     .sidebar-link.is-active > span { font-weight: 600; }
-    .sidebar-link.is-active > i { color: #2563eb; }
+    .sidebar-link.is-active > i { color: #fff; }
     .sidebar-link:focus-visible, .sidebar-user button:focus-visible,
     .sidebar-toggle button:focus-visible {
         outline: 2px solid #2563eb;
         outline-offset: 2px;
     }
-    .sidebar-user { border-color: #e2e8f0; background: #f8fafc; }
-    .sidebar-user > button:hover { background: #e2e8f0; }
-    .sidebar-user .text-white.truncate { color: #0f172a; }
+    .sidebar-user { border-color: #1e293b; background: #020617; }
+    .sidebar-user > button:hover { background: #1e293b; }
+    .sidebar-user .text-white.truncate { color: #fff; }
     .sidebar-user .text-xs.uppercase { font-size: 10px; letter-spacing: .08em; }
     .sidebar-toggle button {
-        background: #fff;
-        border-color: #e2e8f0;
-        color: #64748b;
+        background: #020617;
+        border-color: #1e293b;
+        color: #94a3b8;
         box-shadow: 0 2px 8px rgb(15 23 42 / 8%);
     }
-    .sidebar-toggle button:hover { background: #eff6ff; color: #2563eb; }
+    .sidebar-toggle button:hover { background: #2563eb; color: #fff; }
 </style>
 
 <style>

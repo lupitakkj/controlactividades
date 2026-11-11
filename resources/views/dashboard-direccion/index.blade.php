@@ -719,7 +719,7 @@
                                     Periodo: {{ $inicioMes->locale('es')->translatedFormat('F Y') }}
                                 </p>
                                 <p class="text-xs text-gray-500 mt-1">
-                                    Programado según fecha de producción
+                                    {{ $mesCerrado ? 'Mes cerrado · por fecha de terminación' : 'Programado según fecha de producción' }}
                                 </p>
                             </div>
 
@@ -743,7 +743,7 @@
                             <div>
                                 <div class="flex justify-between items-center mb-1">
                                     <span class="text-xs text-gray-500">
-                                        Programado
+                                        {{ $mesCerrado ? 'Realizado al cierre' : 'Programado' }}
                                     </span>
 
                                     <span class="text-sm font-semibold text-gray-700">
@@ -753,7 +753,7 @@
 
                                 <div
                                     class="w-full bg-gray-100 rounded-full h-3 overflow-hidden flex"
-                                    title="Entregado: ${{ number_format($entregadoMensual, 2) }} · Pendiente programado: ${{ number_format($pendienteProgramadoMensual, 2) }}">
+                                    title="Entregado: ${{ number_format($entregadoMensual, 2) }}@unless($mesCerrado) · Pendiente programado: ${{ number_format($pendienteProgramadoMensual, 2) }}@endunless">
                                     @if($porcentajeEntregadoMensual > 0)
                                     <div
                                         class="bg-green-500 h-3"
@@ -769,7 +769,9 @@
                                 </div>
                                 <div class="mt-1 flex justify-between text-[10px] text-gray-500">
                                     <span><span class="text-green-600">■</span> Entregado</span>
+                                    @unless($mesCerrado)
                                     <span><span class="text-blue-600">■</span> Pendiente</span>
+                                    @endunless
                                 </div>
                             </div>
 
@@ -794,7 +796,7 @@
 
                                 <div>
                                     <p class="text-xs text-gray-500">
-                                        Faltante
+                                        {{ $mesCerrado ? 'Faltante al cierre' : 'Faltante' }}
                                     </p>
 
                                     <p class="text-lg font-bold text-gray-800">

@@ -263,12 +263,13 @@ class DashboardDireccionController extends Controller
 */
 
         $offsetMes = $request->integer('offset_mes');
+        $mesCerrado = $offsetMes < 0;
         $inicioMes = $hoy->copy()->startOfMonth()->addMonths($offsetMes);
         $finMes = $inicioMes->copy()->endOfMonth();
 
 
         $pedidosPlaneacionMensual = $pedidos->filter(
-            function ($pedido) use ($inicioMes, $finMes) {
+            function ($pedido) use ($inicioMes, $finMes, $mesCerrado) {
 
                 // Los pedidos terminados se asignan al mes en que realmente
                 // terminaron; los pendientes, al mes de su fecha de producción.
@@ -279,7 +280,7 @@ class DashboardDireccionController extends Controller
                 } else {
                     $fechaProduccion = $pedido->controlOperativo?->fecha_produccion;
 
-                    if (empty($fechaProduccion)) {
+                    if ($mesCerrado || empty($fechaProduccion)) {
                         return false;
                     }
 
@@ -1224,6 +1225,7 @@ class DashboardDireccionController extends Controller
 
             'inicioMes' => $inicioMes,
             'offsetMes' => $offsetMes,
+            'mesCerrado' => $mesCerrado,
             'offsetSemana' => $offsetSemana,
             'inicioSemanaPlaneacion' => $inicioSemanaPlaneacion,
             'finSemanaPlaneacion' => $finSemanaPlaneacion,

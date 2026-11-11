@@ -803,7 +803,7 @@
                                     </span>
                                 </span>
                                 <span class="text-sm font-semibold text-green-700 text-right">
-                                    {{ number_format($porcentajeEntregadoMensual, 1) }}% de la meta
+                                    {{ number_format($porcentajeEntregadoMensual, 1) }}% entregado de la meta
                                     <span class="block text-xs underline">Ver pedidos</span>
                                 </span>
                             </button>
@@ -822,7 +822,7 @@
 
                                 <div class="text-right">
                                     <p class="text-xs text-gray-500">
-                                        Cumplimiento
+                                        {{ $mesCerrado ? 'Realizado de la meta al cierre' : 'Programado de la meta' }}
                                     </p>
 
                                     <p class="text-lg font-bold text-blue-600">

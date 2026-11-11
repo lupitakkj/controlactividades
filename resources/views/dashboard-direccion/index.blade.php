@@ -580,7 +580,7 @@
                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
 
                     {{-- PLANEACIÓN SEMANAL --}}
-                    <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                    <div id="planeacion-semanal" class="flex flex-col scroll-mt-4 bg-white rounded-xl shadow-sm border border-gray-200 p-6">
 
                         <div class="flex items-center justify-between mb-5">
                             <div>
@@ -589,7 +589,7 @@
                                 </h2>
 
                                 <p class="text-sm text-gray-500 mt-1">
-                                    Importes de la semana operativa, incluido el rezago
+                                    Semana {{ $inicioSemanaPlaneacion->isoWeek }} · {{ $inicioSemanaPlaneacion->format('d/m/Y') }} al {{ $finSemanaPlaneacion->format('d/m/Y') }}
                                 </p>
                             </div>
 
@@ -682,11 +682,20 @@
 
                         </div>
 
+                        <nav aria-label="Navegación de planeación semanal" class="mt-auto flex flex-wrap gap-2 pt-5">
+                            @foreach (['Semana anterior' => $offsetSemana - 1, 'Semana actual' => 0, 'Semana siguiente' => $offsetSemana + 1] as $etiqueta => $desplazamiento)
+                                <a href="{{ request()->fullUrlWithQuery(['offset_semana' => $desplazamiento]) }}#planeacion-semanal"
+                                   class="rounded-lg border border-gray-200 px-3 py-2 text-xs font-medium text-gray-700 hover:bg-gray-50 focus-visible:outline focus-visible:outline-blue-600">
+                                    {{ $etiqueta }}
+                                </a>
+                            @endforeach
+                        </nav>
+
                     </div>
 
 
                     {{-- PLANEACIÓN MENSUAL --}}
-                    <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                    <div id="planeacion-mensual" class="flex flex-col scroll-mt-4 bg-white rounded-xl shadow-sm border border-gray-200 p-6">
 
                         <div class="flex items-center justify-between mb-5">
                             <div>
@@ -757,7 +766,7 @@
                                 class="w-full flex justify-between items-center rounded-lg border border-green-100 bg-green-50 px-3 py-2 text-left hover:bg-green-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-green-700">
                                 <span>
                                     <span class="block text-xs text-green-700">
-                                        Entregado este mes
+                                        {{ $offsetMes === 0 ? 'Entregado este mes' : 'Entregado en el mes' }}
                                     </span>
                                     <span class="block text-lg font-bold text-green-700">
                                         ${{ number_format($entregadoMensual, 2) }}
@@ -794,6 +803,15 @@
                             </div>
 
                         </div>
+
+                        <nav aria-label="Navegación de planeación mensual" class="mt-auto flex flex-wrap gap-2 pt-5">
+                            @foreach (['Mes anterior' => $offsetMes - 1, 'Mes actual' => 0, 'Mes siguiente' => $offsetMes + 1] as $etiqueta => $desplazamiento)
+                                <a href="{{ request()->fullUrlWithQuery(['offset_mes' => $desplazamiento]) }}#planeacion-mensual"
+                                   class="rounded-lg border border-gray-200 px-3 py-2 text-xs font-medium text-gray-700 hover:bg-gray-50 focus-visible:outline focus-visible:outline-blue-600">
+                                    {{ $etiqueta }}
+                                </a>
+                            @endforeach
+                        </nav>
 
                     </div>
 

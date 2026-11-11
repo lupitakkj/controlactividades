@@ -172,7 +172,10 @@ class DashboardDireccionController extends Controller
             });
         };
 
-        $pedidosPlaneacionSemanal = $pedidosParaSemana($inicioSemana, $finSemana);
+        $offsetSemana = $request->integer('offset_semana');
+        $inicioSemanaPlaneacion = $inicioSemana->copy()->addWeeks($offsetSemana);
+        $finSemanaPlaneacion = $finSemana->copy()->addWeeks($offsetSemana);
+        $pedidosPlaneacionSemanal = $pedidosParaSemana($inicioSemanaPlaneacion, $finSemanaPlaneacion);
 
 
         /*
@@ -259,8 +262,9 @@ class DashboardDireccionController extends Controller
 |--------------------------------------------------------------------------
 */
 
-$inicioMes = $hoy->copy()->startOfMonth();
-$finMes = $hoy->copy()->endOfMonth();
+        $offsetMes = $request->integer('offset_mes');
+        $inicioMes = $hoy->copy()->startOfMonth()->addMonths($offsetMes);
+        $finMes = $inicioMes->copy()->endOfMonth();
 
 
         $pedidosPlaneacionMensual = $pedidos->filter(
@@ -1219,6 +1223,10 @@ $finMes = $hoy->copy()->endOfMonth();
             'finSemana' => $finSemana,
 
             'inicioMes' => $inicioMes,
+            'offsetMes' => $offsetMes,
+            'offsetSemana' => $offsetSemana,
+            'inicioSemanaPlaneacion' => $inicioSemanaPlaneacion,
+            'finSemanaPlaneacion' => $finSemanaPlaneacion,
 
 
 

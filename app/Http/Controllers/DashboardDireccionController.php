@@ -1208,7 +1208,7 @@ class DashboardDireccionController extends Controller
         |--------------------------------------------------------------------------
         */
 
-        return view('dashboard-direccion.index', [
+        $vista = view('dashboard-direccion.index', [
 
             /*
             |--------------------------------------------------------------------------
@@ -1363,5 +1363,12 @@ class DashboardDireccionController extends Controller
             'pedidosAtencion' => $pedidosAtencion,
 
         ]);
+
+        $tarjeta = $request->header('X-Planeacion-Tarjeta');
+        if (in_array($tarjeta, ['planeacion-semanal', 'planeacion-mensual'], true)) {
+            return response($vista->fragment($tarjeta))->header('Cache-Control', 'no-store');
+        }
+
+        return $vista;
     }
 }

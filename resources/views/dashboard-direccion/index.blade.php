@@ -580,6 +580,7 @@
                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
 
                     {{-- PLANEACIÓN SEMANAL --}}
+                    @fragment('planeacion-semanal')
                     <div id="planeacion-semanal" class="flex flex-col scroll-mt-4 bg-white rounded-xl shadow-sm border border-gray-200 p-6">
 
                         <div class="flex items-center justify-between mb-5">
@@ -684,18 +685,29 @@
 
                         <nav aria-label="Navegación de planeación semanal" class="mt-auto flex flex-wrap gap-2 pt-5">
                             @foreach (['Semana anterior' => $offsetSemana - 1, 'Semana actual' => 0, 'Semana siguiente' => $offsetSemana + 1] as $etiqueta => $desplazamiento)
-                                <a href="{{ request()->fullUrlWithQuery(['offset_semana' => $desplazamiento]) }}#planeacion-semanal"
+                                <a href="{{ request()->fullUrlWithQuery(['offset_semana' => $desplazamiento]) }}#planeacion-semanal" data-periodo="offset_semana" data-offset="{{ $desplazamiento }}"
                                    class="rounded-lg border border-gray-200 px-3 py-2 text-xs font-medium text-gray-700 hover:bg-gray-50 focus-visible:outline focus-visible:outline-blue-600">
                                     {{ $etiqueta }}
                                 </a>
                             @endforeach
                         </nav>
+                        <p role="status" data-estado-periodo class="text-xs text-gray-600"></p>
 
                     </div>
+                    @endfragment
 
 
                     {{-- PLANEACIÓN MENSUAL --}}
-                    <div id="planeacion-mensual" class="flex flex-col scroll-mt-4 bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                    @fragment('planeacion-mensual')
+                    <div id="planeacion-mensual"
+                         data-periodo="{{ $inicioMes->locale('es')->translatedFormat('F Y') }}"
+                         data-pedidos="{{ $pedidosTerminadosMes->map(fn ($pedido) => [
+                             'pedido_no' => $pedido->pedido_no,
+                             'cliente' => $pedido->cliente,
+                             'importe' => (float) $pedido->importe_total,
+                             'fecha_terminado' => $pedido->fecha_terminado->format('d/m/Y'),
+                         ])->toJson() }}"
+                         class="flex flex-col scroll-mt-4 bg-white rounded-xl shadow-sm border border-gray-200 p-6">
 
                         <div class="flex items-center justify-between mb-5">
                             <div>
@@ -806,14 +818,16 @@
 
                         <nav aria-label="Navegación de planeación mensual" class="mt-auto flex flex-wrap gap-2 pt-5">
                             @foreach (['Mes anterior' => $offsetMes - 1, 'Mes actual' => 0, 'Mes siguiente' => $offsetMes + 1] as $etiqueta => $desplazamiento)
-                                <a href="{{ request()->fullUrlWithQuery(['offset_mes' => $desplazamiento]) }}#planeacion-mensual"
+                                <a href="{{ request()->fullUrlWithQuery(['offset_mes' => $desplazamiento]) }}#planeacion-mensual" data-periodo="offset_mes" data-offset="{{ $desplazamiento }}"
                                    class="rounded-lg border border-gray-200 px-3 py-2 text-xs font-medium text-gray-700 hover:bg-gray-50 focus-visible:outline focus-visible:outline-blue-600">
                                     {{ $etiqueta }}
                                 </a>
                             @endforeach
                         </nav>
+                        <p role="status" data-estado-periodo class="text-xs text-gray-600"></p>
 
                     </div>
+                    @endfragment
 
                 </div>
 
@@ -2284,14 +2298,61 @@
         const datosModalProyeccion =
             @json($datosModalProyeccion);
 
-        const pedidosTerminadosMes = {{ Illuminate\Support\Js::from($pedidosTerminadosMes->map(fn ($pedido) => [
-            'pedido_no' => $pedido->pedido_no,
-            'cliente' => $pedido->cliente,
-            'importe' => (float) $pedido->importe_total,
-            'fecha_terminado' => $pedido->fecha_terminado->format('d/m/Y'),
-        ])) }};
-        const periodoPedidosTerminadosMes = {{ Illuminate\Support\Js::from($inicioMes->locale('es')->translatedFormat('F Y')) }};
+        document.addEventListener('click', async (event) => {
+            const enlace = event.target.closest('a[data-periodo][data-offset]');
+            if (!enlace || event.defaultPrevented || event.button !== 0 ||
+                event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
 
+            event.preventDefault();
+            const tarjeta = enlace.closest('#planeacion-semanal, #planeacion-mensual');
+            if (!tarjeta || tarjeta.getAttribute('aria-busy') === 'true') return;
+
+            const estado = tarjeta.querySelector('[data-estado-periodo]');
+            const destino = new URL(window.location.href);
+            const { periodo, offset } = enlace.dataset;
+            destino.searchParams.set(periodo, offset);
+            tarjeta.setAttribute('aria-busy', 'true');
+            estado.textContent = 'Cargando periodo…';
+
+            try {
+                const respuesta = await fetch(destino, {
+                    headers: { 'X-Planeacion-Tarjeta': tarjeta.id },
+                });
+                if (!respuesta.ok) throw new Error('No se pudo cargar el periodo');
+
+                const documento = new DOMParser().parseFromString(await respuesta.text(), 'text/html');
+                const actualizada = documento.getElementById(tarjeta.id);
+                if (!actualizada) throw new Error('No se recibió la tarjeta');
+
+                const enfocado = document.activeElement === enlace;
+                tarjeta.replaceWith(actualizada);
+
+                const urlActual = new URL(window.location.href);
+                urlActual.searchParams.set(periodo, offset);
+                window.history.replaceState(window.history.state, '', urlActual);
+
+                for (const boton of document.querySelectorAll('a[data-periodo][data-offset]')) {
+                    const urlBoton = new URL(urlActual);
+                    urlBoton.searchParams.set(boton.dataset.periodo, boton.dataset.offset);
+                    urlBoton.hash = boton.closest('#planeacion-semanal, #planeacion-mensual').id;
+                    boton.href = urlBoton;
+                }
+                for (const boton of document.querySelectorAll('a[href*="offset_proyeccion="]')) {
+                    const urlBoton = new URL(boton.href);
+                    urlBoton.searchParams.set(periodo, offset);
+                    boton.href = urlBoton;
+                }
+                if (enfocado) {
+                    const enlacesNuevos = Array.from(actualizada.querySelectorAll('a[data-offset]'));
+                    enlacesNuevos.find(boton => boton.textContent.trim() === enlace.textContent.trim())
+                        ?.focus({ preventScroll: true });
+                }
+            } catch {
+                estado.textContent = 'No se pudo cargar el periodo. Intenta de nuevo.';
+            } finally {
+                tarjeta.removeAttribute('aria-busy');
+            }
+        });
 
         function abrirModalPedidos(tipo, semana) {
 
@@ -2328,7 +2389,7 @@
 
 
             const pedidos =
-                semana === 'mes' ? pedidosTerminadosMes : tipo === 'entregados' ?
+                semana === 'mes' ? JSON.parse(document.getElementById('planeacion-mensual').dataset.pedidos) : tipo === 'entregados' ?
                 datosSemana.entregados :
                 datosSemana.pendientes;
 
@@ -2344,7 +2405,7 @@
 
 
             subtitulo.textContent =
-                semana === 'mes' ? periodoPedidosTerminadosMes : 'Semana ' + semana;
+                semana === 'mes' ? document.getElementById('planeacion-mensual').dataset.periodo : 'Semana ' + semana;
 
 
             encabezadoFecha.textContent =

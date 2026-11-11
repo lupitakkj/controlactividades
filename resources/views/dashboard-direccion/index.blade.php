@@ -664,11 +664,14 @@
 
                                 <div class="text-right">
                                     <p class="text-xs text-gray-500">
-                                        Terminado del total semanal
+                                        Meta alcanzada
                                     </p>
 
                                     <p class="text-lg font-bold text-green-600">
-                                        {{ number_format($porcentajeEntregadoSemanal, 1) }}%
+                                        {{ number_format($porcentajeMetaTerminadaSemanal, 1) }}%
+                                    </p>
+                                    <p class="mt-1 text-xs text-gray-500">
+                                        Programado terminado: {{ number_format($porcentajeEntregadoSemanal, 1) }}%
                                     </p>
                                 </div>
 

@@ -59,6 +59,9 @@
              MENÚ LATERAL
         ========================================================== --}}
             @include('layouts.navigation')
+            @hasanyrole(\App\Http\Controllers\ResumenSemanalController::ROLES)
+                @include('resumen-semanal.modal')
+            @endhasanyrole
 
 
             {{-- =========================================================

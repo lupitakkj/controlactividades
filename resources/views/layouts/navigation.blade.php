@@ -267,6 +267,17 @@
     ========================================================== --}}
 
     <div class="sidebar-links flex-1 overflow-y-auto px-3 py-5">
+        @hasanyrole(\App\Http\Controllers\ResumenSemanalController::ROLES)
+            <button type="button"
+                class="sidebar-link flex w-full items-center px-3 py-2.5 mb-1 rounded-lg"
+                x-bind:class="sidebarOpen ? 'gap-3' : 'justify-center'"
+                x-on:click="$dispatch('abrir-resumen-semanal')"
+                aria-label="Resumen semanal"
+                title="Resumen semanal">
+                <i class="fa-solid fa-calendar-week w-5 text-center" aria-hidden="true"></i>
+                <span x-show="sidebarOpen">Resumen semanal</span>
+            </button>
+        @endhasanyrole
 
 
 

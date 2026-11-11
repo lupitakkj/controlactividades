@@ -30,72 +30,7 @@ class DashboardDireccionController extends Controller
         |
         */
 
-        $semanaCandidata = SemanaOperativa::whereDate(
-            'fecha_inicio',
-            '<=',
-            $ahora->toDateString()
-        )
-            ->orderByDesc('fecha_inicio')
-            ->first();
-
-
-        if ($semanaCandidata) {
-
-            $momentoActivacion = Carbon::parse(
-                $semanaCandidata->fecha_inicio
-            )->setTime(18, 30, 0);
-
-
-            if ($ahora->lt($momentoActivacion)) {
-
-                $semanaOperativa = SemanaOperativa::where(
-                    'fecha_inicio',
-                    '<',
-                    $semanaCandidata->fecha_inicio
-                )
-                    ->orderByDesc('fecha_inicio')
-                    ->first();
-            } else {
-
-                $semanaOperativa = $semanaCandidata;
-            }
-        } else {
-
-            $semanaOperativa = null;
-        }
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | 3. RESPALDO DE SEMANA OPERATIVA
-        |--------------------------------------------------------------------------
-        */
-
-        if (!$semanaOperativa) {
-
-            $semanaOperativa = SemanaOperativa::where(
-                'anio',
-                $hoy->year
-            )
-                ->whereDate(
-                    'fecha_inicio',
-                    '<=',
-                    $hoy->toDateString()
-                )
-                ->whereDate(
-                    'fecha_fin',
-                    '>=',
-                    $hoy->toDateString()
-                )
-                ->first();
-        }
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | 4. VALIDAR SEMANA
-        |--------------------------------------------------------------------------
-        */
+        $semanaOperativa = SemanaOperativa::actual($ahora);
 
         if (!$semanaOperativa) {
 

@@ -22,6 +22,7 @@ use App\Http\Controllers\PedidosTerminadosController;
 use App\Http\Controllers\ProduccionProductoController;
 use App\Http\Controllers\ProveedorController;
 use App\Http\Controllers\ReporteEntradasController;
+use App\Http\Controllers\ResumenSemanalController;
 use App\Http\Controllers\RutaClaveController;
 use App\Http\Controllers\RutaFabricacionController;
 use App\Http\Controllers\TicketCalidadController;
@@ -31,6 +32,11 @@ use Illuminate\Support\Facades\DB;
 Route::redirect('/', '/login');
 
 Route::middleware('auth')->group(function () {
+    Route::get('/resumen-semanal', [ResumenSemanalController::class, 'show'])
+        ->name('resumen-semanal.show');
+    Route::post('/resumen-semanal/visto', [ResumenSemanalController::class, 'visto'])
+        ->name('resumen-semanal.visto');
+
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');

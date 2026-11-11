@@ -589,7 +589,7 @@
                                 </h2>
 
                                 <p class="text-sm text-gray-500 mt-1">
-                                    Meta semanal según fecha de producción
+                                    Importes de la semana operativa, incluido el rezago
                                 </p>
                             </div>
 
@@ -622,7 +622,7 @@
                                 </div>
 
                                 <div class="w-full bg-gray-100 rounded-full h-3 overflow-hidden flex"
-                                     title="Entregado: {{ number_format($porcentajeEntregadoSemanal, 1) }}% · Pendiente: {{ number_format($porcentajePendienteEntregaSemanal, 1) }}%">
+                                     title="Terminado: {{ number_format($porcentajeEntregadoSemanal, 1) }}% · Pendiente: {{ number_format($porcentajePendienteEntregaSemanal, 1) }}%">
                                     @if($porcentajeEntregadoSemanal > 0)
                                         <div
                                             class="bg-green-500 h-3"
@@ -638,7 +638,7 @@
                                 </div>
                                 <div class="flex justify-between text-xs mt-2">
                                     <span class="text-green-600">
-                                        Entregado: {{ number_format($porcentajeEntregadoSemanal, 1) }}%
+                                        Terminado: {{ number_format($porcentajeEntregadoSemanal, 1) }}%
                                     </span>
                                     <span class="text-blue-600">
                                         Pendiente: {{ number_format($porcentajePendienteEntregaSemanal, 1) }}%
@@ -650,7 +650,7 @@
 
                                 <div>
                                     <p class="text-xs text-gray-500">
-                                        Pendiente de entrega
+                                        Pendiente de terminar
                                     </p>
 
                                     <p class="text-lg font-bold text-gray-800">
@@ -660,7 +660,7 @@
 
                                 <div class="text-right">
                                     <p class="text-xs text-gray-500">
-                                        Avance de entrega
+                                        Terminado del total semanal
                                     </p>
 
                                     <p class="text-lg font-bold text-green-600">
@@ -671,11 +671,11 @@
                             </div>
 
                             <div class="text-xs text-gray-500 border-t border-gray-100 pt-3">
-                                Cumplimiento de meta semanal:
+                                Terminado de la meta semanal:
                                 <span class="font-semibold text-blue-600">
-                                    {{ number_format($porcentajeSemanal, 1) }}%
+                                    {{ number_format($porcentajeMetaTerminadaSemanal, 1) }}%
                                 </span>
-                                · Meta: ${{ number_format($metaSemanal, 2) }}
+                                · ${{ number_format($entregadoSemanal, 2) }} terminados
                             </div>
 
                         </div>

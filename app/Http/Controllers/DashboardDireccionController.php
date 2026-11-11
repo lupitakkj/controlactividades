@@ -154,81 +154,25 @@ class DashboardDireccionController extends Controller
 
         $metaSemanal = 630000;
         $metaMensual = 2520000;
-        /*
-        |--------------------------------------------------------------------------
-        | PLANEACIÓN SEMANAL
-        |--------------------------------------------------------------------------
-        |
-        | La semana de planeación se determina de la misma manera que la
-        | proyección:
-        |
-        | - Pedido pendiente:
-        |       usa controlOperativo.fecha_produccion.
-        |
-        | - Pedido terminado:
-        |       usa fecha_terminado.
-        |
-        | Esto significa que si un pedido estaba programado para una semana
-        | posterior pero se termina antes, el importe entra en la semana
-        | en la que realmente se terminó.
-        |
-        | Así Planeación semanal y Proyección siempre manejan la misma base.
-        |
-        */
-
-        $pedidosPlaneacionSemanal = $pedidos->filter(
-            function ($pedido) use ($inicioSemana, $finSemana) {
-
-                /*
-                |--------------------------------------------------------------------------
-                | PEDIDO YA TERMINADO
-                |--------------------------------------------------------------------------
-                |
-                | Si existe fecha_terminado, esta es la fecha que determina
-                | la semana real en la que se realizó.
-                |
-                */
-
-                if (!empty($pedido->fecha_terminado)) {
-
-                    $fechaReal = Carbon::parse(
-                        $pedido->fecha_terminado
-                    )->startOfDay();
-
-                    return $fechaReal->between(
-                        $inicioSemana->copy()->startOfDay(),
-                        $finSemana->copy()->endOfDay()
-                    );
+        // Los pedidos cerrados cuentan en su semana real. El rezago de producción
+        // pendiente se arrastra a la semana operativa tanto en planeación como en proyección.
+        $pedidosParaSemana = function (Carbon $inicio, Carbon $fin) use ($pedidos, $inicioSemana) {
+            return $pedidos->filter(function ($pedido) use ($inicio, $fin, $inicioSemana) {
+                if ($pedido->fecha_terminado) {
+                    return $pedido->fecha_terminado->between($inicio, $fin);
                 }
 
-
-                /*
-                |--------------------------------------------------------------------------
-                | PEDIDO PENDIENTE
-                |--------------------------------------------------------------------------
-                |
-                | Si todavía no está terminado, conserva su fecha programada.
-                |
-                */
-
-                // Para pedidos pendientes, la semana corresponde a la fecha
-                // de producción registrada por Producción, no a la entrega.
                 $fechaProduccion = $pedido->controlOperativo?->fecha_produccion;
-
-                if (empty($fechaProduccion)) {
+                if (!$fechaProduccion) {
                     return false;
                 }
 
-                $fechaProduccion = Carbon::parse(
-                    $fechaProduccion
-                )->startOfDay();
+                return Carbon::parse($fechaProduccion)->startOfDay()
+                    ->max($inicioSemana)->between($inicio, $fin);
+            });
+        };
 
-                return $fechaProduccion->between(
-                    $inicioSemana->copy()->startOfDay(),
-                    $finSemana->copy()->endOfDay()
-                );
-            }
-        );
+        $pedidosPlaneacionSemanal = $pedidosParaSemana($inicioSemana, $finSemana);
 
 
         /*
@@ -1049,15 +993,6 @@ $finMes = $hoy->copy()->endOfMonth();
 
         $proyeccionSemanas = collect();
 
-        // Los pedidos que quedaron abiertos en semanas ya cerradas avanzan
-        // a la semana operativa vigente. Así el historial conserva solo lo
-        // terminado realmente en cada semana y el rezago sigue visible como
-        // pendiente en la semana actual.
-        $inicioSemanaOperativa = Carbon::parse(
-            $semanaOperativa->fecha_inicio
-        )->startOfDay();
-
-
         foreach ($proximasSemanas as $semanaFutura) {
 
             $inicio = Carbon::parse(
@@ -1069,73 +1004,7 @@ $finMes = $hoy->copy()->endOfMonth();
             )->endOfDay();
 
 
-            /*
-            |--------------------------------------------------------------------------
-            | PEDIDOS DE LA SEMANA
-            |--------------------------------------------------------------------------
-            |
-            | Pedido terminado:
-            |     se contabiliza únicamente en la semana de fecha_terminado.
-            |
-            | Pedido pendiente:
-            |     se contabiliza en su semana de producción. Si esa semana
-            |     ya cerró, se arrastra a la semana operativa vigente hasta
-            |     que se registre su terminación. La fecha_entrega no determina
-            |     la semana de esta proyección.
-            |
-            */
-
-            $pedidosSemana = $pedidos->filter(
-                function ($pedido) use ($inicio, $fin, $inicioSemanaOperativa) {
-
-                    /*
-                    | Los pedidos terminados se contabilizan únicamente
-                    | en la semana de su fecha real de terminación.
-                    */
-                    if (!empty($pedido->fecha_terminado)) {
-
-                        $fechaTerminado = Carbon::parse(
-                            $pedido->fecha_terminado
-                        )->startOfDay();
-
-                        return $fechaTerminado->between(
-                            $inicio->copy()->startOfDay(),
-                            $fin->copy()->endOfDay()
-                        );
-                    }
-
-                    /*
-                    | Los pedidos pendientes se contabilizan únicamente
-                    | en la semana indicada por Producción mediante
-                    | controlOperativo.fecha_produccion.
-                    | fecha_entrega se conserva para mostrar el compromiso
-                    | con el cliente, pero no mueve el pedido a otra semana.
-                    */
-                    $fechaProduccion =
-                        $pedido->controlOperativo?->fecha_produccion;
-
-                    if (empty($fechaProduccion)) {
-                        return false;
-                    }
-
-                    $fechaProduccion = Carbon::parse(
-                        $fechaProduccion
-                    )->startOfDay();
-
-                    // Un pedido abierto con fecha de producción anterior a
-                    // la semana actual se mantiene pendiente, pero su importe
-                    // se mueve hacia adelante y no deja pendiente la semana
-                    // histórica que ya cerró.
-                    if ($fechaProduccion->lt($inicioSemanaOperativa)) {
-                        $fechaProduccion = $inicioSemanaOperativa->copy();
-                    }
-
-                    return $fechaProduccion->between(
-                        $inicio->copy()->startOfDay(),
-                        $fin->copy()->endOfDay()
-                    );
-                }
-            );
+            $pedidosSemana = $pedidosParaSemana($inicio, $fin);
 
 
             /*
@@ -1373,6 +1242,7 @@ $finMes = $hoy->copy()->endOfMonth();
             'faltanteSemanal' => $faltanteSemanal,
             'porcentajeSemanal' => $porcentajeSemanal,
             'entregadoSemanal' => $entregadoSemanal,
+            'porcentajeMetaTerminadaSemanal' => ($entregadoSemanal / $metaSemanal) * 100,
             'pendienteEntregaSemanal' => $pendienteEntregaSemanal,
             'porcentajeEntregadoSemanal' => $porcentajeEntregadoSemanal,
             'porcentajePendienteEntregaSemanal' => $porcentajePendienteEntregaSemanal,

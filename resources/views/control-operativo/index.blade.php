@@ -1230,15 +1230,13 @@
                                         class="px-3 py-2 text-center  align-middle">
                                         <div class="flex flex-col items-center justify-center gap-1">
 
-                                            <span class="inline-flex items-center justify-center px-3 py-1 rounded-full text-xs font-bold {{ $fondoProceso }} {{ $colorProceso }}">
+                                            <span class="proceso-menor-nombre inline-flex items-center justify-center px-3 py-1 rounded-full text-xs font-bold {{ $fondoProceso }} {{ $colorProceso }}">
                                                 {{ $nombreProceso }}
                                             </span>
 
-                                            @if($porcentajeProcesoTexto !== null)
-                                            <span class="text-xs font-bold text-gray-700">
-                                                {{ $porcentajeProcesoTexto }}%
+                                            <span class="proceso-menor-porcentaje text-xs font-bold text-gray-700" @if($porcentajeProcesoTexto === null) hidden @endif>
+                                                {{ $porcentajeProcesoTexto !== null ? $porcentajeProcesoTexto . '%' : '' }}
                                             </span>
-                                            @endif
 
                                         </div>
                                         </td>
@@ -5091,7 +5089,6 @@
                         if (filaEstadoActualizada) {
                             filaEstadoActualizada.dataset.estado = data.estado_operativo || nuevoEstado;
                         }
-                        document.dispatchEvent(new CustomEvent('estado-operativo-actualizado'));
 
                         /*
                         |--------------------------------------------------------------------------
@@ -5137,8 +5134,23 @@
 
                             }
 
+                            const proceso = data.proceso_menor_avance;
+                            const nombre = fila.querySelector('.proceso-menor-nombre');
+                            const porcentaje = fila.querySelector('.proceso-menor-porcentaje');
+                            const completo = proceso.porcentaje === 1;
+
+                            fila.dataset.avance = '1';
+                            fila.dataset.procesoMenorAvance = proceso.porcentaje ?? '';
+                            nombre.textContent = proceso.proceso;
+                            nombre.classList.remove('bg-gray-700', 'text-gray-400', 'bg-red-100', 'text-red-700',
+                                'bg-orange-100', 'text-orange-700', 'bg-yellow-100', 'text-yellow-700',
+                                'bg-green-100', 'text-green-700');
+                            nombre.classList.add(...(completo ? ['bg-green-100', 'text-green-700'] : ['bg-gray-700', 'text-gray-400']));
+                            porcentaje.textContent = completo ? '100%' : '';
+                            porcentaje.hidden = !completo;
                         }
 
+                        document.dispatchEvent(new CustomEvent('estado-operativo-actualizado'));
                     })
 
                     .catch(error => {

@@ -568,101 +568,30 @@ class ControlOperativoController extends Controller
 
         $nuevoEstado = $request->input('estado_operativo');
 
-        /*
-        |--------------------------------------------------------------------------
-        | OBTENER / CREAR CONTROL OPERATIVO
-        |--------------------------------------------------------------------------
-        */
-
-        $control = $pedido->controlOperativo;
-
-        if (!$control) {
-
-            $control = $pedido->controlOperativo()->create([
+        $control = DB::transaction(function () use ($pedido, $nuevoEstado) {
+            $pedido = Pedido::query()->lockForUpdate()->findOrFail($pedido->id);
+            $control = $pedido->controlOperativo()->updateOrCreate([], [
                 'estado_operativo' => $nuevoEstado,
             ]);
-        } else {
 
-            $control->estado_operativo = $nuevoEstado;
-            $control->save();
-        }
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | SI EL PEDIDO SE MARCA COMO TERMINADO
-        |--------------------------------------------------------------------------
-        */
-
-        if ($nuevoEstado === 'Terminado') {
-
-            /*
-            |--------------------------------------------------------------------------
-            | GUARDAR FECHA DE TERMINADO
-            |--------------------------------------------------------------------------
-            */
-
-            $pedido->fecha_terminado = now()->toDateString();
-            $pedido->save();
-
-            /*
-        |--------------------------------------------------------------------------
-        | PROCESOS DE CADA PARTIDA 
-        |--------------------------------------------------------------------------
-        |
-        | Respetamos los procesos que estén como N/A.
-        |
-        | Los procesos que aplican se llevan al 100%.
-        |
-        */
-
-            $pedido->load([
-                'partidas.despieceProcesos.proceso'
-            ]);
-
-            foreach ($pedido->partidas as $partida) {
-
-                foreach ($partida->despieceProcesos as $despiece) {
-
-                    /*
-                |--------------------------------------------------------------------------
-                | N/A
-                |--------------------------------------------------------------------------
-                |
-                | Si el proceso no aplica, NO lo modificamos.
-                |
-                */
-
-                    if (!$despiece->aplica) {
-                        continue;
-                    }
-
-
-                    /*
-                |--------------------------------------------------------------------------
-                | PROCESO APLICABLE
-                |--------------------------------------------------------------------------
-                |
-                | Lo llevamos al 100%.
-                |
-                */
-
-                    $despiece->cantidad_realizada =
-                        $partida->cantidad;
-
-                    $despiece->porcentaje = 1;
-
-                    $despiece->save();
-                }
+            if ($nuevoEstado === 'Terminado') {
+                $pedido->fecha_terminado ??= now()->toDateString();
+                $pedido->save();
+                $pedido->completarProcesosDespiece();
             }
-        }
 
+            return $control;
+        }, 3);
 
         return response()->json([
             'success' => true,
             'estado_operativo' => $control->estado_operativo,
+            'proceso_menor_avance' => $nuevoEstado === 'Terminado'
+                ? $this->obtenerProcesoMenorAvance($pedido->load('partidas.despieceProcesos'))
+                : null,
         ]);
     }
+
 
     /**
      * Obtener el proceso con menor avance de un pedido.

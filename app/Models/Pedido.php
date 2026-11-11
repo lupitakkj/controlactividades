@@ -71,6 +71,40 @@ class Pedido extends Model
         );
     }
 
+    public function completarProcesosDespiece(): void
+    {
+        $procesosActivos = static::obtenerProcesosActivos();
+        $this->load('partidas.despieceProcesos');
+
+        foreach ($this->partidas as $partida) {
+            $despieces = $partida->despieceProcesos->keyBy('proceso_id');
+
+            foreach ($procesosActivos as $proceso) {
+                $despiece = $despieces->get($proceso->id);
+
+                if ($despiece && !$despiece->aplica) {
+                    continue;
+                }
+
+                $despiece ??= $partida->despieceProcesos()->make([
+                    'proceso_id' => $proceso->id,
+                    'aplica' => true,
+                ]);
+                $despiece->fill([
+                    'cantidad_realizada' => $partida->cantidad,
+                    'porcentaje' => 1,
+                ]);
+
+                if ($despiece->isDirty()) {
+                    $despiece->save();
+                }
+            }
+        }
+
+        $this->unsetRelation('partidas');
+        $this->avanceYaCalculado = false;
+    }
+
     /**
      * Tickets de calidad asociados al pedido.
      */

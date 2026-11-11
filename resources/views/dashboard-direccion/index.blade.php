@@ -752,19 +752,22 @@
                                 </div>
                             </div>
 
-                            <div class="flex justify-between items-center rounded-lg border border-green-100 bg-green-50 px-3 py-2">
-                                <div>
-                                    <p class="text-xs text-green-700">
+                            <button type="button" aria-haspopup="dialog" aria-controls="modalPedidosProyeccion"
+                                onclick="abrirModalPedidos('entregados', 'mes')"
+                                class="w-full flex justify-between items-center rounded-lg border border-green-100 bg-green-50 px-3 py-2 text-left hover:bg-green-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-green-700">
+                                <span>
+                                    <span class="block text-xs text-green-700">
                                         Entregado este mes
-                                    </p>
-                                    <p class="text-lg font-bold text-green-700">
+                                    </span>
+                                    <span class="block text-lg font-bold text-green-700">
                                         ${{ number_format($entregadoMensual, 2) }}
-                                    </p>
-                                </div>
-                                <p class="text-sm font-semibold text-green-700 text-right">
+                                    </span>
+                                </span>
+                                <span class="text-sm font-semibold text-green-700 text-right">
                                     {{ number_format($porcentajeEntregadoMensual, 1) }}% de la meta
-                                </p>
-                            </div>
+                                    <span class="block text-xs underline">Ver pedidos</span>
+                                </span>
+                            </button>
 
                             <div class="flex justify-between items-center pt-2">
 
@@ -2101,7 +2104,7 @@
 
 
     <div
-        id="modalPedidosProyeccion"
+        id="modalPedidosProyeccion" role="dialog" aria-modal="true" aria-labelledby="modalPedidosTitulo" tabindex="-1"
         class="fixed inset-0 z-[100] hidden items-center justify-center bg-black/60 p-4"
         onclick="cerrarModalPedidos(event)">
 
@@ -2263,6 +2266,14 @@
         const datosModalProyeccion =
             @json($datosModalProyeccion);
 
+        const pedidosTerminadosMes = {{ Illuminate\Support\Js::from($pedidosTerminadosMes->map(fn ($pedido) => [
+            'pedido_no' => $pedido->pedido_no,
+            'cliente' => $pedido->cliente,
+            'importe' => (float) $pedido->importe_total,
+            'fecha_terminado' => $pedido->fecha_terminado->format('d/m/Y'),
+        ])) }};
+        const periodoPedidosTerminadosMes = {{ Illuminate\Support\Js::from($inicioMes->locale('es')->translatedFormat('F Y')) }};
+
 
         function abrirModalPedidos(tipo, semana) {
 
@@ -2299,7 +2310,7 @@
 
 
             const pedidos =
-                tipo === 'entregados' ?
+                semana === 'mes' ? pedidosTerminadosMes : tipo === 'entregados' ?
                 datosSemana.entregados :
                 datosSemana.pendientes;
 
@@ -2309,13 +2320,13 @@
 
 
             titulo.textContent =
-                esEntregado ?
+                semana === 'mes' ? 'Pedidos terminados del mes' : esEntregado ?
                 'Pedidos entregados' :
                 'Pedidos pendientes';
 
 
             subtitulo.textContent =
-                'Semana ' + semana;
+                semana === 'mes' ? periodoPedidosTerminadosMes : 'Semana ' + semana;
 
 
             encabezadoFecha.textContent =
@@ -2385,28 +2396,16 @@
                         );
 
 
-                    fila.innerHTML = `
-
-                        <td class="px-5 py-2.5">
-                            <span class="font-semibold text-gray-700">
-                                ${pedido.pedido_no ?? '—'}
-                            </span>
-                        </td>
-
-                        <td class="px-5 py-2.5 text-gray-600">
-                            ${pedido.cliente ?? '—'}
-                        </td>
-
-                        <td class="px-5 py-2.5 text-gray-500">
-                            ${fecha ?? '—'}
-                        </td>
-
-                        <td class="px-5 py-2.5 text-right font-semibold">
-                            ${importe}
-                        </td>
-
-                    `;
-
+                    [
+                        [pedido.pedido_no ?? '—', 'font-semibold text-gray-700'],
+                        [pedido.cliente ?? '—', 'text-gray-600'],
+                        [fecha, 'text-gray-500'],
+                        [importe, 'text-right font-semibold'],
+                    ].forEach(([valor, clases]) => {
+                        const celda = fila.insertCell();
+                        celda.className = 'px-5 py-2.5 ' + clases;
+                        celda.textContent = valor;
+                    });
 
                     lista.appendChild(fila);
 
@@ -2417,6 +2416,7 @@
 
             modal.classList.remove('hidden');
             modal.classList.add('flex');
+            modal.focus();
 
             document.body.classList.add('overflow-hidden');
         }

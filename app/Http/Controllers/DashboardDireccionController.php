@@ -300,7 +300,7 @@ $finMes = $hoy->copy()->endOfMonth();
 
         // El entregado mensual se reconoce por la fecha real de terminación,
         // aunque el pedido se hubiera programado para otro mes.
-        $entregadoMensual = $pedidosPlaneacionMensual
+        $pedidosTerminadosMes = $pedidosPlaneacionMensual
             ->filter(function ($pedido) use ($inicioMes, $finMes) {
                 if (empty($pedido->fecha_terminado)) {
                     return false;
@@ -312,10 +312,9 @@ $finMes = $hoy->copy()->endOfMonth();
                         $inicioMes->copy()->startOfDay(),
                         $finMes->copy()->endOfDay()
                     );
-            })
-            ->sum(function ($pedido) {
-                return (float) $pedido->importe_total;
-            });
+            })->sortByDesc('fecha_terminado')->values();
+
+        $entregadoMensual = $pedidosTerminadosMes->sum('importe_total');
 
         $porcentajeEntregadoMensual = $metaMensual > 0
             ? ($entregadoMensual / $metaMensual) * 100
@@ -1251,6 +1250,7 @@ $finMes = $hoy->copy()->endOfMonth();
             'metaMensual' => $metaMensual,
             'programadoMensual' => $programadoMensual,
             'entregadoMensual' => $entregadoMensual,
+            'pedidosTerminadosMes' => $pedidosTerminadosMes,
             'porcentajeEntregadoMensual' => $porcentajeEntregadoMensual,
             'pendienteProgramadoMensual' => $pendienteProgramadoMensual,
             'porcentajePendienteProgramadoMensual' => $porcentajePendienteProgramadoMensual,

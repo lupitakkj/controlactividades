@@ -23,3 +23,12 @@
 - Adjunta una captura del cambio funcionando o un video breve si ayuda a mostrar la interacción. Para cambios sin interfaz, captura el resultado de la verificación sin exponer datos sensibles. Explica cualquier prueba o evidencia que no puedas obtener.
 - Después de verificar el cambio y capturar su evidencia, crea un commit por módulo o vista con los archivos correspondientes.
 - No ejecutes despliegues ni hagas push sin autorización. Cuando se autorice el push al destino habitual, sube los commits verificados a `origin/desarrollo`, comprueba el resultado e informa qué commits se subieron o por qué quedó pendiente.
+
+
+## Coordinación multiagente de Rijaya
+
+- El agente principal coordina. Usa la Skill personal `rijaya-agent-coordinator` si está instalada y sigue el [protocolo y estado compartido](docs/agent-context/README.md).
+- Usa los perfiles nativos del proyecto `frontend`, `backend`, `database` y `qa` cuando la herramienta de delegación permita seleccionarlos. Si no permite elegir perfiles, asigna responsabilidades explícitas a los subagentes e informa esa limitación.
+- Reparte solo tareas independientes. Antes de implementar cambios dependientes, acuerda el contrato entre Blade/JavaScript, Laravel y MySQL. Asigna un único editor por archivo y escala solapamientos al coordinador.
+- La delegación conserva el alcance y los permisos. En revisiones de solo lectura los especialistas no escriben archivos. El coordinador registra los resultados únicamente si el encargo permite documentación.
+- No conectes bases reales para pruebas ni introduzcas secretos en el contexto compartido. Para esta configuración quedan fuera de alcance la aplicación Laravel, las migraciones, el SQL destructivo y cualquier cambio en producción. Push, merge y despliegue requieren autorización.

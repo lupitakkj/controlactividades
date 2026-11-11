@@ -847,7 +847,21 @@
             PROYECCIÓN DE LA SEMANA ACTUAL + 3 SEMANAS
         ====================================================== --}}
 
-        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-5 mt-6">
+        @fragment('proyeccion-semanal')
+    @php
+    $datosModalProyeccion = [];
+
+    foreach ($proyeccionSemanas as $semanaModal) {
+    $numeroSemanaModal = (string) $semanaModal['semana'];
+
+    $datosModalProyeccion[$numeroSemanaModal] = [
+    'entregados' => $semanaModal['pedidos_entregados'] ?? [],
+    'pendientes' => $semanaModal['pedidos_pendientes'] ?? [],
+    ];
+    }
+    @endphp
+        <div id="proyeccion-semanal" data-pedidos="{{ json_encode($datosModalProyeccion, JSON_THROW_ON_ERROR) }}"
+            class="bg-white rounded-xl shadow-sm border border-gray-200 p-5 mt-6">
 
             <h2 class="text-lg font-bold text-gray-800">
                 Proyección de la semana actual y próximas 3 semanas
@@ -874,19 +888,24 @@
                                 ? 'text-gray-700 bg-white border-gray-300 hover:bg-gray-50'
                                 : 'text-gray-300 bg-gray-50 border-gray-200 pointer-events-none' }}"
                     aria-label="Semana anterior"
+                    @if($puedeRetrocederProyeccion)
+                        data-periodo="offset_proyeccion" data-offset="{{ $offsetProyeccion - 1 }}"
+                    @else
+                        aria-disabled="true" tabindex="-1"
+                    @endif
                 >
                     <span class="text-lg leading-none">‹</span>
                     Semana anterior
                 </a>
 
 
-                <div class="text-xs text-gray-500 font-medium">
-                    {{ $offsetProyeccion === 0
-                        ? 'Semana actual'
-                        : ($offsetProyeccion < 0
-                            ? 'Semanas anteriores'
-                            : 'Semanas siguientes') }}
-                </div>
+                <a href="{{ request()->fullUrlWithQuery(['offset_proyeccion' => 0]) }}#proyeccion-semanal"
+                    data-periodo="offset_proyeccion" data-offset="0"
+                    @if($offsetProyeccion === 0) aria-current="true" @endif
+                    class="inline-flex items-center px-3 py-2 rounded-lg text-sm font-medium border transition
+                           {{ $offsetProyeccion === 0 ? 'text-blue-700 bg-blue-50 border-blue-200' : 'text-gray-700 bg-white border-gray-300 hover:bg-gray-50' }}">
+                    Semana actual
+                </a>
 
 
                 <a
@@ -901,6 +920,11 @@
                                 ? 'text-gray-700 bg-white border-gray-300 hover:bg-gray-50'
                                 : 'text-gray-300 bg-gray-50 border-gray-200 pointer-events-none' }}"
                     aria-label="Semana siguiente"
+                    @if($puedeAvanzarProyeccion)
+                        data-periodo="offset_proyeccion" data-offset="{{ $offsetProyeccion + 1 }}"
+                    @else
+                        aria-disabled="true" tabindex="-1"
+                    @endif
                 >
                     Semana siguiente
                     <span class="text-lg leading-none">›</span>
@@ -908,6 +932,8 @@
 
             </div>
 
+
+            <p role="status" data-estado-periodo class="text-xs text-gray-600"></p>
 
             {{-- 2 COLUMNAS --}}
             <div
@@ -1181,6 +1207,7 @@
             </div>
 
         </div>
+        @endfragment
 
         {{-- =====================================================
             PEDIDOS QUE REQUIEREN ATENCIÓN
@@ -2123,19 +2150,6 @@
          MODAL DE PEDIDOS ENTREGADOS / PENDIENTES
     ====================================================== --}}
 
-    @php
-    $datosModalProyeccion = [];
-
-    foreach ($proyeccionSemanas as $semanaModal) {
-    $numeroSemanaModal = (string) $semanaModal['semana'];
-
-    $datosModalProyeccion[$numeroSemanaModal] = [
-    'entregados' => $semanaModal['pedidos_entregados'] ?? [],
-    'pendientes' => $semanaModal['pedidos_pendientes'] ?? [],
-    ];
-    }
-    @endphp
-
 
     <div
         id="modalPedidosProyeccion" role="dialog" aria-modal="true" aria-labelledby="modalPedidosTitulo" tabindex="-1"
@@ -2283,30 +2297,14 @@
     </div>
 
 
-    @php
-    $datosModalProyeccion = [];
-
-    foreach ($proyeccionSemanas as $semanaModal) {
-    $numeroSemanaModal = (string) $semanaModal['semana'];
-
-    $datosModalProyeccion[$numeroSemanaModal] = [
-    'entregados' => $semanaModal['pedidos_entregados'] ?? [],
-    'pendientes' => $semanaModal['pedidos_pendientes'] ?? [],
-    ];
-    }
-    @endphp
-
     <script>
-        const datosModalProyeccion =
-            @json($datosModalProyeccion);
-
         document.addEventListener('click', async (event) => {
             const enlace = event.target.closest('a[data-periodo][data-offset]');
             if (!enlace || event.defaultPrevented || event.button !== 0 ||
                 event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
 
             event.preventDefault();
-            const tarjeta = enlace.closest('#planeacion-semanal, #planeacion-mensual');
+            const tarjeta = enlace.closest('#planeacion-semanal, #planeacion-mensual, #proyeccion-semanal');
             if (!tarjeta || tarjeta.getAttribute('aria-busy') === 'true') return;
 
             const estado = tarjeta.querySelector('[data-estado-periodo]');
@@ -2336,12 +2334,7 @@
                 for (const boton of document.querySelectorAll('a[data-periodo][data-offset]')) {
                     const urlBoton = new URL(urlActual);
                     urlBoton.searchParams.set(boton.dataset.periodo, boton.dataset.offset);
-                    urlBoton.hash = boton.closest('#planeacion-semanal, #planeacion-mensual').id;
-                    boton.href = urlBoton;
-                }
-                for (const boton of document.querySelectorAll('a[href*="offset_proyeccion="]')) {
-                    const urlBoton = new URL(boton.href);
-                    urlBoton.searchParams.set(periodo, offset);
+                    urlBoton.hash = boton.closest('#planeacion-semanal, #planeacion-mensual, #proyeccion-semanal').id;
                     boton.href = urlBoton;
                 }
                 if (enfocado) {
@@ -2384,7 +2377,7 @@
 
 
             const datosSemana =
-                datosModalProyeccion[String(semana)] || {
+                (semana !== 'mes' ? JSON.parse(document.getElementById('proyeccion-semanal').dataset.pedidos)[String(semana)] : null) || {
                     entregados: [],
                     pendientes: []
                 };

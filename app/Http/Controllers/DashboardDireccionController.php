@@ -1367,7 +1367,7 @@ class DashboardDireccionController extends Controller
         ]);
 
         $tarjeta = $request->header('X-Planeacion-Tarjeta');
-        if (in_array($tarjeta, ['planeacion-semanal', 'planeacion-mensual'], true)) {
+        if (in_array($tarjeta, ['planeacion-semanal', 'planeacion-mensual', 'proyeccion-semanal'], true)) {
             return response($vista->fragment($tarjeta))->header('Cache-Control', 'no-store');
         }
 

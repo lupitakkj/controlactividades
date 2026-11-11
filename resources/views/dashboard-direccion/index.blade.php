@@ -589,8 +589,14 @@
                                     Planeación semanal
                                 </h2>
 
-                                <p class="text-sm text-gray-500 mt-1">
-                                    Semana {{ $inicioSemanaPlaneacion->isoWeek }} · {{ $inicioSemanaPlaneacion->format('d/m/Y') }} al {{ $finSemanaPlaneacion->format('d/m/Y') }}
+                                <p class="inline-block mt-1 rounded-md bg-blue-50 px-2 py-1 text-xs text-blue-800">
+                                    <strong>{{ match ($offsetSemana) {
+                                        -1 => 'Semana anterior',
+                                        0 => 'Semana actual',
+                                        1 => 'Semana siguiente',
+                                        default => 'Semana ' . $inicioSemanaPlaneacion->isoWeek,
+                                    } }}</strong>
+                                    · {{ $inicioSemanaPlaneacion->format('d/m/Y') }} al {{ $finSemanaPlaneacion->format('d/m/Y') }}
                                 </p>
                             </div>
 
@@ -718,8 +724,15 @@
                                     Meta de venta mensual
                                 </p>
 
-                                <p class="text-xs text-gray-800 mt-1">
-                                    Periodo: {{ $inicioMes->locale('es')->translatedFormat('F Y') }}
+                                <p class="inline-block mt-1 rounded-md bg-blue-50 px-2 py-1 text-xs text-blue-800">
+                                    @if (abs($offsetMes) <= 1)
+                                        <strong>{{ match ($offsetMes) {
+                                            -1 => 'Mes anterior',
+                                            0 => 'Mes actual',
+                                            1 => 'Mes siguiente',
+                                        } }}</strong> ·
+                                    @endif
+                                    {{ $inicioMes->locale('es')->translatedFormat('F Y') }}
                                 </p>
                                 <p class="text-xs text-gray-500 mt-1">
                                     {{ $mesCerrado ? 'Mes cerrado · por fecha de terminación' : 'Programado según fecha de producción' }}

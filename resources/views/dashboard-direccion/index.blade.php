@@ -622,26 +622,29 @@
                                 </div>
 
                                 <div class="w-full bg-gray-100 rounded-full h-3 overflow-hidden flex"
-                                     title="Terminado: {{ number_format($porcentajeEntregadoSemanal, 1) }}% · Pendiente: {{ number_format($porcentajePendienteEntregaSemanal, 1) }}%">
-                                    @if($porcentajeEntregadoSemanal > 0)
+                                     title="Porcentajes de la meta semanal">
+                                    @if($porcentajeMetaTerminadaSemanal > 0)
                                         <div
-                                            class="bg-green-500 h-3"
-                                            style="width: {{ $porcentajeEntregadoSemanal }}%">
+                                            class="bg-green-500 h-3 shrink-0"
+                                            style="width: {{ min(100, $porcentajeMetaTerminadaSemanal) }}%">
                                         </div>
                                     @endif
-                                    @if($porcentajePendienteEntregaSemanal > 0)
+                                    @if($porcentajeMetaPendienteSemanal > 0)
                                         <div
-                                            class="bg-blue-500 h-3"
-                                            style="width: {{ $porcentajePendienteEntregaSemanal }}%">
+                                            class="bg-blue-500 h-3 shrink-0"
+                                            style="width: {{ min(max(0, 100 - $porcentajeMetaTerminadaSemanal), $porcentajeMetaPendienteSemanal) }}%">
                                         </div>
                                     @endif
                                 </div>
-                                <div class="flex justify-between text-xs mt-2">
+                                <div class="flex flex-wrap justify-between gap-2 text-xs mt-2">
                                     <span class="text-green-600">
-                                        Terminado: {{ number_format($porcentajeEntregadoSemanal, 1) }}%
+                                        Terminado: {{ number_format($porcentajeMetaTerminadaSemanal, 1) }}%
                                     </span>
                                     <span class="text-blue-600">
-                                        Pendiente: {{ number_format($porcentajePendienteEntregaSemanal, 1) }}%
+                                        Pendiente: {{ number_format($porcentajeMetaPendienteSemanal, 1) }}%
+                                    </span>
+                                    <span class="text-gray-600">
+                                        Sin programar: {{ number_format($porcentajeMetaSinProgramarSemanal, 1) }}%
                                     </span>
                                 </div>
                             </div>
@@ -671,11 +674,10 @@
                             </div>
 
                             <div class="text-xs text-gray-500 border-t border-gray-100 pt-3">
-                                Terminado de la meta semanal:
+                                Falta programar para la meta:
                                 <span class="font-semibold text-blue-600">
-                                    {{ number_format($porcentajeMetaTerminadaSemanal, 1) }}%
+                                    ${{ number_format($faltanteSemanal, 2) }}
                                 </span>
-                                · ${{ number_format($entregadoSemanal, 2) }} terminados
                             </div>
 
                         </div>

@@ -245,9 +245,9 @@ class DashboardDireccionController extends Controller
             ? min(100, max(0, ($entregadoSemanal / $programadoSemanal) * 100))
             : 0;
 
-        $porcentajePendienteEntregaSemanal = $programadoSemanal > 0
-            ? min(100, max(0, ($pendienteEntregaSemanal / $programadoSemanal) * 100))
-            : 0;
+        $porcentajeMetaTerminadaSemanal = ($entregadoSemanal / $metaSemanal) * 100;
+        $porcentajeMetaPendienteSemanal = ($pendienteEntregaSemanal / $metaSemanal) * 100;
+        $porcentajeMetaSinProgramarSemanal = ($faltanteSemanal / $metaSemanal) * 100;
 
 
 
@@ -1242,10 +1242,11 @@ $finMes = $hoy->copy()->endOfMonth();
             'faltanteSemanal' => $faltanteSemanal,
             'porcentajeSemanal' => $porcentajeSemanal,
             'entregadoSemanal' => $entregadoSemanal,
-            'porcentajeMetaTerminadaSemanal' => ($entregadoSemanal / $metaSemanal) * 100,
+            'porcentajeMetaTerminadaSemanal' => $porcentajeMetaTerminadaSemanal,
+            'porcentajeMetaPendienteSemanal' => $porcentajeMetaPendienteSemanal,
+            'porcentajeMetaSinProgramarSemanal' => $porcentajeMetaSinProgramarSemanal,
             'pendienteEntregaSemanal' => $pendienteEntregaSemanal,
             'porcentajeEntregadoSemanal' => $porcentajeEntregadoSemanal,
-            'porcentajePendienteEntregaSemanal' => $porcentajePendienteEntregaSemanal,
 
             'metaMensual' => $metaMensual,
             'programadoMensual' => $programadoMensual,

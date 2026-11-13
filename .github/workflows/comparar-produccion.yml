@@ -1,0 +1,79 @@
+name: Comparar main con InfinityFree
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  comparar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Obtener el código de GitHub
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Comparar archivos con htdocs
+        env:
+          FTP_SERVER: ${{ secrets.FTP_SERVER }}
+          FTP_USERNAME: ${{ secrets.FTP_USERNAME }}
+          FTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
+        run: |
+          python3 - <<'PY'
+          import os
+          import subprocess
+          from collections import Counter
+          from pathlib import Path
+          from urllib.parse import quote
+
+          server = os.environ["FTP_SERVER"]
+          credentials = os.environ["FTP_USERNAME"] + ":" + os.environ["FTP_PASSWORD"]
+          curl = [
+              "curl", "--ssl-reqd", "--silent", "--show-error",
+              "--fail", "--connect-timeout", "10", "--max-time", "25",
+              "--user", credentials,
+          ]
+
+          def read_remote(path):
+              return subprocess.run(
+                  curl + [f"ftp://{server}/htdocs/{quote(path)}"],
+                  capture_output=True,
+              )
+
+          check = read_remote("artisan")
+          if check.returncode != 0:
+              raise SystemExit(f"No se pudo leer /htdocs/artisan (curl {check.returncode}).")
+
+          tracked = subprocess.check_output([
+              "git", "ls-files", "-z", "--",
+              "app", "bootstrap/app.php", "config", "resources", "routes",
+              "composer.json", "composer.lock",
+          ]).decode().split("\0")
+
+          counts = Counter()
+          for path in filter(None, tracked):
+              if any(part.startswith(".") for part in Path(path).parts):
+                  continue
+              if Path(path).suffix not in {".php", ".js", ".ts", ".css", ".scss", ".vue", ".json", ".lock"}:
+                  continue
+
+              remote = read_remote(path)
+              if remote.returncode != 0:
+                  counts["Sin verificar"] += 1
+                  print(f"SIN VERIFICAR (curl {remote.returncode}): {path}", flush=True)
+                  continue
+
+              local = Path(path).read_bytes()
+              if local.replace(b"\r\n", b"\n") == remote.stdout.replace(b"\r\n", b"\n"):
+                  counts["Coinciden"] += 1
+              else:
+                  counts["Diferentes"] += 1
+                  print(f"DIFERENTE: {path}", flush=True)
+
+          print("\nResumen:")
+          for label in ("Coinciden", "Diferentes", "Sin verificar"):
+              print(f"{label}: {counts[label]}")
+          PY

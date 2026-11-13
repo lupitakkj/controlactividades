@@ -38,6 +38,11 @@ class AuthenticatedSessionController extends Controller
             return redirect()->route('importaciones.index');
         }
 
+        // OPERADOR DE PRODUCCIÓN → CONTROL OPERATIVO
+        if ($usuario->hasRole('Operador de producción')) {
+            return redirect()->route('control.operativo');
+        }
+
         // ==========================================
         // DISEÑADOR Y SUPERVISOR → DASHBOARD ACTUAL
         // ==========================================

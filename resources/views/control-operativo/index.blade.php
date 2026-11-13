@@ -136,6 +136,8 @@
 
                                 </button>
 
+                                <span id="columnasOcultasResumen" class="hidden ml-1 rounded-full bg-amber-100 px-2 py-1 text-[10px] font-semibold text-amber-800" aria-live="polite"></span>
+
 
                                 {{-- PANEL DE COLUMNAS --}}
                                 <div
@@ -161,6 +163,11 @@
 
                                             </button>
 
+                                        </div>
+
+                                        <div class="mb-3 flex items-center justify-between rounded-lg bg-slate-50 px-3 py-2">
+                                            <span class="text-xs text-slate-500">Las columnas ocultas no aparecen en la tabla.</span>
+                                            <button type="button" id="restaurarColumnas" class="whitespace-nowrap text-xs font-semibold text-blue-600 hover:text-blue-800">Mostrar todas</button>
                                         </div>
 
 
@@ -249,22 +256,23 @@
                                             </label>
 
 
-                                            {{-- PRIORIDAD --}}
+                                            {{-- ABASTECIMIENTO --}}
                                             <label class="flex items-center gap-3 cursor-pointer">
-
                                                 <input
                                                     type="checkbox"
                                                     class="columna-check w-4 h-4 rounded border-gray-400 text-blue-600 focus:ring-blue-500"
                                                     style="appearance: auto; -webkit-appearance: checkbox;"
-                                                    data-columna="prioridad"
+                                                    data-columna="abastecimiento"
                                                     checked>
-
-                                                <span class="text-sm text-gray-700">
-                                                    Prioridad
-                                                </span>
-
+                                                <span class="text-sm text-gray-700">Abastecimiento</span>
                                             </label>
 
+
+                                            {{-- ESTADO OPERATIVO --}}
+                                            <label class="flex items-center gap-3 cursor-pointer">
+                                                <input type="checkbox" class="columna-check w-4 h-4 rounded border-gray-400 text-blue-600 focus:ring-blue-500" style="appearance: auto; -webkit-appearance: checkbox;" data-columna="estado-operativo" checked>
+                                                <span class="text-sm text-gray-700">Estado operativo</span>
+                                            </label>
 
                                             {{-- FECHA PRODUCCIÓN --}}
                                             <label class="flex items-center gap-3 cursor-pointer">
@@ -356,23 +364,6 @@
                                             </label>
 
 
-                                            {{-- PEDIDO INTERNO --}}
-                                            <label class="flex items-center gap-3 cursor-pointer">
-
-                                                <input
-                                                    type="checkbox"
-                                                    class="columna-check w-4 h-4 rounded border-gray-400 text-blue-600 focus:ring-blue-500"
-                                                    style="appearance: auto; -webkit-appearance: checkbox;"
-                                                    data-columna="pedido-interno"
-                                                    checked>
-
-                                                <span class="text-sm text-gray-700">
-                                                    Pedido Interno
-                                                </span>
-
-                                            </label>
-
-
                                             {{-- ACTIVIDADES --}}
                                             <label class="flex items-center gap-3 cursor-pointer">
 
@@ -426,13 +417,23 @@
 
             {{-- CALENDARIO DE PRODUCCIÓN --}}
             <section id="panelCalendarioProduccion" class="bg-white shadow-sm sm:rounded-2xl mb-4 border border-slate-100 overflow-hidden">
+                <div class="flex items-center justify-between gap-3 border-b border-slate-100 bg-slate-50/70 px-4 py-2.5">
+                    <div>
+                        <h3 class="text-sm font-semibold text-slate-800">Agenda de producción</h3>
+                        <p class="text-[11px] text-slate-500">Calendario, pedidos del día y próximos pedidos</p>
+                    </div>
+                    <button type="button" id="toggleAgendaProduccion" class="inline-flex shrink-0 items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-blue-50" aria-expanded="false" aria-controls="contenidoAgendaProduccion">
+                        <span id="toggleAgendaProduccionTexto">Mostrar agenda</span><span id="toggleAgendaProduccionIcono" aria-hidden="true">⌄</span>
+                    </button>
+                </div>
                 <div class="p-3 lg:p-4">
+                    <div id="contenidoAgendaProduccion" class="hidden">
                     <div class="grid grid-cols-1 xl:grid-cols-[minmax(300px,0.95fr)_minmax(380px,1.25fr)_minmax(250px,0.72fr)] gap-3 items-stretch">
                         <div class="w-full min-w-0 rounded-xl bg-white border border-slate-100 p-3">
                             <div class="flex items-center gap-2.5 mb-3 min-w-0">
                                 <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-600 text-xl">▦</span>
                                 <div class="min-w-0">
-                                    <h4 class="text-base font-semibold text-gray-800">Agenda de producción</h4>
+                                    <h4 class="text-base font-semibold text-gray-800">Calendario</h4>
                                     <p class="text-xs text-gray-500 mt-0.5">Pedidos programados por fecha de producción.</p>
                                 </div>
                             </div>
@@ -495,26 +496,50 @@
                             </div>
                         </aside>
                     </div>
-                    <div class="grid grid-cols-2 xl:grid-cols-4 gap-2.5 mt-3" id="resumenSemanalProduccion">
-                        <div class="rounded-xl border border-blue-100 bg-blue-50/80 px-3 py-2 flex items-center gap-2.5">
+                    </div>
+                    <div class="grid grid-cols-2 xl:grid-cols-5 gap-2.5 mt-3" id="resumenSemanalProduccion">
+                        <button type="button" data-resumen-semanal="total" aria-haspopup="dialog" aria-controls="modalResumenSemanal" class="w-full rounded-xl border border-blue-100 bg-blue-50/80 px-3 py-2 flex items-center gap-2.5 text-left transition hover:border-blue-300 hover:shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-400">
                             <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-blue-100 text-blue-600 text-lg">▦</span>
                             <div><p class="text-[11px] text-blue-800">Pedidos esta semana</p><p id="calSemanaTotal" class="text-lg font-bold leading-tight text-slate-800">0</p></div>
-                        </div>
-                        <div class="rounded-xl border border-emerald-100 bg-emerald-50/80 px-3 py-2 flex items-center gap-2.5">
+                        </button>
+                        <button type="button" data-resumen-semanal="terminados" aria-haspopup="dialog" aria-controls="modalResumenSemanal" class="w-full rounded-xl border border-emerald-100 bg-emerald-50/80 px-3 py-2 flex items-center gap-2.5 text-left transition hover:border-emerald-300 hover:shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-400">
                             <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-emerald-100 text-emerald-600 text-lg">✓</span>
                             <div><p class="text-[11px] text-emerald-800">Terminados esta semana</p><p id="calSemanaTerminados" class="text-lg font-bold leading-tight text-slate-800">0</p></div>
-                        </div>
-                        <div class="rounded-xl border border-orange-100 bg-orange-50/80 px-3 py-2 flex items-center gap-2.5">
+                        </button>
+                        <button type="button" data-resumen-semanal="en-proceso" aria-haspopup="dialog" aria-controls="modalResumenSemanal" class="w-full rounded-xl border border-sky-100 bg-sky-50/80 px-3 py-2 flex items-center gap-2.5 text-left transition hover:border-sky-300 hover:shadow-sm focus:outline-none focus:ring-2 focus:ring-sky-400">
+                            <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-sky-100 text-sky-600 text-lg">◉</span>
+                            <div><p class="text-[11px] text-sky-800">En proceso esta semana</p><p id="calSemanaEnProceso" class="text-lg font-bold leading-tight text-slate-800">0</p></div>
+                        </button>
+                        <button type="button" data-resumen-semanal="por-iniciar" aria-haspopup="dialog" aria-controls="modalResumenSemanal" class="w-full rounded-xl border border-orange-100 bg-orange-50/80 px-3 py-2 flex items-center gap-2.5 text-left transition hover:border-orange-300 hover:shadow-sm focus:outline-none focus:ring-2 focus:ring-orange-400">
                             <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-orange-100 text-orange-600 text-lg">◷</span>
                             <div><p class="text-[11px] text-orange-800">Por iniciar esta semana</p><p id="calSemanaIniciar" class="text-lg font-bold leading-tight text-slate-800">0</p></div>
-                        </div>
-                        <div class="rounded-xl border border-red-100 bg-red-50/80 px-3 py-2 flex items-center gap-2.5">
+                        </button>
+                        <button type="button" data-resumen-semanal="atrasados" aria-haspopup="dialog" aria-controls="modalResumenSemanal" class="w-full rounded-xl border border-red-100 bg-red-50/80 px-3 py-2 flex items-center gap-2.5 text-left transition hover:border-red-300 hover:shadow-sm focus:outline-none focus:ring-2 focus:ring-red-400">
                             <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-red-100 text-red-600 text-lg">⚠</span>
                             <div><p class="text-[11px] text-red-700">Atrasados esta semana</p><p id="calSemanaAtrasados" class="text-lg font-bold leading-tight text-slate-800">0</p></div>
-                        </div>
+                        </button>
                     </div>
                 </div>
             </section>
+
+            <div id="modalResumenSemanal" class="fixed inset-0 z-[100] hidden items-center justify-center bg-slate-950/60 p-4" role="dialog" aria-modal="true" aria-labelledby="modalResumenSemanalTitulo" aria-describedby="modalResumenSemanalDescripcion">
+                <div class="flex max-h-[85vh] w-full max-w-3xl flex-col overflow-hidden rounded-xl bg-white shadow-2xl">
+                    <div class="flex items-start justify-between border-b border-slate-200 px-5 py-4">
+                        <div>
+                            <h2 id="modalResumenSemanalTitulo" class="text-base font-bold text-slate-800">Pedidos de esta semana</h2>
+                            <p id="modalResumenSemanalDescripcion" class="mt-1 text-xs text-slate-500">Pedidos programados para la semana actual.</p>
+                        </div>
+                        <button type="button" data-cerrar-resumen-semanal aria-label="Cerrar" class="rounded-lg px-2 py-1 text-xl leading-none text-slate-400 hover:bg-slate-100 hover:text-slate-700">&times;</button>
+                    </div>
+                    <div class="flex items-center justify-between border-b border-slate-100 bg-slate-50 px-5 py-2 text-xs text-slate-600">
+                        <span id="modalResumenSemanalRango"></span><span id="modalResumenSemanalConteo" class="font-semibold"></span>
+                    </div>
+                    <div id="modalResumenSemanalLista" class="min-h-0 flex-1 space-y-2 overflow-y-auto p-4" aria-live="polite"></div>
+                    <div class="flex justify-end border-t border-slate-200 px-5 py-3">
+                        <button type="button" data-cerrar-resumen-semanal class="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">Cerrar</button>
+                    </div>
+                </div>
+            </div>
 
             {{-- TABLA --}}
             {{-- TABLA --}}
@@ -623,10 +648,18 @@
                             Limpiar filtros
                         </button>
 
+                        <button
+                            type="button"
+                            id="exportarPedidosXlsx"
+                            data-url="{{ route('control-operativo.exportar') }}"
+                            class="px-3 py-2 rounded-lg border border-emerald-200 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold whitespace-nowrap disabled:cursor-wait disabled:opacity-60">
+                            Exportar .xlsx
+                        </button>
+
                     </div>
 
                     <div class="mt-2 flex items-center justify-between gap-4 text-xs">
-                        <span id="resumenFiltros" class="text-gray-500"></span>
+                        <div id="resumenFiltros" class="flex flex-wrap items-center gap-1.5 text-gray-500" aria-live="polite"></div>
                         <span id="contadorFiltroAvanzado" class="font-semibold text-gray-700"></span>
                     </div>
             </div>
@@ -725,15 +758,29 @@
                                         </button>
                                     </th>
 
-                                    {{-- PRIORIDAD --}}
+                                    {{-- ESTADO OPERATIVO --}}
                                     <th
-                                        data-columna="prioridad"
-                                        class="col-prioridad px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase">
+                                        data-columna="abastecimiento"
+                                        class="col-abastecimiento px-3 py-3 text-center text-xs font-semibold text-gray-600 uppercase min-w-[150px]">
                                         <button
                                             type="button"
                                             class="btn-ordenar w-full inline-flex items-center justify-between gap-2 group"
-                                            data-sort="prioridad">
-                                            <span>Prioridad</span>
+                                            data-sort="abastecimiento">
+                                            <span>Abastecimiento</span>
+                                            <span class="icono-orden text-gray-400 text-[10px] leading-none">
+                                                <span class="flecha-arriba">▲</span>
+                                                <span class="flecha-abajo">▼</span>
+                                            </span>
+                                        </button>
+                                    </th>
+
+                                    {{-- ESTADO OPERATIVO --}}
+                                    <th data-columna="estado-operativo" class="px-3 py-3 text-center text-xs font-semibold text-gray-600 min-w-[145px]">
+                                        <button
+                                            type="button"
+                                            class="btn-ordenar w-full inline-flex items-center justify-between gap-2 group"
+                                            data-sort="estado-operativo">
+                                            <span>Estado operativo</span>
                                             <span class="icono-orden text-gray-400 text-[10px] leading-none">
                                                 <span class="flecha-arriba">▲</span>
                                                 <span class="flecha-abajo">▼</span>
@@ -847,22 +894,6 @@
 
                                     </th>
 
-                                    {{-- PEDIDO INTERNO --}}
-                                    <th
-                                        data-columna="pedido-interno"
-                                        class="col-pedido-interno px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase">
-                                        <button
-                                            type="button"
-                                            class="btn-ordenar w-full inline-flex items-center justify-between gap-2 group"
-                                            data-sort="pedido-interno">
-                                            <span>Pedido Interno</span>
-                                            <span class="icono-orden text-gray-400 text-[10px] leading-none">
-                                                <span class="flecha-arriba">▲</span>
-                                                <span class="flecha-abajo">▼</span>
-                                            </span>
-                                        </button>
-                                    </th>
-
                                     {{-- ACTIVIDADES --}}
                                     <th
                                         data-columna="comentario"
@@ -893,6 +924,7 @@
                                 $control = $pedido->controlOperativo;
 
                                 $prioridad = $control?->prioridad;
+                                $abastecimiento = $control?->abastecimiento;
                                 $resultadoEntrega = $control?->resultado_entrega;
 
                                 $fechaProduccion =
@@ -1007,12 +1039,14 @@
                                     <tr
                                     class="hover:bg-gray-50 fila-pedido"
                                     data-avance="{{ $avance !== null ? $avance : '' }}"
+                                    data-pedido-id="{{ $pedido->id }}"
                                     data-pedido="{{ ltrim((string) $pedido->pedido_no, '0') ?: '0' }}"
                                     data-cliente="{{ e($pedido->cliente ?? '') }}"
                                     data-su-pedido="{{ e($pedido->su_pedido ?? '') }}"
                                     data-enviar-a="{{ e($pedido->enviar_a ?? '') }}"
                                     data-fecha-entrega="{{ $pedido->fecha_entrega ? $pedido->fecha_entrega->format('Y-m-d') : '' }}"
                                     data-prioridad="{{ $prioridad ?? '' }}"
+                                    data-abastecimiento="{{ $abastecimiento ?? '' }}"
                                     data-fecha-produccion="{{ $fechaProduccion ? $fechaProduccion->format('Y-m-d') : '' }}"
                                     data-estado="{{ e($estado) }}"
                                     data-semaforo="{{ $semaforo }}"
@@ -1075,39 +1109,35 @@
                                     </td>
 
 
-                                    {{-- PRIORIDAD --}}
+                                    {{-- ABASTECIMIENTO --}}
                                     <td
-                                        data-columna="prioridad"
-                                        class="col-prioridad px-4 py-4 whitespace-nowrap text-sm text-center">
-
+                                        data-columna="abastecimiento"
+                                        class="col-abastecimiento px-3 py-4 whitespace-nowrap text-center">
                                         <select
-                                            class="prioridad-input rounded-md border px-3 py-1.5 text-sm font-semibold text-center cursor-pointer focus:ring-blue-500 focus:border-blue-500"
-                                            data-url="{{ route('control-operativo.prioridad', $pedido) }}">
-
-                                            <option value="" {{ !$prioridad ? 'selected' : '' }}>
-                                                —
-                                            </option>
-
-                                            <option value="1" {{ (string) $prioridad === '1' ? 'selected' : '' }}>
-                                                1
-                                            </option>
-
-                                            <option value="2" {{ (string) $prioridad === '2' ? 'selected' : '' }}>
-                                                2
-                                            </option>
-
-                                            <option value="3" {{ (string) $prioridad === '3' ? 'selected' : '' }}>
-                                                3
-                                            </option>
-
-                                            <option value="4" {{ (string) $prioridad === '4' ? 'selected' : '' }}>
-                                                4
-                                            </option>
-
+                                            class="abastecimiento-input w-full min-w-0 max-w-full rounded-lg border border-slate-300 bg-white px-2 py-2 text-xs font-semibold text-slate-700 cursor-pointer focus:ring-blue-500 focus:border-blue-500"
+                                            data-url="{{ route('control-operativo.abastecimiento', $pedido) }}">
+                                            <option value="" {{ !$abastecimiento ? 'selected' : '' }}>—</option>
+                                            <option value="otra_opcion" {{ $abastecimiento === 'otra_opcion' ? 'selected' : '' }}>Ninguno</option>
+                                            <option value="apartado" {{ $abastecimiento === 'apartado' ? 'selected' : '' }}>Preparado</option>
+                                            <option value="parcialidad" {{ $abastecimiento === 'parcialidad' ? 'selected' : '' }}>Parcialidad</option>
+                                            <option value="entregado" {{ $abastecimiento === 'entregado' ? 'selected' : '' }}>Entregado</option>
+                                            <option value="faltante_mp" {{ $abastecimiento === 'faltante_mp' ? 'selected' : '' }}>Pendiente</option>
                                         </select>
-
                                     </td>
 
+
+                                    {{-- ESTADO OPERATIVO --}}
+                                    <td data-columna="estado-operativo" class="px-3 py-3 text-center align-middle">
+                                        <select
+                                            class="estado-input w-full min-w-[130px] rounded-lg border px-2 py-2 text-xs font-semibold cursor-pointer focus:ring-blue-500 focus:border-blue-500"
+                                            data-url="{{ route('control-operativo.estado', $pedido) }}"
+                                            data-estado-original="{{ $estado }}">
+                                            <option value="Por Iniciar" {{ $estado === 'Por Iniciar' ? 'selected' : '' }}>Por Iniciar</option>
+                                            <option value="En proceso" {{ $estado === 'En proceso' ? 'selected' : '' }}>En proceso</option>
+                                            <option value="Cancelado" {{ $estado === 'Cancelado' ? 'selected' : '' }}>Cancelado</option>
+                                            <option value="Terminado" {{ $estado === 'Terminado' ? 'selected' : '' }}>Terminado</option>
+                                        </select>
+                                    </td>
 
                                     {{-- FECHA PRODUCCIÓN --}}
                                     <td
@@ -1200,15 +1230,13 @@
                                         class="px-3 py-2 text-center  align-middle">
                                         <div class="flex flex-col items-center justify-center gap-1">
 
-                                            <span class="inline-flex items-center justify-center px-3 py-1 rounded-full text-xs font-bold {{ $fondoProceso }} {{ $colorProceso }}">
+                                            <span class="proceso-menor-nombre inline-flex items-center justify-center px-3 py-1 rounded-full text-xs font-bold {{ $fondoProceso }} {{ $colorProceso }}">
                                                 {{ $nombreProceso }}
                                             </span>
 
-                                            @if($porcentajeProcesoTexto !== null)
-                                            <span class="text-xs font-bold text-gray-700">
-                                                {{ $porcentajeProcesoTexto }}%
+                                            <span class="proceso-menor-porcentaje text-xs font-bold text-gray-700" @if($porcentajeProcesoTexto === null) hidden @endif>
+                                                {{ $porcentajeProcesoTexto !== null ? $porcentajeProcesoTexto . '%' : '' }}
                                             </span>
-                                            @endif
 
                                         </div>
                                         </td>
@@ -1285,23 +1313,6 @@
                                         </td>
 
 
-                                        {{-- PEDIDO INTERNO --}}
-                                        <td
-                                            data-columna="pedido-interno"
-                                            class="col-pedido-interno px-4 py-4 whitespace-nowrap text-center">
-
-                                            <input
-                                                type="checkbox"
-                                                class="pedido-interno-input w-4 h-4 rounded border-gray-400 text-blue-600 focus:ring-blue-500"
-                                                style="appearance: auto; -webkit-appearance: checkbox;"
-                                                data-url="{{ route('control-operativo.pedido-interno', $pedido) }}"
-                                                {{ $pedidoInterno ? 'checked' : '' }}>
-
-                                        </td>
-
-
-
-
                                         {{-- ACTIVIDADES --}}
                                         <td
                                             data-columna="comentario"
@@ -1338,6 +1349,11 @@
                                                         @if($actividad->responsable)
                                                         <div class="actividad-responsable text-xs text-gray-500 mt-1">
                                                             ({{ $actividad->responsable }})
+                                                        </div>
+                                                        @endif
+                                                        @if($actividad->fecha_limite)
+                                                        <div class="actividad-fecha text-xs text-slate-500 mt-1">
+                                                            Fecha límite: {{ $actividad->fecha_limite->format('d/m/Y') }}
                                                         </div>
                                                         @endif
 
@@ -1432,7 +1448,7 @@
         #tablaPedidos {
             table-layout: fixed !important;
             width: 100% !important;
-            min-width: 0 !important;
+            min-width: 100% !important;
             border-collapse: separate;
             border-spacing: 0;
         }
@@ -1440,6 +1456,7 @@
         #tablaPedidos th,
         #tablaPedidos td {
             box-sizing: border-box;
+            padding: 8px 10px !important;
         }
 
         /* Alinear verticalmente el contenido de todas las celdas de cada pedido.
@@ -1456,15 +1473,38 @@
             vertical-align: middle;
         }
 
-        /* Anchos iniciales. Se pueden cambiar arrastrando el borde. */
-        #tablaPedidos th[data-columna="pedido"],
-        #tablaPedidos td[data-columna="pedido"] {
-            width: 78px !important;
-            min-width: 78px !important;
-            max-width: 78px !important;
-            overflow: hidden !important;
+        /* Los controles respetan el ancho disponible de estas columnas
+           incluso cuando se reducen con el tirador. */
+        #tablaPedidos td[data-columna="estado-operativo"],
+        #tablaPedidos td[data-columna="fecha-produccion"] {
+            padding-left: 4px !important;
+            padding-right: 4px !important;
+            overflow: hidden;
         }
 
+        #tablaPedidos select.estado-input,
+        #tablaPedidos input.fecha-produccion-input {
+            display: block;
+            width: 100% !important;
+            min-width: 0 !important;
+            max-width: 100% !important;
+            box-sizing: border-box !important;
+        }
+
+        #tablaPedidos select.estado-input {
+            padding-left: 5px !important;
+            padding-right: 16px !important;
+            font-size: 10px !important;
+        }
+
+        #tablaPedidos input.fecha-produccion-input {
+            padding-left: 3px !important;
+            padding-right: 2px !important;
+            font-size: 11px !important;
+        }
+
+        /* El ancho de cada columna lo controla una sola regla compartida
+           por su encabezado y todas las celdas. */
         #tablaPedidos td[data-columna="pedido"] .pedido-numero {
             width: 100% !important;
             max-width: 100% !important;
@@ -1472,77 +1512,6 @@
             text-overflow: ellipsis;
             white-space: nowrap !important;
             display: block;
-        }
-
-        #tablaPedidos th[data-columna="cliente"],
-        #tablaPedidos td[data-columna="cliente"] {
-            width: 130px !important;
-            min-width: 130px !important;
-        }
-
-        #tablaPedidos th[data-columna="su-pedido"],
-        #tablaPedidos td[data-columna="su-pedido"] {
-            width: 110px !important;
-            min-width: 110px !important;
-        }
-
-        #tablaPedidos th[data-columna="enviar-a"],
-        #tablaPedidos td[data-columna="enviar-a"] {
-            width: 100px !important;
-            min-width: 100px !important;
-        }
-        #tablaPedidos th[data-columna="fecha-entrega"],
-        #tablaPedidos td[data-columna="fecha-entrega"] {
-            width: 105px !important;
-            min-width: 105px !important;
-        }
-
-        #tablaPedidos th[data-columna="prioridad"],
-        #tablaPedidos td[data-columna="prioridad"] {
-            width: 70px !important;
-            min-width: 70px !important;
-        }
-
-        #tablaPedidos th[data-columna="fecha-produccion"],
-        #tablaPedidos td[data-columna="fecha-produccion"] {
-            width: 110px !important;
-            min-width: 110px !important;
-        }
-
-        #tablaPedidos th[data-columna="avance"],
-        #tablaPedidos td[data-columna="avance"] {
-            width: 75px !important;
-            min-width: 75px !important;
-        }
-
-        #tablaPedidos th[data-columna="proceso-menor-avance"],
-        #tablaPedidos td[data-columna="proceso-menor-avance"] {
-            width: 120px !important;
-            min-width: 120px !important;
-        }
-
-        #tablaPedidos th[data-columna="semaforo"],
-        #tablaPedidos td[data-columna="semaforo"] {
-            width: 105px !important;
-            min-width: 105px !important;
-        }
-
-        #tablaPedidos th[data-columna="dias"],
-        #tablaPedidos td[data-columna="dias"] {
-            width: 100px !important;
-            min-width: 100px !important;
-        }
-
-        #tablaPedidos th[data-columna="pedido-interno"],
-        #tablaPedidos td[data-columna="pedido-interno"] {
-            width: 100px !important;
-            min-width: 100px !important;
-        }
-
-        #tablaPedidos th[data-columna="comentario"],
-        #tablaPedidos td[data-columna="comentario"] {
-            width: 340px !important;
-            min-width: 340px !important;
         }
 
         /* ============================================================
@@ -1565,6 +1534,28 @@
         #tablaPedidos thead th {
             box-shadow: inset 0 -1px 0 #e5e7eb;
         }
+
+        /* Mantener a la vista Pedido y Cliente durante el desplazamiento horizontal. */
+        #tablaPedidos th[data-columna="pedido"],
+        #tablaPedidos td[data-columna="pedido"] {
+            position: sticky !important;
+            left: 0;
+            background-color: #f8fafc;
+            box-shadow: 1px 0 0 #dbe3ec;
+        }
+
+        #tablaPedidos th[data-columna="cliente"],
+        #tablaPedidos td[data-columna="cliente"] {
+            position: sticky !important;
+            left: var(--sticky-pedido-width, 90px);
+            background-color: #f8fafc;
+            box-shadow: 1px 0 0 #dbe3ec;
+        }
+
+        #tablaPedidos tbody td[data-columna="pedido"] { z-index: 31; }
+        #tablaPedidos tbody td[data-columna="cliente"] { z-index: 30; }
+        #tablaPedidos thead th[data-columna="pedido"],
+        #tablaPedidos thead th[data-columna="cliente"] { z-index: 130 !important; }
 
         /* ============================================================
            BOTONES DE ORDENAR
@@ -1670,13 +1661,11 @@
         /* Pedido, fechas y controles se mantienen compactos. */
         #tablaPedidos td.col-pedido,
         #tablaPedidos td.col-fecha-entrega,
-        #tablaPedidos td.col-prioridad,
         #tablaPedidos td.col-fecha-produccion,
         #tablaPedidos td.col-avance,
         #tablaPedidos td.col-estado,
         #tablaPedidos td.col-semaforo,
-        #tablaPedidos td.col-dias,
-        #tablaPedidos td.col-pedido-interno {
+        #tablaPedidos td.col-dias {
             white-space: nowrap;
         }
 
@@ -1725,14 +1714,12 @@
             vertical-align: top;
         }
 
-        #tablaPedidos td.col-prioridad,
         #tablaPedidos td.col-fecha-entrega,
         #tablaPedidos td.col-fecha-produccion,
         #tablaPedidos td.col-avance,
         #tablaPedidos td.col-estado,
         #tablaPedidos td.col-semaforo,
-        #tablaPedidos td.col-dias,
-        #tablaPedidos td.col-pedido-interno {
+        #tablaPedidos td.col-dias {
             vertical-align: middle;
         }
 
@@ -1766,6 +1753,10 @@
             background: #f8fafc !important;
             border-bottom: 1px solid #cbd5e1 !important;
             box-shadow: inset 0 -1px 0 #cbd5e1, 0 2px 5px rgba(15,23,42,.05) !important;
+        }
+
+        #tablaPedidos thead th[data-columna="estado-operativo"] {
+            text-transform: none !important;
         }
 
         #tablaPedidos tbody tr {
@@ -1820,6 +1811,19 @@
             transform: translateY(-1px);
         }
 
+        #tablaPedidos .estado-guardado {
+            display: block;
+            margin-top: 3px;
+            min-height: 12px;
+            font-size: 9px;
+            line-height: 1.2;
+            white-space: normal;
+        }
+
+        #tablaPedidos .estado-guardado[data-estado="guardando"] { color: #64748b; }
+        #tablaPedidos .estado-guardado[data-estado="guardado"] { color: #15803d; }
+        #tablaPedidos .estado-guardado[data-estado="error"] { color: #dc2626; }
+
         /* Panel de columnas: siempre por encima de la tabla y su encabezado sticky */
         #panelColumnas {
             position: absolute !important;
@@ -1857,6 +1861,77 @@
 
         #contenedorTabla::-webkit-scrollbar-thumb:hover {
             background: #94a3b8;
+        }
+
+        /* Todas las celdas pueden reducirse sin invadir la columna vecina.
+           El contenido se envuelve dentro de su celda y los controles se
+           limitan al espacio interior disponible. */
+        #tablaPedidos thead th,
+        #tablaPedidos tbody td {
+            min-width: 0;
+            overflow: hidden;
+        }
+
+        #tablaPedidos thead th .btn-ordenar {
+            width: 100%;
+            min-width: 0;
+            gap: 3px;
+            white-space: normal;
+        }
+
+        #tablaPedidos thead th .btn-ordenar > span:first-child {
+            min-width: 0;
+            overflow-wrap: anywhere;
+            word-break: normal;
+        }
+
+        #tablaPedidos thead th .icono-orden {
+            flex: 0 0 auto;
+        }
+
+        #tablaPedidos tbody td {
+            white-space: normal !important;
+            overflow-wrap: anywhere;
+            word-break: normal;
+        }
+
+        #tablaPedidos tbody td > *,
+        #tablaPedidos tbody td > * > * {
+            box-sizing: border-box;
+            min-width: 0;
+            max-width: 100%;
+        }
+
+        #tablaPedidos tbody td select,
+        #tablaPedidos tbody td input:not([type="checkbox"]),
+        #tablaPedidos tbody td textarea {
+            display: block;
+            width: 100% !important;
+            min-width: 0 !important;
+            max-width: 100% !important;
+            box-sizing: border-box !important;
+        }
+
+        /* Semáforo y días suelen contener frases largas; se muestran en
+           varias líneas cuando el usuario estrecha esas columnas. */
+        #tablaPedidos td[data-columna="semaforo"] .semaforo-valor,
+        #tablaPedidos td[data-columna="dias"] {
+            white-space: normal !important;
+            overflow-wrap: anywhere;
+            word-break: normal;
+        }
+
+        #tablaPedidos td[data-columna="semaforo"] .semaforo-valor {
+            display: inline-flex;
+            justify-content: center;
+            max-width: 100%;
+            box-sizing: border-box;
+        }
+
+        /* Los botones de actividad no deben desplazarse sobre otra celda al
+           pasar el cursor. */
+        #tablaPedidos tbody td button:hover {
+            transform: none;
         }
 
         /* Indicadores superiores: más profundidad sin cambiar sus colores */
@@ -2009,12 +2084,114 @@
     </div>
 
     {{-- ================================================================
+         MODAL DE ACTUALIZACIÓN DE ABASTECIMIENTO
+         ================================================================ --}}
+    <div id="modalAbastecimiento" class="hidden fixed inset-0 z-[1000000] flex items-center justify-center bg-slate-950/50 px-4 py-6">
+        <div class="w-full max-w-lg overflow-hidden rounded-2xl bg-white shadow-2xl">
+            <div class="flex items-start justify-between border-b border-slate-200 px-6 py-4">
+                <div>
+                    <h3 class="text-lg font-semibold text-slate-900">Registrar surtido a producción</h3>
+                    <p class="mt-1 text-sm text-slate-500">Pedido <span id="modalAbastecimientoPedido" class="font-semibold text-slate-700"></span></p>
+                    <p class="mt-1 text-xs text-slate-500">Estado del surtido: <span id="modalAbastecimientoEstado" class="font-semibold text-blue-700"></span></p>
+                </div>
+                <button type="button" id="cerrarModalAbastecimiento" class="rounded-lg px-2 text-2xl leading-none text-slate-400 hover:bg-slate-100 hover:text-slate-700" aria-label="Cerrar">&times;</button>
+            </div>
+
+            <div class="space-y-4 px-6 py-5">
+                <div>
+                    <label for="motivoAbastecimiento" class="mb-1 block text-sm font-medium text-slate-700">Motivo</label>
+                    <select id="motivoAbastecimiento" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-blue-500"></select>
+                </div>
+                <div>
+                    <label for="comentarioAbastecimiento" class="mb-1 block text-sm font-medium text-slate-700">Comentario <span class="font-normal text-slate-400">(opcional; requerido para “Otro”)</span></label>
+                    <textarea id="comentarioAbastecimiento" rows="3" maxlength="1000" class="w-full resize-y rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-blue-500" placeholder="Agrega un detalle si hace falta"></textarea>
+                </div>
+                <div class="grid gap-4 sm:grid-cols-2">
+                    <div>
+                        <label for="responsableAbastecimiento" class="mb-1 block text-sm font-medium text-slate-700">Responsable <span class="font-normal text-slate-400">(opcional)</span></label>
+                        <input id="responsableAbastecimiento" type="text" maxlength="255" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-blue-500" placeholder="Nombre">
+                    </div>
+                    <div>
+                        <label for="fechaLimiteAbastecimiento" class="mb-1 block text-sm font-medium text-slate-700">Fecha límite <span class="font-normal text-slate-400">(opcional)</span></label>
+                        <input id="fechaLimiteAbastecimiento" type="date" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-blue-500">
+                    </div>
+                </div>
+                <p id="errorAbastecimiento" class="hidden rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700"></p>
+            </div>
+
+            <div class="flex justify-end gap-3 border-t border-slate-200 px-6 py-4">
+                <button type="button" id="cancelarModalAbastecimiento" class="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">Cancelar</button>
+                <button type="button" id="guardarModalAbastecimiento" class="rounded-lg bg-blue-600 px-5 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:cursor-wait disabled:opacity-60">Guardar y agregar actividad</button>
+            </div>
+        </div>
+    </div>
+
+    {{-- ================================================================
          REDIMENSIONAMIENTO TIPO EXCEL
          - Ancho de columnas con arrastre
          - Alto de filas con arrastre desde el borde inferior
          - Guarda tamaños en localStorage
        ================================================================ --}}
     <script>
+        window.mostrarEstadoGuardadoControl = function(control, estado, detalle = '') {
+            const celda = control?.closest('td');
+            if (!celda) return;
+
+            let indicador = celda.querySelector('.estado-guardado');
+            if (!indicador) {
+                indicador = document.createElement('span');
+                indicador.className = 'estado-guardado';
+                indicador.setAttribute('role', 'status');
+                indicador.setAttribute('aria-live', 'polite');
+                celda.appendChild(indicador);
+            }
+
+            const textos = {
+                guardando: 'Guardando…',
+                guardado: 'Guardado',
+                error: 'Error al guardar'
+            };
+            indicador.dataset.estado = estado;
+            indicador.textContent = textos[estado] || '';
+            indicador.title = detalle;
+
+            if (estado === 'guardado') {
+                window.setTimeout(() => {
+                    if (indicador.dataset.estado === 'guardado') {
+                        indicador.textContent = '';
+                        indicador.removeAttribute('data-estado');
+                        indicador.removeAttribute('title');
+                    }
+                }, 3000);
+            }
+        };
+
+        window.encabezadosSolicitudJsonControl = function(accept = 'application/json') {
+            const csrfToken = document
+                .querySelector('meta[name="csrf-token"]')
+                ?.getAttribute('content');
+
+            if (!csrfToken) {
+                throw new Error('No se encontró el token de seguridad para guardar los cambios.');
+            }
+
+            return {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': csrfToken,
+                'Accept': accept
+            };
+        };
+
+        window.actualizarOffsetColumnasFijasControl = function() {
+            const tabla = document.getElementById('tablaPedidos');
+            const encabezadoPedido = tabla?.querySelector('thead th[data-columna="pedido"]');
+            const anchoPedido = encabezadoPedido && !encabezadoPedido.hidden
+                ? encabezadoPedido.getBoundingClientRect().width
+                : 0;
+
+            tabla?.style.setProperty('--sticky-pedido-width', `${anchoPedido}px`);
+        };
+
         document.addEventListener('DOMContentLoaded', function() {
 
             const tabla = document.getElementById('tablaPedidos');
@@ -2046,15 +2223,33 @@
                 'su-pedido': 110,
                 'enviar-a': 100,
                 'fecha-entrega': 105,
-                'prioridad': 70,
-                'fecha-produccion': 110,
+                'abastecimiento': 150,
+                'estado-operativo': 130,
+                'fecha-produccion': 100,
                 'avance': 75,
                 'proceso-menor-avance': 120,
+                'resultado-entrega': 190,
                 'semaforo': 105,
                 'dias': 100,
-                'pedido-interno': 100,
                 'comentario': 340
             };
+
+            // Ajusta una sola vez los anchos anteriores de estas dos columnas;
+            // luego el usuario puede volver a modificarlos y se conservarán.
+            const anchosCompactosSolicitados = {
+                'estado-operativo': 65,
+                'fecha-produccion': 75
+            };
+            const versionAnchosCompactos = 'controlOperativoAnchosCompactos_estado_fecha_v3';
+            if (!localStorage.getItem(versionAnchosCompactos)) {
+                Object.entries(anchosCompactosSolicitados).forEach(function([nombre, anchoCompacto]) {
+                    const anchoGuardado = Number(anchosColumnas[nombre]);
+                    if (Number.isFinite(anchoGuardado) && anchoGuardado > anchoCompacto) {
+                        anchosColumnas[nombre] = anchoCompacto;
+                    }
+                });
+                localStorage.setItem(versionAnchosCompactos, '1');
+            }
 
             function elementosColumna(nombre) {
                 return tabla.querySelectorAll(
@@ -2064,16 +2259,53 @@
                 );
             }
 
+            function anchoMinimoColumna(nombre) {
+                if (nombre === 'estado-operativo') return 55;
+                if (nombre === 'fecha-produccion') return 65;
+                if (nombre === 'resultado-entrega') return 120;
+                if (nombre === 'comentario') return 160;
+                return 70;
+            }
+
             function aplicarAnchoColumna(nombre, ancho) {
 
+                const anchoMinimo = anchoMinimoColumna(nombre);
                 const anchoPx =
-                    Math.max(70, Math.min(700, Number(ancho)));
+                    Math.max(anchoMinimo, Math.min(700, Number(ancho)));
 
                 elementosColumna(nombre).forEach(function(elemento) {
                     elemento.style.setProperty('width', anchoPx + 'px', 'important');
-                    elemento.style.setProperty('min-width', '70px', 'important');
+                    elemento.style.setProperty('min-width', anchoMinimo + 'px', 'important');
                     elemento.style.removeProperty('max-width');
                 });
+            }
+
+            function actualizarAnchoTotalTabla() {
+                const encabezadosVisibles = Array.from(
+                    tabla.querySelectorAll('thead th[data-columna]')
+                ).filter(function(th) {
+                    return th.offsetParent !== null;
+                });
+
+                const sumaAnchos = encabezadosVisibles.reduce(
+                    function(total, th) {
+                        const anchoConfigurado = Number.parseFloat(
+                            th.style.width
+                        );
+                        return total + (Number.isFinite(anchoConfigurado) ?
+                            anchoConfigurado : th.getBoundingClientRect().width);
+                    },
+                    0
+                );
+                const anchoContenedor = tabla.parentElement?.clientWidth ?? 0;
+
+                tabla.style.setProperty(
+                    'width',
+                    Math.max(sumaAnchos, anchoContenedor) + 'px',
+                    'important'
+                );
+
+                window.actualizarOffsetColumnasFijasControl();
             }
 
             function guardarAnchos() {
@@ -2127,44 +2359,8 @@
                         const anchoInicial = th.getBoundingClientRect().width;
                         const posicionInicial = event.clientX;
 
-                        // Buscar la siguiente columna visible.
-                        // Esa columna será la que aproveche el espacio
-                        // que se libere al reducir la columna actual.
-                        const encabezadosArray =
-                            Array.from(
-                                tabla.querySelectorAll('thead th[data-columna]')
-                            );
-
-                        const indiceActual =
-                            encabezadosArray.indexOf(th);
-
-                        let siguienteTh = null;
-
-                        for (
-                            let i = indiceActual + 1; i < encabezadosArray.length; i++
-                        ) {
-                            if (encabezadosArray[i].offsetParent !== null) {
-                                siguienteTh = encabezadosArray[i];
-                                break;
-                            }
-                        }
-
-                        const siguienteNombre =
-                            siguienteTh?.dataset.columna ?? null;
-
-                        const anchoSiguienteInicial =
-                            siguienteTh ?
-                            siguienteTh.getBoundingClientRect().width :
-                            null;
-
                         th.classList.add('columna-redimensionando');
                         tabla.classList.add('redimensionando-columna');
-
-                        if (siguienteTh) {
-                            siguienteTh.classList.add(
-                                'columna-recibiendo-espacio'
-                            );
-                        }
 
                         resizer.setPointerCapture?.(event.pointerId);
 
@@ -2175,62 +2371,16 @@
 
                             const nuevoAncho =
                                 Math.max(
-                                    70,
+                                    anchoMinimoColumna(nombre),
                                     Math.min(
                                         700,
                                         anchoInicial + diferencia
                                     )
                                 );
 
-                            // Cuánto espacio realmente se ganó o perdió.
-                            const cambioReal =
-                                nuevoAncho - anchoInicial;
-
-                            // Si existe una columna a la derecha,
-                            // ella absorbe exactamente el cambio.
-                            if (
-                                siguienteTh &&
-                                siguienteNombre &&
-                                anchoSiguienteInicial !== null
-                            ) {
-
-                                const nuevoAnchoSiguiente =
-                                    anchoSiguienteInicial - cambioReal;
-
-                                // La columna siguiente nunca puede
-                                // reducirse por debajo de 70 px.
-                                if (nuevoAnchoSiguiente < 70) {
-                                    return;
-                                }
-
-                                aplicarAnchoColumna(
-                                    nombre,
-                                    nuevoAncho
-                                );
-
-                                aplicarAnchoColumna(
-                                    siguienteNombre,
-                                    nuevoAnchoSiguiente
-                                );
-
-                                anchosColumnas[nombre] =
-                                    Math.round(nuevoAncho);
-
-                                anchosColumnas[siguienteNombre] =
-                                    Math.round(nuevoAnchoSiguiente);
-
-                            } else {
-
-                                // Si no hay columna siguiente,
-                                // solamente cambia la actual.
-                                aplicarAnchoColumna(
-                                    nombre,
-                                    nuevoAncho
-                                );
-
-                                anchosColumnas[nombre] =
-                                    Math.round(nuevoAncho);
-                            }
+                            aplicarAnchoColumna(nombre, nuevoAncho);
+                            anchosColumnas[nombre] = Math.round(nuevoAncho);
+                            actualizarAnchoTotalTabla();
                         }
 
                         function terminar(e) {
@@ -2244,12 +2394,6 @@
                             th.classList.remove(
                                 'columna-redimensionando'
                             );
-
-                            if (siguienteTh) {
-                                siguienteTh.classList.remove(
-                                    'columna-recibiendo-espacio'
-                                );
-                            }
 
                             tabla.classList.remove(
                                 'redimensionando-columna'
@@ -2318,6 +2462,7 @@
                     }
                 );
 
+                actualizarAnchoTotalTabla();
                 guardarAnchos();
             }
 
@@ -2572,11 +2717,35 @@
             const aplicarColumnas =
                 document.getElementById('aplicarColumnas');
 
+            const restaurarColumnas =
+                document.getElementById('restaurarColumnas');
+
+            const columnasOcultasResumen =
+                document.getElementById('columnasOcultasResumen');
+
             const checks =
                 document.querySelectorAll('.columna-check');
 
             const columnasStorage =
                 'controlOperativoColumnas';
+
+            function actualizarResumenColumnasOcultas() {
+                if (!columnasOcultasResumen) return;
+
+                const cantidadOcultas = Array.from(checks)
+                    .filter(check => !check.checked)
+                    .length;
+
+                columnasOcultasResumen.textContent =
+                    cantidadOcultas === 1 ? '1 oculta' : `${cantidadOcultas} ocultas`;
+                columnasOcultasResumen.classList.toggle('hidden', cantidadOcultas === 0);
+                btnColumnas?.setAttribute(
+                    'aria-label',
+                    cantidadOcultas > 0
+                        ? `Columnas, ${cantidadOcultas} ocultas`
+                        : 'Columnas'
+                );
+            }
 
 
             // ---------------------------------------------------------------
@@ -2604,6 +2773,8 @@
                     });
 
                 });
+
+                window.actualizarOffsetColumnasFijasControl();
 
             }
 
@@ -2767,6 +2938,7 @@
                     aplicarColumnasVisibles();
 
                     guardarColumnas();
+                    actualizarResumenColumnasOcultas();
 
                     panelColumnas.classList.add(
                         'hidden'
@@ -2774,6 +2946,14 @@
 
                 }
             );
+
+            restaurarColumnas?.addEventListener('click', function() {
+                checks.forEach(check => { check.checked = true; });
+                aplicarColumnasVisibles();
+                guardarColumnas();
+                actualizarResumenColumnasOcultas();
+                panelColumnas.classList.add('hidden');
+            });
 
 
             // ---------------------------------------------------------------
@@ -2804,6 +2984,7 @@
             // ---------------------------------------------------------------
 
             cargarColumnas();
+            actualizarResumenColumnasOcultas();
 
 
             // ================================================================
@@ -2980,18 +3161,87 @@
                 contadorFiltroAvanzado.textContent = visibles + ' de ' + filasPedidos.length + ' pedidos';
 
                 const activos = [];
-                if (filtros.busqueda.value.trim()) activos.push('búsqueda');
-                if (filtros.prioridad.value !== 'todos') activos.push('prioridad');
-                if (filtros.estado.value !== 'todos') activos.push('estado');
-                if (filtros.semaforo.value !== 'todos') activos.push('semáforo');
-                if (filtros.interno.value !== 'todos') activos.push('pedido interno');
-                if (filtros.produccionDesde.value || filtros.produccionHasta.value) activos.push('fecha producción');
-                if (filtros.entregaDesde.value || filtros.entregaHasta.value) activos.push('fecha entrega');
-                if (filtroAvance.value !== 'todos') activos.push('avance');
+                const agregarFiltro = (clave, etiqueta, detalle, limpiar) => {
+                    activos.push({ clave, etiqueta, detalle, limpiar });
+                };
+                const textoSeleccionado = campo => campo.selectedOptions[0]?.textContent.trim() || campo.value;
+                const fechaCorta = valor => {
+                    if (!valor) return '';
+                    const partes = valor.split('-');
+                    return partes.length === 3 ? `${partes[2]}/${partes[1]}/${partes[0]}` : valor;
+                };
 
-                resumenFiltros.textContent = activos.length ?
-                    'Filtros activos: ' + activos.join(' · ') :
-                    'Sin filtros aplicados';
+                if (filtros.busqueda.value.trim()) {
+                    agregarFiltro('busqueda', 'Búsqueda', filtros.busqueda.value.trim(), () => { filtros.busqueda.value = ''; });
+                }
+                if (filtros.prioridad.value !== 'todos') {
+                    agregarFiltro('prioridad', 'Prioridad', textoSeleccionado(filtros.prioridad), () => { filtros.prioridad.value = 'todos'; });
+                }
+                if (filtros.estado.value !== 'todos') {
+                    agregarFiltro('estado', 'Estado', textoSeleccionado(filtros.estado), () => { filtros.estado.value = 'todos'; });
+                }
+                if (filtros.semaforo.value !== 'todos') {
+                    agregarFiltro('semaforo', 'Semáforo', textoSeleccionado(filtros.semaforo), () => { filtros.semaforo.value = 'todos'; });
+                }
+                if (filtros.interno.value !== 'todos') {
+                    agregarFiltro('interno', 'Pedido interno', textoSeleccionado(filtros.interno), () => { filtros.interno.value = 'todos'; });
+                }
+                if (filtros.produccionDesde.value || filtros.produccionHasta.value) {
+                    const desde = fechaCorta(filtros.produccionDesde.value);
+                    const hasta = fechaCorta(filtros.produccionHasta.value);
+                    const detalle = desde && hasta ? `${desde} – ${hasta}` : desde ? `desde ${desde}` : `hasta ${hasta}`;
+                    agregarFiltro('produccion', 'Producción', detalle, () => {
+                        filtros.produccionDesde.value = '';
+                        filtros.produccionHasta.value = '';
+                    });
+                }
+                if (filtros.entregaDesde.value || filtros.entregaHasta.value) {
+                    const desde = fechaCorta(filtros.entregaDesde.value);
+                    const hasta = fechaCorta(filtros.entregaHasta.value);
+                    const detalle = desde && hasta ? `${desde} – ${hasta}` : desde ? `desde ${desde}` : `hasta ${hasta}`;
+                    agregarFiltro('entrega', 'Entrega', detalle, () => {
+                        filtros.entregaDesde.value = '';
+                        filtros.entregaHasta.value = '';
+                    });
+                }
+                if (filtroAvance.value !== 'todos') {
+                    agregarFiltro('avance', 'Avance', textoSeleccionado(filtroAvance), () => { filtroAvance.value = 'todos'; });
+                }
+
+                resumenFiltros.replaceChildren();
+                if (!activos.length) {
+                    const vacio = document.createElement('span');
+                    vacio.textContent = 'Sin filtros aplicados';
+                    resumenFiltros.appendChild(vacio);
+                    return;
+                }
+
+                const titulo = document.createElement('span');
+                titulo.className = 'mr-1';
+                titulo.textContent = 'Filtros activos:';
+                resumenFiltros.appendChild(titulo);
+
+                activos.forEach(filtro => {
+                    const chip = document.createElement('button');
+                    chip.type = 'button';
+                    chip.className = 'inline-flex items-center gap-1 rounded-full border border-blue-100 bg-blue-50 px-2 py-1 text-[11px] font-medium text-blue-800 hover:border-blue-300 hover:bg-blue-100';
+                    chip.setAttribute('aria-label', `Quitar filtro ${filtro.etiqueta}: ${filtro.detalle}`);
+                    chip.title = `Quitar filtro ${filtro.etiqueta}`;
+
+                    const texto = document.createElement('span');
+                    texto.textContent = `${filtro.etiqueta}: ${filtro.detalle}`;
+                    const cerrar = document.createElement('span');
+                    cerrar.setAttribute('aria-hidden', 'true');
+                    cerrar.className = 'font-bold';
+                    cerrar.textContent = '×';
+
+                    chip.append(texto, cerrar);
+                    chip.addEventListener('click', function() {
+                        filtro.limpiar();
+                        aplicarTodosLosFiltros();
+                    });
+                    resumenFiltros.appendChild(chip);
+                });
             }
 
             function aplicarTodosLosFiltros() {
@@ -3029,6 +3279,49 @@
                 aplicarTodosLosFiltros();
             });
 
+            const botonExportarXlsx = document.getElementById('exportarPedidosXlsx');
+            botonExportarXlsx.addEventListener('click', async function() {
+                const pedidoIds = Array.from(document.querySelectorAll('#tablaPedidos tbody tr.fila-pedido'))
+                    .filter(fila => getComputedStyle(fila).display !== 'none')
+                    .map(fila => fila.dataset.pedidoId)
+                    .filter(Boolean);
+
+                if (!pedidoIds.length) {
+                    alert('No hay pedidos que coincidan con los filtros actuales.');
+                    return;
+                }
+
+                botonExportarXlsx.disabled = true;
+                botonExportarXlsx.textContent = 'Exportando...';
+
+                try {
+                    const response = await fetch(botonExportarXlsx.dataset.url, {
+                        method: 'POST',
+                        headers: window.encabezadosSolicitudJsonControl('application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/json'),
+                        body: JSON.stringify({ pedido_ids: pedidoIds })
+                    });
+
+                    if (!response.ok) {
+                        const error = await response.json().catch(() => ({}));
+                        throw new Error(error.message || 'No se pudo exportar el archivo.');
+                    }
+
+                    const archivo = URL.createObjectURL(await response.blob());
+                    const enlace = document.createElement('a');
+                    enlace.href = archivo;
+                    enlace.download = 'pedidos_control_operativo.xlsx';
+                    document.body.appendChild(enlace);
+                    enlace.click();
+                    enlace.remove();
+                    setTimeout(() => URL.revokeObjectURL(archivo), 1000);
+                } catch (error) {
+                    alert(error.message);
+                } finally {
+                    botonExportarXlsx.disabled = false;
+                    botonExportarXlsx.textContent = 'Exportar .xlsx';
+                }
+            });
+
             // ================================================================
             // ORDENAMIENTO POR COLUMNA
             // ================================================================
@@ -3045,7 +3338,6 @@
             };
 
             const columnasNumericas = new Set([
-                'prioridad',
                 'avance',
                 'dias',
                 'proceso-menor-avance',
@@ -3062,14 +3354,14 @@
                 'su-pedido': 'suPedido',
                 'enviar-a': 'enviarA',
                 'fecha-entrega': 'fechaEntrega',
-                'prioridad': 'prioridad',
+                'abastecimiento': 'abastecimiento',
+                'estado-operativo': 'estado',
                 'fecha-produccion': 'fechaProduccion',
                 'avance': 'avance',
                 'proceso-menor-avance': 'procesoMenorAvance',
                 'resultado-entrega': null,
                 'semaforo': 'semaforo',
                 'dias': 'dias',
-                'pedido-interno': 'pedidoInterno',
                 'comentario': null,
             };
 
@@ -3557,15 +3849,7 @@
                 fetch(url, {
                         method: 'PATCH',
 
-                        headers: {
-                            'Content-Type': 'application/json',
-
-                            'X-CSRF-TOKEN': document
-                                .querySelector('meta[name="csrf-token"]')
-                                .getAttribute('content'),
-
-                            'Accept': 'application/json'
-                        },
+                        headers: window.encabezadosSolicitudJsonControl(),
 
                         body: JSON.stringify({
                             activa: false
@@ -3760,19 +4044,7 @@
 
                             method: 'POST',
 
-                            headers: {
-
-                                'Content-Type': 'application/json',
-
-                                'X-CSRF-TOKEN': document
-                                    .querySelector(
-                                        'meta[name="csrf-token"]'
-                                    )
-                                    .getAttribute('content'),
-
-                                'Accept': 'application/json'
-
-                            },
+                            headers: window.encabezadosSolicitudJsonControl(),
 
                             body: JSON.stringify({
 
@@ -3987,19 +4259,7 @@
 
                         method: 'PATCH',
 
-                        headers: {
-
-                            'Content-Type': 'application/json',
-
-                            'X-CSRF-TOKEN': document
-                                .querySelector(
-                                    'meta[name="csrf-token"]'
-                                )
-                                .getAttribute('content'),
-
-                            'Accept': 'application/json'
-
-                        },
+                        headers: window.encabezadosSolicitudJsonControl(),
 
                         body: JSON.stringify({
 
@@ -4161,108 +4421,6 @@
 
 
             // ================================================================
-            // PEDIDO INTERNO
-            // ================================================================
-
-            const pedidosInternos =
-                document.querySelectorAll(
-                    '.pedido-interno-input'
-                );
-
-
-            pedidosInternos.forEach(function(input) {
-
-                input.addEventListener('change', function() {
-
-                    const campo =
-                        this;
-
-                    const url =
-                        campo.dataset.url;
-
-                    const valor =
-                        campo.checked;
-
-
-                    campo.disabled = true;
-
-
-                    fetch(url, {
-
-                            method: 'PATCH',
-
-                            headers: {
-
-                                'Content-Type': 'application/json',
-
-                                'X-CSRF-TOKEN': document
-                                    .querySelector(
-                                        'meta[name="csrf-token"]'
-                                    )
-                                    .getAttribute('content'),
-
-                                'Accept': 'application/json'
-
-                            },
-
-                            body: JSON.stringify({
-
-                                pedido_interno: valor
-
-                            })
-
-                        })
-
-                        .then(response => {
-
-                            if (!response.ok) {
-
-                                throw new Error(
-                                    'Error al guardar Pedido Interno'
-                                );
-
-                            }
-
-                            return response.json();
-
-                        })
-
-                        .then(data => {
-
-                            if (!data.success) {
-
-                                throw new Error(
-                                    'No se pudo guardar Pedido Interno'
-                                );
-
-                            }
-
-                        })
-
-                        .catch(error => {
-
-                            console.error(error);
-
-                            campo.checked = !valor;
-
-                            alert(
-                                'No se pudo guardar el Pedido Interno.'
-                            );
-
-                        })
-
-                        .finally(() => {
-
-                            campo.disabled =
-                                false;
-
-                        });
-
-                });
-
-            });
-
-            // ================================================================
             // FECHA PRODUCCIÓN
             // ================================================================
 
@@ -4281,23 +4439,15 @@
 
                     const fecha = campo.value;
 
+                    const fechaAnterior = campo.dataset.valorAnterior ?? campo.defaultValue;
+
+                    window.mostrarEstadoGuardadoControl(campo, 'guardando');
+
                     fetch(url, {
 
                             method: 'PATCH',
 
-                            headers: {
-
-                                'Content-Type': 'application/json',
-
-                                'X-CSRF-TOKEN': document
-                                    .querySelector(
-                                        'meta[name="csrf-token"]'
-                                    )
-                                    .getAttribute('content'),
-
-                                'Accept': 'application/json'
-
-                            },
+                            headers: window.encabezadosSolicitudJsonControl(),
 
                             body: JSON.stringify({
 
@@ -4345,21 +4495,18 @@
                             if (filaFechaActualizada) {
                                 filaFechaActualizada.dataset.fechaProduccion = campo.value || '';
                             }
+                            campo.dataset.valorAnterior = campo.value;
                             document.dispatchEvent(new CustomEvent('fecha-produccion-actualizada'));
-
-                            campo.style.borderColor = '#22c55e';
-
-                            setTimeout(function() {
-
-                                campo.style.borderColor = '';
-
-                            }, 800);
+                            window.mostrarEstadoGuardadoControl(campo, 'guardado');
 
                         })
 
                         .catch(error => {
 
                             console.error(error);
+
+                            campo.value = fechaAnterior;
+                            window.mostrarEstadoGuardadoControl(campo, 'error', error.message);
 
                             alert(
                                 'No se pudo guardar la Fecha de Producción.'
@@ -4462,19 +4609,7 @@
 
                         method: 'PATCH',
 
-                        headers: {
-
-                            'Content-Type': 'application/json',
-
-                            'X-CSRF-TOKEN': document
-                                .querySelector(
-                                    'meta[name="csrf-token"]'
-                                )
-                                .getAttribute('content'),
-
-                            'Accept': 'application/json'
-
-                        },
+                        headers: window.encabezadosSolicitudJsonControl(),
 
                         body: JSON.stringify({
 
@@ -4552,164 +4687,233 @@
         });
 
         // ================================================================
-        // PRIORIDAD
+        // ABASTECIMIENTO
         // ================================================================
+        const modalAbastecimiento = document.getElementById('modalAbastecimiento');
+        const motivoAbastecimiento = document.getElementById('motivoAbastecimiento');
+        const comentarioAbastecimiento = document.getElementById('comentarioAbastecimiento');
+        const responsableAbastecimiento = document.getElementById('responsableAbastecimiento');
+        const fechaLimiteAbastecimiento = document.getElementById('fechaLimiteAbastecimiento');
+        const guardarModalAbastecimiento = document.getElementById('guardarModalAbastecimiento');
+        const errorAbastecimiento = document.getElementById('errorAbastecimiento');
+        let abastecimientoSelectActivo = null;
 
-        const prioridades =
-            document.querySelectorAll('.prioridad-input');
+        if (modalAbastecimiento) {
+            document.body.appendChild(modalAbastecimiento);
+            modalAbastecimiento.style.position = 'fixed';
+            modalAbastecimiento.style.inset = '0';
+            modalAbastecimiento.style.zIndex = '1000000';
+            modalAbastecimiento.style.alignItems = 'center';
+            modalAbastecimiento.style.justifyContent = 'center';
+            modalAbastecimiento.style.backgroundColor = 'rgba(2, 6, 23, 0.5)';
+            modalAbastecimiento.style.padding = '1.5rem';
+            modalAbastecimiento.style.display = 'none';
+        }
 
+        const etiquetasAbastecimiento = {
+            otra_opcion: 'Ninguno',
+            apartado: 'Preparado',
+            parcialidad: 'Parcialidad',
+            entregado: 'Entregado',
+            faltante_mp: 'Pendiente'
+        };
+        const motivosPorAbastecimiento = {
+            otra_opcion: ['Falta orden de compra', 'Falta requisición de materiales', 'Otro'],
+            apartado: ['Material separado en almacén', 'Otro'],
+            parcialidad: ['Surtido parcial a producción', 'Otro'],
+            entregado: ['Surtido completo a producción', 'Otro'],
+            faltante_mp: ['Pendiente de surtir desde almacén', 'Otro']
+        };
 
-        function aplicarColorPrioridad(select) {
+        function cerrarModalAbastecimiento(restaurarSelect = true) {
+            if (restaurarSelect && abastecimientoSelectActivo) {
+                abastecimientoSelectActivo.value = abastecimientoSelectActivo.dataset.valorAnterior ?? '';
+            }
+            modalAbastecimiento.classList.add('hidden');
+            modalAbastecimiento.style.display = 'none';
+            comentarioAbastecimiento.value = '';
+            responsableAbastecimiento.value = '';
+            fechaLimiteAbastecimiento.value = '';
+            errorAbastecimiento.textContent = '';
+            errorAbastecimiento.classList.add('hidden');
+            guardarModalAbastecimiento.disabled = false;
+            guardarModalAbastecimiento.textContent = 'Guardar y agregar actividad';
+            abastecimientoSelectActivo = null;
+        }
 
-            // Quitar colores anteriores
-            select.style.backgroundColor = '';
-            select.style.color = '';
-            select.style.borderColor = '';
+        function renderActividadAbastecimiento(fila, data) {
+            if (!fila || !data.actividad) return;
+            const contenedor = fila.querySelector('.actividades-container');
+            if (!contenedor) return;
+            contenedor.querySelector('.sin-actividades')?.remove();
 
-            switch (select.value) {
+            const item = document.createElement('div');
+            const completada = Boolean(data.actividad.completada);
+            item.className = 'actividad-item flex items-start gap-2 p-2 rounded-md border border-gray-200 bg-gray-50';
+            if (completada) item.classList.add('actividad-terminada', 'hidden', 'opacity-60');
+            item.dataset.completada = completada ? '1' : '0';
+            item.dataset.actividadId = data.actividad.id;
+            item.dataset.urlActualizar = data.url_actualizar;
+            item.dataset.urlEliminar = data.url_eliminar;
 
-                // ---------------------------------------------------------
-                // PRIORIDAD 1 - ROJO
-                // ---------------------------------------------------------
-                case '1':
+            const checkbox = document.createElement('input');
+            checkbox.type = 'checkbox';
+            checkbox.className = 'actividad-completada mt-1 w-4 h-4 rounded border-gray-400 text-blue-600 focus:ring-blue-500';
+            checkbox.checked = completada;
 
-                    select.style.backgroundColor = '#ff0000';
-                    select.style.color = '#000000';
-                    select.style.borderColor = '#cc0000';
+            const texto = document.createElement('div');
+            texto.className = 'actividad-texto flex-1 min-w-0 text-sm cursor-pointer';
+            const nombre = document.createElement('div');
+            nombre.className = 'actividad-nombre';
+            nombre.textContent = data.actividad.actividad;
+            texto.appendChild(nombre);
 
-                    break;
+            if (data.actividad.responsable) {
+                const responsable = document.createElement('div');
+                responsable.className = 'actividad-responsable text-xs text-gray-500 mt-1';
+                responsable.textContent = `(${data.actividad.responsable})`;
+                texto.appendChild(responsable);
+            }
+            if (data.actividad.fecha_limite) {
+                const fecha = document.createElement('div');
+                fecha.className = 'actividad-fecha text-xs text-slate-500 mt-1';
+                const iso = String(data.actividad.fecha_limite).slice(0, 10);
+                fecha.textContent = `Fecha límite: ${iso.split('-').reverse().join('/')}`;
+                texto.appendChild(fecha);
+            }
 
+            const eliminar = document.createElement('button');
+            eliminar.type = 'button';
+            eliminar.className = 'eliminar-actividad text-red-500 hover:text-red-700 px-1';
+            eliminar.title = 'Eliminar actividad';
+            eliminar.textContent = '×';
 
-                    // ---------------------------------------------------------
-                    // PRIORIDAD 2 - AMARILLO
-                    // ---------------------------------------------------------
-                case '2':
+            item.append(checkbox, texto, eliminar);
+            contenedor.appendChild(item);
 
-                    select.style.backgroundColor = '#ffff00';
-                    select.style.color = '#000000';
-                    select.style.borderColor = '#d4d400';
-
-                    break;
-
-
-                    // ---------------------------------------------------------
-                    // PRIORIDAD 3 - VERDE
-                    // ---------------------------------------------------------
-                case '3':
-
-                    select.style.backgroundColor = '#00b050';
-                    select.style.color = '#000000';
-                    select.style.borderColor = '#008c3a';
-
-                    break;
-
-
-                    // ---------------------------------------------------------
-                    // PRIORIDAD 4 - AZUL / CIAN
-                    // ---------------------------------------------------------
-                case '4':
-
-                    select.style.backgroundColor = '#00b0f0';
-                    select.style.color = '#000000';
-                    select.style.borderColor = '#008ccc';
-
-                    break;
+            const terminadas = Array.from(contenedor.querySelectorAll('.actividad-item'))
+                .filter(actividad => actividad.dataset.completada === '1').length;
+            const botonTerminadas = contenedor.parentElement.querySelector('.toggle-actividades-terminadas');
+            if (botonTerminadas) {
+                botonTerminadas.textContent = `Mostrar terminadas (${terminadas})`;
+                botonTerminadas.dataset.abierto = '0';
+                botonTerminadas.setAttribute('aria-expanded', 'false');
+                botonTerminadas.classList.toggle('hidden', terminadas === 0);
             }
         }
 
+        function guardarCambioAbastecimiento(select, payload, revertirEnError = true) {
+            const valorAnterior = select.dataset.valorAnterior ?? '';
+            const fila = select.closest('.fila-pedido');
+            select.disabled = true;
+            window.mostrarEstadoGuardadoControl(select, 'guardando');
 
-        // Aplicar color al cargar la página
-
-        prioridades.forEach(function(select) {
-
-            aplicarColorPrioridad(select);
-
-
-            // Cambiar color y guardar
-
-            select.addEventListener('change', function() {
-
-                aplicarColorPrioridad(this);
-
-                const url =
-                    this.dataset.url;
-
-                const valor =
-                    this.value || null;
-
-                this.disabled = true;
-
-
-                fetch(url, {
-
-                        method: 'PATCH',
-
-                        headers: {
-
-                            'Content-Type': 'application/json',
-
-                            'X-CSRF-TOKEN': document
-                                .querySelector(
-                                    'meta[name="csrf-token"]'
-                                )
-                                .getAttribute('content'),
-
-                            'Accept': 'application/json'
-
-                        },
-
-                        body: JSON.stringify({
-
-                            prioridad: valor
-
-                        })
-
-                    })
-
-                    .then(response => {
-
-                        if (!response.ok) {
-
-                            throw new Error(
-                                'Error al guardar prioridad'
-                            );
-
-                        }
-
-                        return response.json();
-
-                    })
-
-                    .then(data => {
-
-                        if (!data.success) {
-
-                            throw new Error(
-                                'No se pudo guardar prioridad'
-                            );
-
-                        }
-
-                    })
-
-                    .catch(error => {
-
-                        console.error(error);
-
-                        alert(
-                            'No se pudo guardar la prioridad.'
-                        );
-
-                    })
-
-                    .finally(() => {
-
-                        this.disabled = false;
-
-                    });
-
+            return fetch(select.dataset.url, {
+                method: 'PATCH',
+                headers: window.encabezadosSolicitudJsonControl(),
+                body: JSON.stringify(payload)
+            }).then(async function(response) {
+                const data = await response.json();
+                if (!response.ok || !data.success) {
+                    const mensaje = data.message || Object.values(data.errors || {}).flat().join(' ') || 'No se pudo guardar el abastecimiento.';
+                    throw new Error(mensaje);
+                }
+                select.dataset.valorAnterior = select.value;
+                if (fila) fila.dataset.abastecimiento = select.value;
+                renderActividadAbastecimiento(fila, data);
+                window.mostrarEstadoGuardadoControl(select, 'guardado');
+                return data;
+            }).catch(function(error) {
+                if (revertirEnError) select.value = valorAnterior;
+                window.mostrarEstadoGuardadoControl(select, 'error', error.message);
+                throw error;
+            }).finally(function() {
+                select.disabled = false;
             });
+        }
 
+        document.querySelectorAll('.abastecimiento-input').forEach(function(select) {
+            select.dataset.valorAnterior = select.value;
+            select.addEventListener('change', function() {
+                const nuevoValor = this.value;
+                if (!nuevoValor) {
+                    guardarCambioAbastecimiento(this, { abastecimiento: null })
+                        .catch(error => alert(error.message));
+                    return;
+                }
+
+                if (nuevoValor === 'entregado') {
+                    guardarCambioAbastecimiento(this, {
+                        abastecimiento: nuevoValor,
+                        motivo: 'Surtido completo a producción'
+                    }).catch(error => alert(error.message));
+                    return;
+                }
+
+                abastecimientoSelectActivo = this;
+                document.getElementById('modalAbastecimientoPedido').textContent = this.closest('.fila-pedido')?.dataset.pedido || '';
+                document.getElementById('modalAbastecimientoEstado').textContent = etiquetasAbastecimiento[nuevoValor] || nuevoValor;
+                motivoAbastecimiento.replaceChildren();
+                (motivosPorAbastecimiento[nuevoValor] || ['Otro']).forEach(function(motivo, indice) {
+                    const option = document.createElement('option');
+                    option.value = motivo;
+                    option.textContent = motivo;
+                    option.selected = indice === 0;
+                    motivoAbastecimiento.appendChild(option);
+                });
+                comentarioAbastecimiento.value = '';
+                responsableAbastecimiento.value = '';
+                fechaLimiteAbastecimiento.value = '';
+                errorAbastecimiento.textContent = '';
+                errorAbastecimiento.classList.add('hidden');
+                modalAbastecimiento.classList.remove('hidden');
+                modalAbastecimiento.style.display = 'flex';
+                motivoAbastecimiento.focus();
+            });
+        });
+
+        guardarModalAbastecimiento.addEventListener('click', function() {
+            if (!abastecimientoSelectActivo) return;
+            const motivo = motivoAbastecimiento.value;
+            const comentario = comentarioAbastecimiento.value.trim();
+            if (motivo === 'Otro' && !comentario) {
+                errorAbastecimiento.textContent = 'Agrega un comentario para explicar el motivo.';
+                errorAbastecimiento.classList.remove('hidden');
+                comentarioAbastecimiento.focus();
+                return;
+            }
+
+            guardarModalAbastecimiento.disabled = true;
+            guardarModalAbastecimiento.textContent = 'Guardando...';
+            guardarCambioAbastecimiento(abastecimientoSelectActivo, {
+                abastecimiento: abastecimientoSelectActivo.value,
+                motivo: motivo,
+                comentario: comentario || null,
+                responsable: responsableAbastecimiento.value.trim() || null,
+                fecha_limite: fechaLimiteAbastecimiento.value || null
+            }, false).then(function() {
+                cerrarModalAbastecimiento(false);
+            }).catch(function(error) {
+                errorAbastecimiento.textContent = error.message;
+                errorAbastecimiento.classList.remove('hidden');
+                guardarModalAbastecimiento.disabled = false;
+                guardarModalAbastecimiento.textContent = 'Guardar y agregar actividad';
+            });
+        });
+
+        document.getElementById('cerrarModalAbastecimiento').addEventListener('click', () => {
+            if (!guardarModalAbastecimiento.disabled) cerrarModalAbastecimiento();
+        });
+        document.getElementById('cancelarModalAbastecimiento').addEventListener('click', () => {
+            if (!guardarModalAbastecimiento.disabled) cerrarModalAbastecimiento();
+        });
+        modalAbastecimiento.addEventListener('click', event => {
+            if (event.target === modalAbastecimiento && !guardarModalAbastecimiento.disabled) cerrarModalAbastecimiento();
+        });
+        document.addEventListener('keydown', event => {
+            if (event.key === 'Escape' && !modalAbastecimiento.classList.contains('hidden') && !guardarModalAbastecimiento.disabled) {
+                cerrarModalAbastecimiento();
+            }
         });
 
         // ================================================================
@@ -4739,11 +4943,7 @@
 
                 fetch(control.dataset.url, {
                     method: 'PATCH',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
-                        'Accept': 'application/json'
-                    },
+                    headers: window.encabezadosSolicitudJsonControl(),
                     body: JSON.stringify({ resultado_entrega: control.value || null })
                 })
                 .then(function(response) {
@@ -4828,6 +5028,8 @@
                 const url =
                     campo.dataset.url;
 
+                window.mostrarEstadoGuardadoControl(campo, 'guardando');
+
 
                 // Cambiar inmediatamente el color
                 aplicarColorEstado(campo);
@@ -4840,19 +5042,7 @@
 
                         method: 'PATCH',
 
-                        headers: {
-
-                            'Content-Type': 'application/json',
-
-                            'X-CSRF-TOKEN': document
-                                .querySelector(
-                                    'meta[name="csrf-token"]'
-                                )
-                                .getAttribute('content'),
-
-                            'Accept': 'application/json'
-
-                        },
+                        headers: window.encabezadosSolicitudJsonControl(),
 
                         body: JSON.stringify({
 
@@ -4893,11 +5083,12 @@
                         campo.dataset.estadoOriginal =
                             data.estado_operativo;
 
+                        window.mostrarEstadoGuardadoControl(campo, 'guardado');
+
                         const filaEstadoActualizada = campo.closest('.fila-pedido');
                         if (filaEstadoActualizada) {
                             filaEstadoActualizada.dataset.estado = data.estado_operativo || nuevoEstado;
                         }
-                        document.dispatchEvent(new CustomEvent('estado-operativo-actualizado'));
 
                         /*
                         |--------------------------------------------------------------------------
@@ -4943,8 +5134,23 @@
 
                             }
 
+                            const proceso = data.proceso_menor_avance;
+                            const nombre = fila.querySelector('.proceso-menor-nombre');
+                            const porcentaje = fila.querySelector('.proceso-menor-porcentaje');
+                            const completo = proceso.porcentaje === 1;
+
+                            fila.dataset.avance = '1';
+                            fila.dataset.procesoMenorAvance = proceso.porcentaje ?? '';
+                            nombre.textContent = proceso.proceso;
+                            nombre.classList.remove('bg-gray-700', 'text-gray-400', 'bg-red-100', 'text-red-700',
+                                'bg-orange-100', 'text-orange-700', 'bg-yellow-100', 'text-yellow-700',
+                                'bg-green-100', 'text-green-700');
+                            nombre.classList.add(...(completo ? ['bg-green-100', 'text-green-700'] : ['bg-gray-700', 'text-gray-400']));
+                            porcentaje.textContent = completo ? '100%' : '';
+                            porcentaje.hidden = !completo;
                         }
 
+                        document.dispatchEvent(new CustomEvent('estado-operativo-actualizado'));
                     })
 
                     .catch(error => {
@@ -4955,6 +5161,8 @@
                         // Regresar al estado anterior
                         campo.value =
                             estadoAnterior;
+
+                        window.mostrarEstadoGuardadoControl(campo, 'error', error.message);
 
 
                         aplicarColorEstado(campo);
@@ -5096,21 +5304,122 @@
                 fin.setDate(fin.getDate() + 6);
                 const filasSemana = obtenerFilas().filter(fila => {
                     const fecha = fechaLocal(fila.dataset.fechaProduccion || '');
-                    return fecha && fecha >= inicio && fecha <= fin;
+                    const estado = (fila.dataset.estado || '').toLowerCase();
+                    return fecha && fecha >= inicio && fecha <= fin && estado !== 'cancelado';
                 });
-                const terminados = filasSemana.filter(fila => (fila.dataset.estado || '').toLowerCase() === 'terminado').length;
-                const porIniciar = filasSemana.filter(fila => (fila.dataset.estado || '').toLowerCase() === 'por iniciar').length;
-                const atrasados = filasSemana.filter(fila => {
+                const terminados = filasSemana.filter(fila => (fila.dataset.estado || '').toLowerCase() === 'terminado');
+                const esAtrasado = fila => {
                     const estado = (fila.dataset.estado || '').toLowerCase();
                     const semaforo = (fila.dataset.semaforo || '').toLowerCase();
                     return estado !== 'terminado' && estado !== 'cancelado' && (semaforo.includes('atras') || (fechaLocal(fila.dataset.fechaProduccion || '') < hoy));
-                }).length;
+                };
+                const atrasados = filasSemana.filter(esAtrasado);
+                const porIniciar = filasSemana.filter(fila =>
+                    (fila.dataset.estado || '').toLowerCase() === 'por iniciar' && !esAtrasado(fila)
+                );
+                const enProceso = filasSemana.filter(fila =>
+                    (fila.dataset.estado || '').toLowerCase() === 'en proceso' && !esAtrasado(fila)
+                );
                 const set = (id, valor) => { const el = document.getElementById(id); if (el) el.textContent = valor; };
                 set('calSemanaTotal', filasSemana.length);
-                set('calSemanaTerminados', terminados);
-                set('calSemanaIniciar', porIniciar);
-                set('calSemanaAtrasados', atrasados);
+                set('calSemanaTerminados', terminados.length);
+                set('calSemanaEnProceso', enProceso.length);
+                set('calSemanaIniciar', porIniciar.length);
+                set('calSemanaAtrasados', atrasados.length);
+                return { total: filasSemana, terminados, 'en-proceso': enProceso, 'por-iniciar': porIniciar, atrasados, inicio, fin };
             }
+
+            const modalResumen = document.getElementById('modalResumenSemanal');
+            const listaResumen = document.getElementById('modalResumenSemanalLista');
+            const tituloResumen = document.getElementById('modalResumenSemanalTitulo');
+            const descripcionResumen = document.getElementById('modalResumenSemanalDescripcion');
+            const rangoResumen = document.getElementById('modalResumenSemanalRango');
+            const conteoResumen = document.getElementById('modalResumenSemanalConteo');
+            let disparadorResumen = null;
+            const etiquetasResumen = {
+                total: 'Pedidos esta semana', terminados: 'Terminados esta semana',
+                'en-proceso': 'En proceso esta semana', 'por-iniciar': 'Por iniciar esta semana', atrasados: 'Atrasados esta semana'
+            };
+            const fechaResumen = fecha => fecha.toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' });
+            function cerrarModalResumen() {
+                if (!modalResumen) return;
+                modalResumen.classList.add('hidden');
+                modalResumen.classList.remove('flex');
+                document.body.classList.remove('overflow-hidden');
+                disparadorResumen?.focus();
+            }
+            document.querySelectorAll('[data-resumen-semanal]').forEach(boton => boton.addEventListener('click', () => {
+                const resumen = actualizarResumenSemanal();
+                const tipo = boton.dataset.resumenSemanal;
+                const pedidos = resumen[tipo] || [];
+                disparadorResumen = boton;
+                tituloResumen.textContent = etiquetasResumen[tipo] || 'Pedidos de esta semana';
+                descripcionResumen.textContent = 'Selecciona una tarjeta semanal para consultar sus pedidos.';
+                rangoResumen.textContent = `${fechaResumen(resumen.inicio)} – ${fechaResumen(resumen.fin)}`;
+                conteoResumen.textContent = `${pedidos.length} ${pedidos.length === 1 ? 'pedido' : 'pedidos'}`;
+                listaResumen.replaceChildren();
+                if (!pedidos.length) {
+                    const vacio = document.createElement('p');
+                    vacio.className = 'rounded-lg border border-dashed border-slate-300 p-8 text-center text-sm text-slate-500';
+                    vacio.textContent = 'No hay pedidos en esta categoría para la semana.';
+                    listaResumen.append(vacio);
+                } else {
+                    pedidos.forEach(fila => {
+                        const item = document.createElement('button');
+                        item.type = 'button';
+                        item.className = 'grid w-full grid-cols-1 gap-2 rounded-lg border border-slate-200 bg-white p-3 text-left transition hover:border-blue-300 hover:bg-blue-50/50 focus:outline-none focus:ring-2 focus:ring-blue-400 sm:grid-cols-[1fr_auto] sm:items-center';
+                        const info = document.createElement('div');
+                        const pedido = document.createElement('p');
+                        pedido.className = 'text-sm font-semibold text-slate-800';
+                        pedido.textContent = `Pedido ${fila.dataset.pedido || '—'}`;
+                        const cliente = document.createElement('p');
+                        cliente.className = 'mt-0.5 text-xs text-slate-600';
+                        cliente.textContent = fila.dataset.cliente || 'Cliente sin nombre';
+                        info.append(pedido, cliente);
+                        const detalles = document.createElement('div');
+                        detalles.className = 'flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500 sm:justify-end';
+                        const estado = document.createElement('span');
+                        estado.textContent = `Estado: ${fila.dataset.estado || 'Sin estado'}`;
+                        const fecha = document.createElement('span');
+                        const fechaPedido = fechaLocal(fila.dataset.fechaProduccion || '');
+                        fecha.textContent = `Producción: ${fechaPedido ? fechaResumen(fechaPedido) : 'Sin fecha'}`;
+                        const avance = document.createElement('span');
+                        const avanceCrudo = fila.dataset.avance;
+                        const avanceDecimal = avanceCrudo === undefined || avanceCrudo === '' ? null : Number(avanceCrudo);
+                        const avanceRedondeado = (fila.dataset.estado || '').trim().toLowerCase() === 'terminado'
+                            ? 100
+                            : (avanceDecimal !== null && Number.isFinite(avanceDecimal) ? Math.round(avanceDecimal * 100) : null);
+                        avance.textContent = `Avance: ${avanceRedondeado === null ? '—' : `${avanceRedondeado}%`}`;
+                        detalles.append(estado, fecha, avance);
+                        item.append(info, detalles);
+                        item.setAttribute('aria-label', `Ver Pedido ${fila.dataset.pedido || ''} en la tabla`);
+                        item.addEventListener('click', () => {
+                            const pedidoId = fila.dataset.pedidoId;
+                            cerrarModalResumen();
+                            if (!pedidoId) return;
+
+                            let filaTabla = document.querySelector(`#tablaPedidos tbody tr[data-pedido-id="${CSS.escape(pedidoId)}"]`);
+                            if (filaTabla && getComputedStyle(filaTabla).display === 'none') {
+                                document.getElementById('limpiarFiltros')?.click();
+                                filaTabla = document.querySelector(`#tablaPedidos tbody tr[data-pedido-id="${CSS.escape(pedidoId)}"]`);
+                            }
+                            if (!filaTabla || getComputedStyle(filaTabla).display === 'none') return;
+
+                            filaTabla.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
+                            filaTabla.classList.add('ring-2', 'ring-blue-400', 'bg-blue-50');
+                            window.setTimeout(() => filaTabla.classList.remove('ring-2', 'ring-blue-400', 'bg-blue-50'), 2200);
+                        });
+                        listaResumen.append(item);
+                    });
+                }
+                modalResumen.classList.remove('hidden');
+                modalResumen.classList.add('flex');
+                document.body.classList.add('overflow-hidden');
+                modalResumen.querySelector('[data-cerrar-resumen-semanal]')?.focus();
+            }));
+            modalResumen?.querySelectorAll('[data-cerrar-resumen-semanal]').forEach(boton => boton.addEventListener('click', cerrarModalResumen));
+            modalResumen?.addEventListener('click', evento => { if (evento.target === modalResumen) cerrarModalResumen(); });
+            document.addEventListener('keydown', evento => { if (evento.key === 'Escape' && modalResumen && !modalResumen.classList.contains('hidden')) cerrarModalResumen(); });
 
             function renderizarCalendario() {
                 etiquetaMes.textContent = mesVisible.toLocaleDateString('es-MX', {
@@ -5214,6 +5523,26 @@
             const botonAgenda = document.getElementById('verAgendaCompleta');
             const botonSinFecha = document.getElementById('verSinFechaProduccion');
             const contenedorTabla = document.getElementById('contenedorTabla');
+            const contenidoAgenda = document.getElementById('contenidoAgendaProduccion');
+            const toggleAgenda = document.getElementById('toggleAgendaProduccion');
+            const textoToggleAgenda = document.getElementById('toggleAgendaProduccionTexto');
+            const iconoToggleAgenda = document.getElementById('toggleAgendaProduccionIcono');
+            const claveAgenda = 'controlOperativoAgendaVisible';
+
+            function establecerAgendaVisible(visible, guardar = true) {
+                if (!contenidoAgenda || !toggleAgenda) return;
+                contenidoAgenda.classList.toggle('hidden', !visible);
+                toggleAgenda.setAttribute('aria-expanded', visible ? 'true' : 'false');
+                if (textoToggleAgenda) textoToggleAgenda.textContent = visible ? 'Ocultar agenda' : 'Mostrar agenda';
+                if (iconoToggleAgenda) iconoToggleAgenda.textContent = visible ? '⌃' : '⌄';
+                if (guardar) localStorage.setItem(claveAgenda, visible ? '1' : '0');
+            }
+
+            // La primera visita prioriza la tabla; se conserva la preferencia después.
+            establecerAgendaVisible(localStorage.getItem(claveAgenda) === '1', false);
+            toggleAgenda?.addEventListener('click', function() {
+                establecerAgendaVisible(toggleAgenda.getAttribute('aria-expanded') !== 'true');
+            });
 
             function leerFilasProduccion() {
                 return Array.from(document.querySelectorAll('#tablaPedidos tbody tr.fila-pedido'))
@@ -5257,7 +5586,10 @@
                         lista.appendChild(item);
                     });
                 }
-                if (botonAgenda) botonAgenda.onclick = () => { document.getElementById('panelCalendarioProduccion')?.scrollIntoView({behavior:'smooth',block:'start'}); };
+                if (botonAgenda) botonAgenda.onclick = () => {
+                    establecerAgendaVisible(true);
+                    document.getElementById('panelCalendarioProduccion')?.scrollIntoView({behavior:'smooth',block:'start'});
+                };
                 if (botonSinFecha) botonSinFecha.onclick = () => {
                     const campo = document.getElementById('filtroProduccionDesde');
                     if (campo) { campo.value = ''; campo.dispatchEvent(new Event('input',{bubbles:true})); }

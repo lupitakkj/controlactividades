@@ -22,3 +22,9 @@
 Homestead.json
 Homestead.yaml
 Thumbs.db
+
+# Respaldos ZIP
+*.zip
+
+# Respaldos del sistema
+*.zip

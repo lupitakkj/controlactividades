@@ -30,72 +30,7 @@ class DashboardDireccionController extends Controller
         |
         */
 
-        $semanaCandidata = SemanaOperativa::whereDate(
-            'fecha_inicio',
-            '<=',
-            $ahora->toDateString()
-        )
-            ->orderByDesc('fecha_inicio')
-            ->first();
-
-
-        if ($semanaCandidata) {
-
-            $momentoActivacion = Carbon::parse(
-                $semanaCandidata->fecha_inicio
-            )->setTime(18, 30, 0);
-
-
-            if ($ahora->lt($momentoActivacion)) {
-
-                $semanaOperativa = SemanaOperativa::where(
-                    'fecha_inicio',
-                    '<',
-                    $semanaCandidata->fecha_inicio
-                )
-                    ->orderByDesc('fecha_inicio')
-                    ->first();
-            } else {
-
-                $semanaOperativa = $semanaCandidata;
-            }
-        } else {
-
-            $semanaOperativa = null;
-        }
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | 3. RESPALDO DE SEMANA OPERATIVA
-        |--------------------------------------------------------------------------
-        */
-
-        if (!$semanaOperativa) {
-
-            $semanaOperativa = SemanaOperativa::where(
-                'anio',
-                $hoy->year
-            )
-                ->whereDate(
-                    'fecha_inicio',
-                    '<=',
-                    $hoy->toDateString()
-                )
-                ->whereDate(
-                    'fecha_fin',
-                    '>=',
-                    $hoy->toDateString()
-                )
-                ->first();
-        }
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | 4. VALIDAR SEMANA
-        |--------------------------------------------------------------------------
-        */
+        $semanaOperativa = SemanaOperativa::actual($ahora);
 
         if (!$semanaOperativa) {
 
@@ -154,81 +89,28 @@ class DashboardDireccionController extends Controller
 
         $metaSemanal = 630000;
         $metaMensual = 2520000;
-        /*
-        |--------------------------------------------------------------------------
-        | PLANEACIÓN SEMANAL
-        |--------------------------------------------------------------------------
-        |
-        | La semana de planeación se determina de la misma manera que la
-        | proyección:
-        |
-        | - Pedido pendiente:
-        |       usa controlOperativo.fecha_produccion.
-        |
-        | - Pedido terminado:
-        |       usa fecha_terminado.
-        |
-        | Esto significa que si un pedido estaba programado para una semana
-        | posterior pero se termina antes, el importe entra en la semana
-        | en la que realmente se terminó.
-        |
-        | Así Planeación semanal y Proyección siempre manejan la misma base.
-        |
-        */
-
-        $pedidosPlaneacionSemanal = $pedidos->filter(
-            function ($pedido) use ($inicioSemana, $finSemana) {
-
-                /*
-                |--------------------------------------------------------------------------
-                | PEDIDO YA TERMINADO
-                |--------------------------------------------------------------------------
-                |
-                | Si existe fecha_terminado, esta es la fecha que determina
-                | la semana real en la que se realizó.
-                |
-                */
-
-                if (!empty($pedido->fecha_terminado)) {
-
-                    $fechaReal = Carbon::parse(
-                        $pedido->fecha_terminado
-                    )->startOfDay();
-
-                    return $fechaReal->between(
-                        $inicioSemana->copy()->startOfDay(),
-                        $finSemana->copy()->endOfDay()
-                    );
+        // Los pedidos cerrados cuentan en su semana real. El rezago de producción
+        // pendiente se arrastra a la semana operativa tanto en planeación como en proyección.
+        $pedidosParaSemana = function (Carbon $inicio, Carbon $fin) use ($pedidos, $inicioSemana) {
+            return $pedidos->filter(function ($pedido) use ($inicio, $fin, $inicioSemana) {
+                if ($pedido->fecha_terminado) {
+                    return $pedido->fecha_terminado->between($inicio, $fin);
                 }
 
-
-                /*
-                |--------------------------------------------------------------------------
-                | PEDIDO PENDIENTE
-                |--------------------------------------------------------------------------
-                |
-                | Si todavía no está terminado, conserva su fecha programada.
-                |
-                */
-
-                // Para pedidos pendientes, la semana corresponde a la fecha
-                // de producción registrada por Producción, no a la entrega.
                 $fechaProduccion = $pedido->controlOperativo?->fecha_produccion;
-
-                if (empty($fechaProduccion)) {
+                if (!$fechaProduccion) {
                     return false;
                 }
 
-                $fechaProduccion = Carbon::parse(
-                    $fechaProduccion
-                )->startOfDay();
+                return Carbon::parse($fechaProduccion)->startOfDay()
+                    ->max($inicioSemana)->between($inicio, $fin);
+            });
+        };
 
-                return $fechaProduccion->between(
-                    $inicioSemana->copy()->startOfDay(),
-                    $finSemana->copy()->endOfDay()
-                );
-            }
-        );
+        $offsetSemana = $request->integer('offset_semana');
+        $inicioSemanaPlaneacion = $inicioSemana->copy()->addWeeks($offsetSemana);
+        $finSemanaPlaneacion = $finSemana->copy()->addWeeks($offsetSemana);
+        $pedidosPlaneacionSemanal = $pedidosParaSemana($inicioSemanaPlaneacion, $finSemanaPlaneacion);
 
 
         /*
@@ -267,6 +149,44 @@ class DashboardDireccionController extends Controller
             ? ($programadoSemanal / $metaSemanal) * 100
             : 0;
 
+        /*
+         |--------------------------------------------------------------------------
+         | AVANCE DE ENTREGA DE LA PLANEACIÓN SEMANAL
+         |--------------------------------------------------------------------------
+         |
+         | Se utiliza la misma colección que calcula el total programado:
+         | - Los pedidos terminados se asignan por fecha_terminado.
+         | - Los pedidos pendientes se asignan por fecha_produccion.
+         |
+         | El importe entregado es una parte del total programado, NO se suma
+         | nuevamente al total. El pendiente se obtiene restándolo del total.
+         |
+         */
+
+        $pedidosEntregadosPlaneacionSemanal = $pedidosPlaneacionSemanal
+            ->filter(function ($pedido) {
+                return !empty($pedido->fecha_terminado);
+            });
+
+        $entregadoSemanal = $pedidosEntregadosPlaneacionSemanal->sum(
+            function ($pedido) {
+                return (float) $pedido->importe_total;
+            }
+        );
+
+        $pendienteEntregaSemanal = max(
+            0,
+            $programadoSemanal - $entregadoSemanal
+        );
+
+        $porcentajeEntregadoSemanal = $programadoSemanal > 0
+            ? min(100, max(0, ($entregadoSemanal / $programadoSemanal) * 100))
+            : 0;
+
+        $porcentajeMetaTerminadaSemanal = ($entregadoSemanal / $metaSemanal) * 100;
+        $porcentajeMetaPendienteSemanal = ($pendienteEntregaSemanal / $metaSemanal) * 100;
+        $porcentajeMetaSinProgramarSemanal = ($faltanteSemanal / $metaSemanal) * 100;
+
 
 
 
@@ -277,12 +197,14 @@ class DashboardDireccionController extends Controller
 |--------------------------------------------------------------------------
 */
 
-        $inicioMes = $inicioSemana->copy()->startOfMonth();
-        $finMes = $inicioSemana->copy()->endOfMonth();
+        $offsetMes = $request->integer('offset_mes');
+        $mesCerrado = $offsetMes < 0;
+        $inicioMes = $hoy->copy()->startOfMonth()->addMonths($offsetMes);
+        $finMes = $inicioMes->copy()->endOfMonth();
 
 
         $pedidosPlaneacionMensual = $pedidos->filter(
-            function ($pedido) use ($inicioMes, $finMes) {
+            function ($pedido) use ($inicioMes, $finMes, $mesCerrado) {
 
                 // Los pedidos terminados se asignan al mes en que realmente
                 // terminaron; los pendientes, al mes de su fecha de producción.
@@ -293,7 +215,7 @@ class DashboardDireccionController extends Controller
                 } else {
                     $fechaProduccion = $pedido->controlOperativo?->fecha_produccion;
 
-                    if (empty($fechaProduccion)) {
+                    if ($mesCerrado || empty($fechaProduccion)) {
                         return false;
                     }
 
@@ -315,6 +237,37 @@ class DashboardDireccionController extends Controller
                 return (float) $pedido->importe_total;
             }
         );
+
+        // El entregado mensual se reconoce por la fecha real de terminación,
+        // aunque el pedido se hubiera programado para otro mes.
+        $pedidosTerminadosMes = $pedidosPlaneacionMensual
+            ->filter(function ($pedido) use ($inicioMes, $finMes) {
+                if (empty($pedido->fecha_terminado)) {
+                    return false;
+                }
+
+                return Carbon::parse($pedido->fecha_terminado)
+                    ->startOfDay()
+                    ->between(
+                        $inicioMes->copy()->startOfDay(),
+                        $finMes->copy()->endOfDay()
+                    );
+            })->sortByDesc('fecha_terminado')->values();
+
+        $entregadoMensual = $pedidosTerminadosMes->sum('importe_total');
+
+        $porcentajeEntregadoMensual = $metaMensual > 0
+            ? ($entregadoMensual / $metaMensual) * 100
+            : 0;
+
+        $pendienteProgramadoMensual = max(
+            0,
+            $programadoMensual - $entregadoMensual
+        );
+
+        $porcentajePendienteProgramadoMensual = $metaMensual > 0
+            ? ($pendienteProgramadoMensual / $metaMensual) * 100
+            : 0;
 
 
         $faltanteMensual = max(
@@ -979,7 +932,6 @@ class DashboardDireccionController extends Controller
 
         $proyeccionSemanas = collect();
 
-
         foreach ($proximasSemanas as $semanaFutura) {
 
             $inicio = Carbon::parse(
@@ -991,62 +943,7 @@ class DashboardDireccionController extends Controller
             )->endOfDay();
 
 
-            /*
-            |--------------------------------------------------------------------------
-            | PEDIDOS DE LA SEMANA
-            |--------------------------------------------------------------------------
-            |
-            | Pedido terminado:
-            |     se contabiliza únicamente en la semana de fecha_terminado.
-            |
-            | Pedido pendiente:
-            |     se contabiliza únicamente en la semana de fecha_produccion
-            |     registrada por Producción. La fecha_entrega no determina
-            |     la semana de esta proyección.
-            |
-            */
-
-            $pedidosSemana = $pedidos->filter(
-                function ($pedido) use ($inicio, $fin) {
-
-                    /*
-                    | Los pedidos terminados se contabilizan únicamente
-                    | en la semana de su fecha real de terminación.
-                    */
-                    if (!empty($pedido->fecha_terminado)) {
-
-                        $fechaTerminado = Carbon::parse(
-                            $pedido->fecha_terminado
-                        )->startOfDay();
-
-                        return $fechaTerminado->between(
-                            $inicio->copy()->startOfDay(),
-                            $fin->copy()->endOfDay()
-                        );
-                    }
-
-                    /*
-                    | Los pedidos pendientes se contabilizan únicamente
-                    | en la semana indicada por Producción mediante
-                    | controlOperativo.fecha_produccion.
-                    | fecha_entrega se conserva para mostrar el compromiso
-                    | con el cliente, pero no mueve el pedido a otra semana.
-                    */
-                    $fechaProduccion =
-                        $pedido->controlOperativo?->fecha_produccion;
-
-                    if (empty($fechaProduccion)) {
-                        return false;
-                    }
-
-                    return Carbon::parse(
-                        $fechaProduccion
-                    )->startOfDay()->between(
-                        $inicio->copy()->startOfDay(),
-                        $fin->copy()->endOfDay()
-                    );
-                }
-            );
+            $pedidosSemana = $pedidosParaSemana($inicio, $fin);
 
 
             /*
@@ -1247,7 +1144,7 @@ class DashboardDireccionController extends Controller
         |--------------------------------------------------------------------------
         */
 
-        return view('dashboard-direccion.index', [
+        $vista = view('dashboard-direccion.index', [
 
             /*
             |--------------------------------------------------------------------------
@@ -1260,6 +1157,13 @@ class DashboardDireccionController extends Controller
             'inicioSemana' => $inicioSemana,
 
             'finSemana' => $finSemana,
+
+            'inicioMes' => $inicioMes,
+            'offsetMes' => $offsetMes,
+            'mesCerrado' => $mesCerrado,
+            'offsetSemana' => $offsetSemana,
+            'inicioSemanaPlaneacion' => $inicioSemanaPlaneacion,
+            'finSemanaPlaneacion' => $finSemanaPlaneacion,
 
 
 
@@ -1281,9 +1185,20 @@ class DashboardDireccionController extends Controller
             'programadoSemanal' => $programadoSemanal,
             'faltanteSemanal' => $faltanteSemanal,
             'porcentajeSemanal' => $porcentajeSemanal,
+            'entregadoSemanal' => $entregadoSemanal,
+            'porcentajeMetaTerminadaSemanal' => $porcentajeMetaTerminadaSemanal,
+            'porcentajeMetaPendienteSemanal' => $porcentajeMetaPendienteSemanal,
+            'porcentajeMetaSinProgramarSemanal' => $porcentajeMetaSinProgramarSemanal,
+            'pendienteEntregaSemanal' => $pendienteEntregaSemanal,
+            'porcentajeEntregadoSemanal' => $porcentajeEntregadoSemanal,
 
             'metaMensual' => $metaMensual,
             'programadoMensual' => $programadoMensual,
+            'entregadoMensual' => $entregadoMensual,
+            'pedidosTerminadosMes' => $pedidosTerminadosMes,
+            'porcentajeEntregadoMensual' => $porcentajeEntregadoMensual,
+            'pendienteProgramadoMensual' => $pendienteProgramadoMensual,
+            'porcentajePendienteProgramadoMensual' => $porcentajePendienteProgramadoMensual,
             'faltanteMensual' => $faltanteMensual,
             'porcentajeMensual' => $porcentajeMensual,
 
@@ -1385,5 +1300,12 @@ class DashboardDireccionController extends Controller
             'pedidosAtencion' => $pedidosAtencion,
 
         ]);
+
+        $tarjeta = $request->header('X-Planeacion-Tarjeta');
+        if (in_array($tarjeta, ['planeacion-semanal', 'planeacion-mensual', 'proyeccion-semanal'], true)) {
+            return response($vista->fragment($tarjeta))->header('Cache-Control', 'no-store');
+        }
+
+        return $vista;
     }
 }

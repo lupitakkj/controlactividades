@@ -16,6 +16,39 @@ class CutListOptimizer
         $hojas,
         array $configuracion
     ) {
+        // Valores predeterminados de los ajustes del optimizador.
+        // La vista/controlador puede sobrescribirlos enviando estos campos.
+        $configuracion = array_merge([
+            'prioridad_optimizacion' => 'menor_cantidad_tableros',
+            'dimension_minima_retal_cm' => 20.0,
+            'saneado_bordes_cm' => 0.0,
+        ], $configuracion);
+
+        $configuracion['prioridad_optimizacion'] = in_array(
+            $configuracion['prioridad_optimizacion'],
+            ['menor_cantidad_tableros', 'menor_desperdicio', 'mejores_retales'],
+            true
+        ) ? $configuracion['prioridad_optimizacion'] : 'menor_cantidad_tableros';
+
+        $configuracion['dimension_minima_retal_cm'] = max(
+            0.0,
+            (float) $configuracion['dimension_minima_retal_cm']
+        );
+
+        $configuracion['saneado_bordes_cm'] = max(
+            0.0,
+            (float) $configuracion['saneado_bordes_cm']
+        );
+
+        // El saneado acordado actualmente es 0 cm. No se altera la geometría
+        // de los tableros; valores distintos de cero requieren conectar el
+        // margen útil también con la vista y el validador de cortes.
+        if ($configuracion['saneado_bordes_cm'] > 0) {
+            throw new \InvalidArgumentException(
+                'El saneado de bordes distinto de 0 cm aún no está implementado en la geometría del optimizador.'
+            );
+        }
+
         // ==========================================
         // PREPARAR PIEZAS
         // ==========================================
@@ -177,6 +210,12 @@ class CutListOptimizer
 
         Log::info('=== BLOQUES RECURSIVOS ===');
         Log::info($bloquesRecursivos);
+
+        // Convertir el árbol de cada hoja en una secuencia de cortes.
+        // La secuencia es ejecutable solo cuando todos los bloques terminales
+        // son piezas o retales; los bloques sin división se marcan para revisión.
+        $listaCortes = $this->generarListaCortesOrdenada($bloquesRecursivos);
+
         $analisisCortes = $this->analizarCortesDesdeColocacion(
             $resultadoColocacion,
             $hojasDisponibles,
@@ -199,13 +238,21 @@ class CutListOptimizer
         $estadisticas =
             $this->calcularEstadisticas(
                 $resultadoColocacion['colocadas'],
-                $hojasDisponibles
+                $hojasDisponibles,
+                $resultadoColocacion['sobrantes'] ?? [],
+                (float) $configuracion['dimension_minima_retal_cm']
             );
 
         return [
 
             'configuracion' =>
             $configuracion,
+
+            'ajustes_optimizacion' => [
+                'prioridad' => $configuracion['prioridad_optimizacion'],
+                'dimension_minima_retal_cm' => $configuracion['dimension_minima_retal_cm'],
+                'saneado_bordes_cm' => $configuracion['saneado_bordes_cm'],
+            ],
 
             'piezas' =>
             $piezasPreparadas,
@@ -242,6 +289,9 @@ class CutListOptimizer
             'analisis_cortes' => $analisisCortes,
 
             'bloques_recursivos' => $bloquesRecursivos,
+
+            // Lista ordenada de cortes por hoja, derivada del árbol guillotina.
+            'lista_cortes' => $listaCortes,
         ];
     }
 
@@ -532,216 +582,790 @@ class CutListOptimizer
         return true;
     }
 
+    /**
+     * Coloca piezas mediante cortes guillotina y compara varias secuencias.
+     *
+     * La búsqueda prioriza:
+     * 1. Colocar todas las piezas posibles.
+     * 2. Utilizar el menor número de hojas.
+     * 3. Repartir la superficie de forma equilibrada entre las hojas usadas.
+     * 4. Preferir ajustes compactos dentro de cada espacio guillotina.
+     *
+     * Se conserva la estructura de salida consumida por la vista.
+     */
+    /**
+     * Optimización por grupos de medidas iguales con cortes guillotina.
+     * Primero intenta colocar juntas las piezas del mismo grupo; después
+     * reutiliza los rectángulos sobrantes para los siguientes grupos.
+     */
+    /**
+     * Optimiza la colocación pieza por pieza.
+     * Prueba varios órdenes y selecciona el resultado que coloca más piezas,
+     * utiliza menos hojas y deja espacios libres más compactos.
+     */
     private function colocarPiezas(
         array $piezas,
         array &$hojas,
         array $configuracion
     ) {
-        $colocadas = [];
-        $noColocadas = [];
-
-
-        // ==========================================
-        // ORDENAR PIEZAS DE MAYOR A MENOR ÁREA
-        // ==========================================
-
-        usort(
-            $piezas,
+        // Se comparan dos enfoques: colocación individual y bloques de piezas
+        // idénticas. Ambos compiten con los mismos criterios y validaciones.
+        $estrategiasIndividuales = [
             function ($a, $b) {
+                return (($b['largo'] * $b['ancho']) <=> ($a['largo'] * $a['ancho']))
+                    ?: (max($b['largo'], $b['ancho']) <=> max($a['largo'], $a['ancho']));
+            },
+            function ($a, $b) {
+                return (max($b['largo'], $b['ancho']) <=> max($a['largo'], $a['ancho']))
+                    ?: (($b['largo'] * $b['ancho']) <=> ($a['largo'] * $a['ancho']));
+            },
+            function ($a, $b) {
+                return (min($b['largo'], $b['ancho']) <=> min($a['largo'], $a['ancho']))
+                    ?: (($b['largo'] * $b['ancho']) <=> ($a['largo'] * $a['ancho']));
+            },
+            function ($a, $b) {
+                return ($b['largo'] <=> $a['largo']) ?: ($b['ancho'] <=> $a['ancho']);
+            },
+            function ($a, $b) {
+                return ($b['ancho'] <=> $a['ancho']) ?: ($b['largo'] <=> $a['largo']);
+            },
+            function ($a, $b) {
+                return (($a['largo'] * $a['ancho']) <=> ($b['largo'] * $b['ancho']))
+                    ?: (max($a['largo'], $a['ancho']) <=> max($b['largo'], $b['ancho']));
+            },
+            function ($a, $b) {
+                return (max($a['largo'], $a['ancho']) <=> max($b['largo'], $b['ancho']))
+                    ?: (($a['largo'] * $a['ancho']) <=> ($b['largo'] * $b['ancho']));
+            },
+            function ($a, $b) {
+                return (min($a['largo'], $a['ancho']) <=> min($b['largo'], $b['ancho']))
+                    ?: (($b['largo'] * $b['ancho']) <=> ($a['largo'] * $a['ancho']));
+            },
+            function ($a, $b) {
+                return (($b['largo'] + $b['ancho']) <=> ($a['largo'] + $a['ancho']))
+                    ?: (($b['largo'] * $b['ancho']) <=> ($a['largo'] * $a['ancho']));
+            },
+        ];
 
-                $areaA =
-                    $a['largo'] * $a['ancho'];
+        $candidatos = [];
 
-                $areaB =
-                    $b['largo'] * $b['ancho'];
+        foreach ($estrategiasIndividuales as $comparador) {
+            $orden = array_values($piezas);
+            usort($orden, $comparador);
+            $candidatos[] = $this->empaquetarPiezasIndividuales(
+                $orden,
+                $hojas,
+                $configuracion
+            );
+        }
 
-                return $areaB <=> $areaA;
+        // El empaquetado por bloques solo agrupa piezas con el mismo material
+        // y exactamente las mismas orientaciones permitidas. Así no se viola
+        // la veta ni la restricción de giro de una pieza individual.
+        $grupos = $this->crearGruposParaEmpaquetado($piezas);
+
+        $estrategiasGrupos = [
+            function ($a, $b) {
+                return (($b['area'] * count($b['piezas'])) <=> ($a['area'] * count($a['piezas'])))
+                    ?: (max($b['orientaciones'][0]['largo'], $b['orientaciones'][0]['ancho'])
+                        <=> max($a['orientaciones'][0]['largo'], $a['orientaciones'][0]['ancho']));
+            },
+            function ($a, $b) {
+                return (max($b['orientaciones'][0]['largo'], $b['orientaciones'][0]['ancho'])
+                    <=> max($a['orientaciones'][0]['largo'], $a['orientaciones'][0]['ancho']))
+                    ?: (count($b['piezas']) <=> count($a['piezas']));
+            },
+            function ($a, $b) {
+                return (count($b['piezas']) <=> count($a['piezas']))
+                    ?: (($b['area'] * count($b['piezas'])) <=> ($a['area'] * count($a['piezas'])));
+            },
+            function ($a, $b) {
+                return (($a['area'] * count($a['piezas'])) <=> ($b['area'] * count($b['piezas'])))
+                    ?: (count($a['piezas']) <=> count($b['piezas']));
+            },
+        ];
+
+        foreach ($estrategiasGrupos as $comparador) {
+            $ordenGrupos = array_values($grupos);
+            usort($ordenGrupos, $comparador);
+            $candidatos[] = $this->empaquetarGruposGuillotina(
+                $ordenGrupos,
+                $hojas,
+                $configuracion
+            );
+        }
+
+        // Búsqueda global por combinaciones de hojas:
+        // vuelve a empaquetar TODAS las piezas usando subconjuntos de 1, 2
+        // y 3 hojas. Esto permite que piezas de una hoja anterior se
+        // redistribuyan en los espacios libres de otra hoja.
+        $hojasBusqueda = array_values($hojas);
+        usort($hojasBusqueda, function ($a, $b) {
+            $areaA = (float) $a['largo'] * (float) $a['ancho'];
+            $areaB = (float) $b['largo'] * (float) $b['ancho'];
+
+            return ($areaB <=> $areaA)
+                ?: ((int) $a['material_id'] <=> (int) $b['material_id']);
+        });
+
+        // Limitar la búsqueda para no disparar el tiempo de respuesta en
+        // inventarios con muchas hojas físicas.
+        $hojasBusqueda = array_slice($hojasBusqueda, 0, 16);
+        $limiteCombinaciones = 300;
+        $combinacionesGeneradas = 0;
+        $cantidadHojas = count($hojasBusqueda);
+
+        $agregarCombinaciones = function (
+            int $tamano,
+            int $inicio,
+            array $seleccion
+        ) use (
+            &$agregarCombinaciones,
+            &$candidatos,
+            &$combinacionesGeneradas,
+            $limiteCombinaciones,
+            $hojasBusqueda,
+            $piezas,
+            $configuracion
+        ) {
+            if ($combinacionesGeneradas >= $limiteCombinaciones) {
+                return;
             }
-        );
 
+            if (count($seleccion) === $tamano) {
+                $combinacionesGeneradas++;
 
-        // ==========================================
-        // ESPACIOS LIBRES DE CADA HOJA
-        // ==========================================
+                $ordenes = [
+                    function ($a, $b) {
+                        return (($b['largo'] * $b['ancho']) <=> ($a['largo'] * $a['ancho']))
+                            ?: (max($b['largo'], $b['ancho']) <=> max($a['largo'], $a['ancho']));
+                    },
+                    function ($a, $b) {
+                        return (max($b['largo'], $b['ancho']) <=> max($a['largo'], $a['ancho']))
+                            ?: (($b['largo'] * $b['ancho']) <=> ($a['largo'] * $a['ancho']));
+                    },
+                    function ($a, $b) {
+                        return (min($b['largo'], $b['ancho']) <=> min($a['largo'], $a['ancho']))
+                            ?: (($b['largo'] * $b['ancho']) <=> ($a['largo'] * $a['ancho']));
+                    },
+                ];
 
-        $espaciosPorHoja = [];
+                $hojasSeleccionadas = array_map(function ($indice) use ($hojasBusqueda) {
+                    return $hojasBusqueda[$indice];
+                }, $seleccion);
 
-        foreach ($hojas as $indice => $hoja) {
+                foreach ($ordenes as $comparador) {
+                    $orden = array_values($piezas);
+                    usort($orden, $comparador);
 
-            $espaciosPorHoja[$indice] = [
+                    $candidatos[] = $this->empaquetarPiezasIndividuales(
+                        $orden,
+                        $hojasSeleccionadas,
+                        $configuracion
+                    );
+                }
 
-                [
-                    'x' => 0,
-                    'y' => 0,
+                return;
+            }
 
-                    'largo' =>
-                    $hoja['largo'],
+            $faltan = $tamano - count($seleccion);
+            $ultimoInicio = count($hojasBusqueda) - $faltan;
 
-                    'ancho' =>
-                    $hoja['ancho'],
-                ]
+            for ($i = $inicio; $i <= $ultimoInicio; $i++) {
+                $nuevaSeleccion = $seleccion;
+                $nuevaSeleccion[] = $i;
+                $agregarCombinaciones($tamano, $i + 1, $nuevaSeleccion);
 
+                if ($combinacionesGeneradas >= $limiteCombinaciones) {
+                    return;
+                }
+            }
+        };
+
+        for ($tamano = 1; $tamano <= min(3, $cantidadHojas); $tamano++) {
+            $agregarCombinaciones($tamano, 0, []);
+
+            if ($combinacionesGeneradas >= $limiteCombinaciones) {
+                break;
+            }
+        }
+
+        $mejor = null;
+        $mejorScore = null;
+        $kerf = max(0.0, (float) ($configuracion['kerf'] ?? 0));
+
+        foreach ($candidatos as $candidato) {
+            // Un candidato geométricamente inválido nunca puede ganar.
+            if ($this->validarColocacion($candidato['colocadas'], $hojas, $kerf) !== []) {
+                continue;
+            }
+
+            $hojasUsadas = [];
+            foreach ($candidato['colocadas'] as $pieza) {
+                $hojasUsadas[$pieza['hoja_id'] . ':' . $pieza['hoja_numero']] = true;
+            }
+
+            $areaLibre = 0.0;
+            $areaRetalMayor = 0.0;
+            $concentracionRetales = 0.0;
+            $ladoCortoMayor = 0.0;
+            $cantidadRetales = 0;
+
+            // No contar tableros completos sin usar como "retales": no son
+            // sobrantes de corte y distorsionarían la comparación.
+            foreach ($candidato['sobrantes'] as $sobrante) {
+                $claveHoja = $sobrante['hoja_id'] . ':' . $sobrante['hoja_numero'];
+                if (!isset($hojasUsadas[$claveHoja])) {
+                    continue;
+                }
+
+                $area = (float) ($sobrante['area'] ?? 0);
+                $largoRetal = (float) ($sobrante['largo'] ?? 0);
+                $anchoRetal = (float) ($sobrante['ancho'] ?? 0);
+
+                if (
+                    $area <= 0 ||
+                    $largoRetal + 0.000001 < (float) $configuracion['dimension_minima_retal_cm'] ||
+                    $anchoRetal + 0.000001 < (float) $configuracion['dimension_minima_retal_cm']
+                ) {
+                    continue;
+                }
+
+                $ladoCorto = min($largoRetal, $anchoRetal);
+
+                $areaLibre += $area;
+                $areaRetalMayor = max($areaRetalMayor, $area);
+                $ladoCortoMayor = max($ladoCortoMayor, $ladoCorto);
+                $concentracionRetales += $area * $area;
+                $cantidadRetales++;
+            }
+
+            // Prioridad acordada:
+            // 1. Más piezas colocadas.
+            // 2. Menos tableros abiertos.
+            // 3. Mejor aprovechamiento/retales como desempate.
+            $score = [
+                count($candidato['colocadas']),
+                -count($candidato['no_colocadas']),
+                -count($hojasUsadas),
+                round($areaLibre, 3),
+                round($areaRetalMayor, 3),
+                round($concentracionRetales, 3),
+                round($ladoCortoMayor, 3),
+                -$cantidadRetales,
+            ];
+
+            if ($mejor === null || $score > $mejorScore) {
+                $mejor = $candidato;
+                $mejorScore = $score;
+            }
+        }
+
+        return $mejor ?? [
+            'colocadas' => [],
+            'no_colocadas' => array_map(function ($pieza) {
+                return [
+                    'pieza_id' => $pieza['id'],
+                    'numero' => $pieza['numero'],
+                    'etiqueta' => $pieza['etiqueta'],
+                    'largo' => $pieza['largo'],
+                    'ancho' => $pieza['ancho'],
+                    'material_id' => $pieza['material_id'],
+                ];
+            }, $piezas),
+            'sobrantes' => [],
+        ];
+    }
+
+    /**
+     * Construye grupos homogéneos para el empaquetado por bloques.
+     * Solo combina piezas con material y opciones de orientación idénticos.
+     */
+    private function crearGruposParaEmpaquetado(array $piezas): array
+    {
+        $grupos = [];
+
+        foreach ($piezas as $pieza) {
+            $orientaciones = $pieza['orientaciones'] ?? [[
+                'largo' => (float) $pieza['largo'],
+                'ancho' => (float) $pieza['ancho'],
+                'rotada' => false,
+            ]];
+
+            if ($orientaciones === []) {
+                continue;
+            }
+
+            $firmaOrientaciones = [];
+            foreach ($orientaciones as $orientacion) {
+                $firmaOrientaciones[] = [
+                    'largo' => round((float) $orientacion['largo'], 4),
+                    'ancho' => round((float) $orientacion['ancho'], 4),
+                    'rotada' => (bool) ($orientacion['rotada'] ?? false),
+                ];
+            }
+
+            $clave = (string) $pieza['material_id'] . '|' . json_encode($firmaOrientaciones);
+
+            if (!isset($grupos[$clave])) {
+                $grupos[$clave] = [
+                    'material_id' => $pieza['material_id'],
+                    'orientaciones' => $orientaciones,
+                    'area' => (float) $orientaciones[0]['largo']
+                        * (float) $orientaciones[0]['ancho'],
+                    'piezas' => [],
+                ];
+            }
+
+            $grupos[$clave]['piezas'][] = [
+                'id' => $pieza['id'],
+                'numero' => $pieza['numero'],
+                'etiqueta' => $pieza['etiqueta'],
+                'largo' => $pieza['largo'],
+                'ancho' => $pieza['ancho'],
+                'material_id' => $pieza['material_id'],
             ];
         }
 
+        return array_values($grupos);
+    }
+    private function empaquetarPiezasIndividuales(
+        array $piezas,
+        array $hojas,
+        array $configuracion
+    ): array {
+        $kerf = max(0.0, (float) ($configuracion['kerf'] ?? 0));
+        $espaciosPorHoja = [];
+        $colocadas = [];
+        $noColocadas = [];
+        $hojasConPiezas = [];
 
-        // ==========================================
-        // COLOCAR CADA PIEZA
-        // ==========================================
+        // Cuando todavía no hay una hoja abierta, priorizar la de mayor
+        // superficie. Esto evita iniciar en una hoja pequeña solo porque
+        // su primer encaje deja menos sobrante local.
+        usort($hojas, function ($a, $b) {
+            $areaA = (float) $a['largo'] * (float) $a['ancho'];
+            $areaB = (float) $b['largo'] * (float) $b['ancho'];
+
+            return ($areaB <=> $areaA)
+                ?: ((float) $b['largo'] <=> (float) $a['largo']);
+        });
+
+        foreach ($hojas as $i => $hoja) {
+            $espaciosPorHoja[$i] = [[
+                'x' => 0.0,
+                'y' => 0.0,
+                'largo' => (float) $hoja['largo'],
+                'ancho' => (float) $hoja['ancho'],
+            ]];
+        }
 
         foreach ($piezas as $pieza) {
+            $mejor = null;
+            $mejorScore = null;
+            $orientaciones = $pieza['orientaciones'] ?? [[
+                'largo' => (float) $pieza['largo'],
+                'ancho' => (float) $pieza['ancho'],
+                'rotada' => false,
+            ]];
 
-            $colocada = false;
-
-
-            foreach (
-                $pieza['orientaciones']
-                as $orientacion
-            ) {
-
-                foreach (
-                    $hojas as $indiceHoja => $hoja
+            foreach ($hojas as $iHoja => $hoja) {
+                if (
+                    !empty($configuracion['separar_materiales']) &&
+                    (int) $pieza['material_id'] !== (int) $hoja['material_id']
                 ) {
+                    continue;
+                }
 
-                    // ----------------------------------
-                    // MATERIAL
-                    // ----------------------------------
+                foreach ($orientaciones as $orientacion) {
+                    $largoPieza = (float) $orientacion['largo'];
+                    $anchoPieza = (float) $orientacion['ancho'];
 
-                    if (
-                        $configuracion['separar_materiales']
-                        &&
-                        $pieza['material_id']
-                        !=
-                        $hoja['material_id']
-                    ) {
-
-                        continue;
-                    }
-
-
-                    // ----------------------------------
-                    // ESPACIOS DE ESTA HOJA
-                    // ----------------------------------
-
-                    foreach (
-                        $espaciosPorHoja[$indiceHoja]
-                        as $indiceEspacio => $espacio
-                    ) {
-
-                        if (
-                            !$this->puedeColocarseEnEspacio(
-                                $orientacion,
-                                $espacio,
-                                $configuracion['kerf']
-                            )
-                        ) {
-
+                    foreach ($espaciosPorHoja[$iHoja] as $iEspacio => $espacio) {
+                        $restoLargo = (float) $espacio['largo'] - $largoPieza;
+                        $restoAncho = (float) $espacio['ancho'] - $anchoPieza;
+                        if ($restoLargo < -0.000001 || $restoAncho < -0.000001) {
                             continue;
                         }
 
+                        // Kerf requerido para separar esta pieza de los siguientes cortes.
+                        $libreDerecha = max(0.0, $restoLargo - ($restoLargo > 0.000001 ? $kerf : 0));
+                        $libreAbajo = max(0.0, $restoAncho - ($restoAncho > 0.000001 ? $kerf : 0));
+                        $areaLibreLocal = ($libreDerecha * (float) $espacio['ancho'])
+                            + ($largoPieza * $libreAbajo);
+                        $ladoCorto = min(abs($restoLargo), abs($restoAncho));
+                        $hojaNueva = empty($hojasConPiezas[$iHoja]) ? 1 : 0;
 
-                        // ----------------------------------
-                        // COLOCAR
-                        // ----------------------------------
+                        // Prioridad absoluta a reutilizar una hoja ya abierta.
+                        $areaHoja = (float) $hoja['largo'] * (float) $hoja['ancho'];
 
-                        $posicion = [
-
-                            'hoja_id' =>
-                            $hoja['id'],
-
-                            'hoja_numero' =>
-                            $hoja['numero'],
-
-                            'pieza_id' =>
-                            $pieza['id'],
-
-                            'numero' =>
-                            $pieza['numero'],
-
-                            'etiqueta' =>
-                            $pieza['etiqueta'],
-
-                            'material_id' =>
-                            $pieza['material_id'],
-
-                            'largo' =>
-                            $orientacion['largo'],
-
-                            'ancho' =>
-                            $orientacion['ancho'],
-
-                            'x' =>
-                            $espacio['x'],
-
-                            'y' =>
-                            $espacio['y'],
-
-                            'rotada' =>
-                            $orientacion['rotada'],
-
+                        $score = [
+                            -$hojaNueva,
+                            // Si ambas opciones requieren abrir hoja, elegir la mayor.
+                            $hojaNueva ? round($areaHoja, 4) : 0,
+                            -round($areaLibreLocal, 4),
+                            -round($ladoCorto, 4),
+                            -round(max($restoLargo, $restoAncho), 4),
                         ];
 
-
-                        $colocadas[] =
-                            $posicion;
-
-
-                        // ----------------------------------
-                        // DIVIDIR ESPACIO
-                        // ----------------------------------
-
-                        $espaciosPorHoja[$indiceHoja] =
-                            $this->dividirEspacio(
-                                $espaciosPorHoja[$indiceHoja],
-                                $indiceEspacio,
-                                $orientacion,
-                                $configuracion['kerf']
-                            );
-
-
-                        $colocada = true;
-
-                        break 3;
+                        if ($mejorScore === null || $score > $mejorScore) {
+                            $mejorScore = $score;
+                            $mejor = [
+                                'hoja' => $iHoja,
+                                'espacio' => $iEspacio,
+                                'rect' => $espacio,
+                                'orientacion' => $orientacion,
+                                'area_libre' => $areaLibreLocal,
+                            ];
+                        }
                     }
                 }
             }
 
-
-            if (!$colocada) {
-
+            if ($mejor === null) {
                 $noColocadas[] = [
+                    'pieza_id' => $pieza['id'],
+                    'numero' => $pieza['numero'],
+                    'etiqueta' => $pieza['etiqueta'],
+                    'largo' => $pieza['largo'],
+                    'ancho' => $pieza['ancho'],
+                    'material_id' => $pieza['material_id'],
+                ];
+                continue;
+            }
 
-                    'pieza_id' =>
-                    $pieza['id'],
+            $iHoja = $mejor['hoja'];
+            $rect = $mejor['rect'];
+            $orientacion = $mejor['orientacion'];
+            $largoPieza = (float) $orientacion['largo'];
+            $anchoPieza = (float) $orientacion['ancho'];
 
-                    'numero' =>
-                    $pieza['numero'],
+            $colocadas[] = [
+                'hoja_id' => $hojas[$iHoja]['id'],
+                'hoja_numero' => $hojas[$iHoja]['numero'],
+                'pieza_id' => $pieza['id'],
+                'numero' => $pieza['numero'],
+                'etiqueta' => $pieza['etiqueta'],
+                'material_id' => $pieza['material_id'],
+                'largo' => $largoPieza,
+                'ancho' => $anchoPieza,
+                'x' => round((float) $rect['x'], 4),
+                'y' => round((float) $rect['y'], 4),
+                'rotada' => (bool) ($orientacion['rotada'] ?? false),
+            ];
+            $hojasConPiezas[$iHoja] = true;
 
-                    'etiqueta' =>
-                    $pieza['etiqueta'],
+            unset($espaciosPorHoja[$iHoja][$mejor['espacio']]);
+            $nuevos = array_values($espaciosPorHoja[$iHoja]);
 
-                    'largo' =>
-                    $pieza['largo'],
+            // División guillotina: sobrante derecho de altura completa.
+            $restoDerecha = (float) $rect['largo'] - $largoPieza - $kerf;
+            if ($restoDerecha > 0.000001) {
+                $nuevos[] = [
+                    'x' => (float) $rect['x'] + $largoPieza + $kerf,
+                    'y' => (float) $rect['y'],
+                    'largo' => $restoDerecha,
+                    'ancho' => (float) $rect['ancho'],
+                ];
+            }
 
-                    'ancho' =>
-                    $pieza['ancho'],
+            // Sobrante inferior limitado al ancho de la pieza: no se traslapa.
+            $restoAbajo = (float) $rect['ancho'] - $anchoPieza - $kerf;
+            if ($restoAbajo > 0.000001) {
+                $nuevos[] = [
+                    'x' => (float) $rect['x'],
+                    'y' => (float) $rect['y'] + $anchoPieza + $kerf,
+                    'largo' => $largoPieza,
+                    'ancho' => $restoAbajo,
+                ];
+            }
 
-                    'material_id' =>
-                    $pieza['material_id'],
+            $espaciosPorHoja[$iHoja] = $nuevos;
+        }
 
+        $sobrantes = [];
+        foreach ($espaciosPorHoja as $iHoja => $espacios) {
+            foreach ($espacios as $espacio) {
+                $largoLibre = round(max(0.0, (float) $espacio['largo']), 2);
+                $anchoLibre = round(max(0.0, (float) $espacio['ancho']), 2);
+                if ($largoLibre <= 0 || $anchoLibre <= 0) {
+                    continue;
+                }
+                $sobrantes[] = [
+                    'hoja_id' => $hojas[$iHoja]['id'],
+                    'hoja_numero' => $hojas[$iHoja]['numero'],
+                    'material_id' => $hojas[$iHoja]['material_id'],
+                    'x' => round((float) $espacio['x'], 2),
+                    'y' => round((float) $espacio['y'], 2),
+                    'largo' => $largoLibre,
+                    'ancho' => $anchoLibre,
+                    'area' => round($largoLibre * $anchoLibre, 2),
                 ];
             }
         }
 
+        return [
+            'colocadas' => $colocadas,
+            'no_colocadas' => $noColocadas,
+            'sobrantes' => $sobrantes,
+        ];
+    }
+
+    private function empaquetarGruposGuillotina(
+        array $grupos,
+        array $hojas,
+        array $configuracion
+    ): array {
+        $kerf = max(0.0, (float) ($configuracion['kerf'] ?? 0));
+        $espaciosPorHoja = [];
+        $colocadas = [];
+        $noColocadas = [];
+        $areaPorHoja = [];
+
+        foreach ($hojas as $i => $hoja) {
+            $espaciosPorHoja[$i] = [[
+                'x' => 0.0,
+                'y' => 0.0,
+                'largo' => (float) $hoja['largo'],
+                'ancho' => (float) $hoja['ancho'],
+            ]];
+            $areaPorHoja[$i] = 0.0;
+        }
+
+        $desperdicioLocal = 0.0;
+
+        foreach ($grupos as $grupo) {
+            $pendientes = $grupo['piezas'];
+
+            while (count($pendientes) > 0) {
+                $mejor = null;
+                $mejorScore = null;
+
+                foreach ($hojas as $iHoja => $hoja) {
+                    if (
+                        !empty($configuracion['separar_materiales']) &&
+                        (int) $grupo['material_id'] !== (int) $hoja['material_id']
+                    ) continue;
+
+                    foreach ($grupo['orientaciones'] as $orientacion) {
+                        $largoPieza = (float) $orientacion['largo'];
+                        $anchoPieza = (float) $orientacion['ancho'];
+
+                        foreach ($espaciosPorHoja[$iHoja] as $iEspacio => $espacio) {
+                            $maxColumnas = (int) floor(
+                                (((float) $espacio['largo']) + $kerf + 0.000001) /
+                                max(0.000001, $largoPieza + $kerf)
+                            );
+                            $maxFilas = (int) floor(
+                                (((float) $espacio['ancho']) + $kerf + 0.000001) /
+                                max(0.000001, $anchoPieza + $kerf)
+                            );
+
+                            if ($maxColumnas < 1 || $maxFilas < 1) continue;
+
+                            $cantidad = min(count($pendientes), $maxColumnas * $maxFilas);
+                            if ($cantidad < 1) continue;
+
+                            // Compara distribuciones con filas más llenas y columnas más llenas.
+                            $columnasPatron1 = min($maxColumnas, $cantidad);
+                            $filasObjetivoPatron2 = min($maxFilas, $cantidad);
+                            $columnasPatron2 = (int) ceil($cantidad / $filasObjetivoPatron2);
+
+                            // Ambos patrones se recorren por filas. Las filas reales
+                            // siempre se calculan a partir de las columnas y la cantidad
+                            // colocada; no se reserva una fila vacía que no contiene piezas.
+                            $patrones = [
+                                [
+                                    'columnas' => $columnasPatron1,
+                                    'filas' => (int) ceil($cantidad / $columnasPatron1),
+                                ],
+                                [
+                                    'columnas' => $columnasPatron2,
+                                    'filas' => (int) ceil($cantidad / $columnasPatron2),
+                                ],
+                            ];
+
+                            foreach ($patrones as $patron) {
+                                $cols = $patron['columnas'];
+                                $rows = $patron['filas'];
+                                if ($cols > $maxColumnas || $rows > $maxFilas || ($cols * $rows) < $cantidad) continue;
+
+                                $bloqueLargo = ($cols * $largoPieza) + (max(0, $cols - 1) * $kerf);
+                                $bloqueAncho = ($rows * $anchoPieza) + (max(0, $rows - 1) * $kerf);
+
+                                if (
+                                    $bloqueLargo > (float) $espacio['largo'] + 0.000001 ||
+                                    $bloqueAncho > (float) $espacio['ancho'] + 0.000001
+                                ) continue;
+
+                                $areaSobrante = ((float) $espacio['largo'] * (float) $espacio['ancho'])
+                                    - ($bloqueLargo * $bloqueAncho);
+                                $areaHoja = (float) $hoja['largo'] * (float) $hoja['ancho'];
+                                $cargaProyectada = $areaPorHoja[$iHoja]
+                                    + ($cantidad * $grupo['area']);
+                                $hojaNueva = $areaPorHoja[$iHoja] <= 0.000001 ? 1 : 0;
+
+                                // Prioridad de colocación:
+                                // 1. Reutilizar primero una hoja que ya tiene piezas.
+                                // 2. Dentro de las hojas usadas, colocar la mayor cantidad posible.
+                                // 3. Elegir el bloque que conserva sobrantes más aprovechables.
+                                // Así evitamos abrir una hoja nueva para un grupo completo
+                                // cuando sus piezas todavía caben en retales de hojas anteriores.
+                                $score = [
+                                    -$hojaNueva,
+                                    $cantidad,
+                                    // Al abrir una hoja, preferir la de mayor superficie.
+                                    $hojaNueva ? round($areaHoja, 4) : 0,
+                                    -round($areaSobrante, 4),
+                                    -round(abs(($areaHoja - $cargaProyectada)), 4),
+                                    -$rows,
+                                ];
+
+                                if ($mejorScore === null || $score > $mejorScore) {
+                                    $mejorScore = $score;
+                                    $mejor = [
+                                        'hoja' => $iHoja,
+                                        'espacio' => $iEspacio,
+                                        'rectangulo' => $espacio,
+                                        'orientacion' => $orientacion,
+                                        'cantidad' => $cantidad,
+                                        'columnas' => $cols,
+                                        'filas' => $rows,
+                                        'bloque_largo' => $bloqueLargo,
+                                        'bloque_ancho' => $bloqueAncho,
+                                        'area_sobrante' => $areaSobrante,
+                                    ];
+                                }
+                            }
+                        }
+                    }
+                }
+
+                if ($mejor === null) {
+                    foreach ($pendientes as $p) {
+                        $noColocadas[] = [
+                            'pieza_id' => $p['id'],
+                            'numero' => $p['numero'],
+                            'etiqueta' => $p['etiqueta'],
+                            'largo' => $p['largo'],
+                            'ancho' => $p['ancho'],
+                            'material_id' => $p['material_id'],
+                        ];
+                    }
+                    break;
+                }
+
+                $iHoja = $mejor['hoja'];
+                $rect = $mejor['rectangulo'];
+                $ori = $mejor['orientacion'];
+                $largoPieza = (float) $ori['largo'];
+                $anchoPieza = (float) $ori['ancho'];
+                $cols = $mejor['columnas'];
+                $bloqueLargo = $mejor['bloque_largo'];
+                $bloqueAncho = $mejor['bloque_ancho'];
+                $cantidad = $mejor['cantidad'];
+
+                for ($n = 0; $n < $cantidad; $n++) {
+                    $fila = (int) floor($n / $cols);
+                    $columna = $n % $cols;
+                    $pieza = array_shift($pendientes);
+
+                    $colocadas[] = [
+                        'hoja_id' => $hojas[$iHoja]['id'],
+                        'hoja_numero' => $hojas[$iHoja]['numero'],
+                        'pieza_id' => $pieza['id'],
+                        'numero' => $pieza['numero'],
+                        'etiqueta' => $pieza['etiqueta'],
+                        'material_id' => $pieza['material_id'],
+                        'largo' => $largoPieza,
+                        'ancho' => $anchoPieza,
+                        'x' => round((float) $rect['x'] + ($columna * ($largoPieza + $kerf)), 4),
+                        'y' => round((float) $rect['y'] + ($fila * ($anchoPieza + $kerf)), 4),
+                        'rotada' => $ori['rotada'],
+                    ];
+                    $areaPorHoja[$iHoja] += $grupo['area'];
+                }
+
+                $desperdicioLocal += max(0.0, $mejor['area_sobrante']);
+
+                // Quitar el espacio utilizado y crear sobrantes rectangulares sin traslape.
+                unset($espaciosPorHoja[$iHoja][$mejor['espacio']]);
+                $nuevos = array_values($espaciosPorHoja[$iHoja]);
+
+                $restoDerecha = (float) $rect['largo'] - $bloqueLargo - $kerf;
+                if ($restoDerecha > 0.000001) {
+                    $nuevos[] = [
+                        'x' => (float) $rect['x'] + $bloqueLargo + $kerf,
+                        'y' => (float) $rect['y'],
+                        'largo' => $restoDerecha,
+                        'ancho' => (float) $rect['ancho'],
+                    ];
+                }
+
+                // Si la última fila quedó incompleta, conservar el hueco
+                // horizontal como un espacio independiente para otros grupos.
+                $piezasUltimaFila = $cantidad % $cols;
+                if ($piezasUltimaFila > 0 && $mejor['filas'] > 1) {
+                    $inicioHueco = (float) $rect['x']
+                        + ($piezasUltimaFila * ($largoPieza + $kerf));
+                    $anchoHueco = (float) $rect['x'] + $bloqueLargo - $inicioHueco;
+                    if ($anchoHueco > 0.000001) {
+                        $nuevos[] = [
+                            'x' => $inicioHueco,
+                            'y' => (float) $rect['y'] + (($mejor['filas'] - 1) * ($anchoPieza + $kerf)),
+                            'largo' => $anchoHueco,
+                            'ancho' => $anchoPieza,
+                        ];
+                    }
+                }
+
+                $restoAbajo = (float) $rect['ancho'] - $bloqueAncho - $kerf;
+                if ($restoAbajo > 0.000001) {
+                    $nuevos[] = [
+                        'x' => (float) $rect['x'],
+                        'y' => (float) $rect['y'] + $bloqueAncho + $kerf,
+                        'largo' => $bloqueLargo,
+                        'ancho' => $restoAbajo,
+                    ];
+                }
+
+                $espaciosPorHoja[$iHoja] = $nuevos;
+            }
+        }
+
+        // Exponer cada retazo rectangular con sus dimensiones y coordenadas.
+        // Los rectángulos se mantienen separados por hoja y no se suman entre sí.
+        $sobrantes = [];
+        foreach ($espaciosPorHoja as $iHoja => $espacios) {
+            foreach ($espacios as $espacio) {
+                $largoLibre = round(max(0.0, (float) $espacio['largo']), 2);
+                $anchoLibre = round(max(0.0, (float) $espacio['ancho']), 2);
+                if ($largoLibre <= 0 || $anchoLibre <= 0) {
+                    continue;
+                }
+                $sobrantes[] = [
+                    'hoja_id' => $hojas[$iHoja]['id'],
+                    'hoja_numero' => $hojas[$iHoja]['numero'],
+                    'material_id' => $hojas[$iHoja]['material_id'],
+                    'x' => round((float) $espacio['x'], 2),
+                    'y' => round((float) $espacio['y'], 2),
+                    'largo' => $largoLibre,
+                    'ancho' => $anchoLibre,
+                    'area' => round($largoLibre * $anchoLibre, 2),
+                ];
+            }
+        }
+        usort($sobrantes, function ($a, $b) {
+            return ($b['area'] <=> $a['area'])
+                ?: ($b['largo'] <=> $a['largo'])
+                ?: ($b['ancho'] <=> $a['ancho']);
+        });
 
         return [
-
-            'colocadas' =>
-            $colocadas,
-
-            'no_colocadas' =>
-            $noColocadas,
-
+            'colocadas' => $colocadas,
+            'no_colocadas' => $noColocadas,
+            'sobrantes' => $sobrantes,
+            '_desperdicio_local' => $desperdicioLocal,
         ];
     }
 
@@ -1184,7 +1808,9 @@ class CutListOptimizer
 
     private function calcularEstadisticas(
         array $colocadas,
-        array $hojas
+        array $hojas,
+        array $sobrantes = [],
+        float $dimensionMinimaRetal = 20.0
     ): array {
 
         // ==========================================
@@ -1205,8 +1831,12 @@ class CutListOptimizer
         foreach ($hojas as $hoja) {
 
             $piezasDeEstaHoja = [];
+            $retalesDeEstaHoja = [];
 
             $areaPiezas = 0;
+            $areaRetales = 0;
+            $areaRetalesRecuperables = 0.0;
+            $cantidadRetalesRecuperables = 0;
 
 
             // ======================================
@@ -1267,6 +1897,50 @@ class CutListOptimizer
 
 
             // ======================================
+            // RETALES DE ESTA HOJA
+            // ======================================
+
+            foreach ($sobrantes as $sobrante) {
+                if (
+                    (int) ($sobrante['hoja_id'] ?? 0) !== (int) $hoja['id'] ||
+                    (int) ($sobrante['hoja_numero'] ?? 0) !== (int) $hoja['numero']
+                ) {
+                    continue;
+                }
+
+                $largoRetal = max(0.0, (float) ($sobrante['largo'] ?? 0));
+                $anchoRetal = max(0.0, (float) ($sobrante['ancho'] ?? 0));
+                $areaRetal = round($largoRetal * $anchoRetal, 2);
+
+                if ($largoRetal <= 0 || $anchoRetal <= 0 || $areaRetal <= 0) {
+                    continue;
+                }
+
+                $recuperable = (
+                    $largoRetal + 0.000001 >= $dimensionMinimaRetal &&
+                    $anchoRetal + 0.000001 >= $dimensionMinimaRetal
+                );
+
+                $retalesDeEstaHoja[] = [
+                    'x' => round((float) ($sobrante['x'] ?? 0), 2),
+                    'y' => round((float) ($sobrante['y'] ?? 0), 2),
+                    'largo' => round($largoRetal, 2),
+                    'ancho' => round($anchoRetal, 2),
+                    'area' => $areaRetal,
+                    'recuperable' => $recuperable,
+                    'motivo_no_recuperable' => $recuperable
+                        ? null
+                        : 'Una de sus dimensiones es menor que ' . round($dimensionMinimaRetal, 2) . ' cm.',
+                ];
+                $areaRetales += $areaRetal;
+
+                if ($recuperable) {
+                    $areaRetalesRecuperables += $areaRetal;
+                    $cantidadRetalesRecuperables++;
+                }
+            }
+
+            // ======================================
             // SI LA HOJA NO SE UTILIZÓ
             // ======================================
 
@@ -1288,9 +1962,12 @@ class CutListOptimizer
             // DESPERDICIO
             // ======================================
 
-            $areaDesperdicio =
-                $areaHoja -
-                $areaPiezas;
+            // El desperdicio es el área que no quedó dentro de piezas
+            // ni dentro de rectángulos libres recuperables.
+            $areaDesperdicio = max(
+                0.0,
+                $areaHoja - $areaPiezas - $areaRetales
+            );
 
 
             // ======================================
@@ -1351,6 +2028,24 @@ class CutListOptimizer
                 'area_piezas' =>
                 $areaPiezas,
 
+                'area_retales' =>
+                round($areaRetales, 2),
+
+                'cantidad_retales' =>
+                count($retalesDeEstaHoja),
+
+                'cantidad_retales_recuperables' =>
+                $cantidadRetalesRecuperables,
+
+                'area_retales_recuperables' =>
+                round($areaRetalesRecuperables, 2),
+
+                'dimension_minima_retal_cm' =>
+                round($dimensionMinimaRetal, 2),
+
+                'retales' =>
+                $retalesDeEstaHoja,
+
                 'area_desperdicio' =>
                 $areaDesperdicio,
 
@@ -1387,9 +2082,22 @@ class CutListOptimizer
         // TOTALES
         // ==========================================
 
-        $areaDesperdicioTotal =
-            $areaHojasTotal -
-            $areaPiezasTotal;
+        $areaRetalesTotal = 0.0;
+        $cantidadRetalesTotal = 0;
+        $areaRetalesRecuperablesTotal = 0.0;
+        $cantidadRetalesRecuperablesTotal = 0;
+
+        foreach ($detalleHojas as $detalle) {
+            $areaRetalesTotal += (float) ($detalle['area_retales'] ?? 0);
+            $cantidadRetalesTotal += (int) ($detalle['cantidad_retales'] ?? 0);
+            $areaRetalesRecuperablesTotal += (float) ($detalle['area_retales_recuperables'] ?? 0);
+            $cantidadRetalesRecuperablesTotal += (int) ($detalle['cantidad_retales_recuperables'] ?? 0);
+        }
+
+        $areaDesperdicioTotal = max(
+            0.0,
+            $areaHojasTotal - $areaPiezasTotal - $areaRetalesTotal
+        );
 
 
         $porcentajeAprovechamientoTotal = 0;
@@ -1423,6 +2131,21 @@ class CutListOptimizer
 
             'area_piezas' =>
             $areaPiezasTotal,
+
+            'area_retales' =>
+            round($areaRetalesTotal, 2),
+
+            'cantidad_retales_recuperables' =>
+            $cantidadRetalesRecuperablesTotal,
+
+            'area_retales_recuperables' =>
+            round($areaRetalesRecuperablesTotal, 2),
+
+            'dimension_minima_retal_cm' =>
+            round($dimensionMinimaRetal, 2),
+
+            'cantidad_retales' =>
+            $cantidadRetalesTotal,
 
             'area_desperdicio' =>
             $areaDesperdicioTotal,
@@ -3726,6 +4449,136 @@ class CutListOptimizer
         ];
     }
 
+    /**
+     * Convierte los árboles recursivos de las hojas en una lista de cortes
+     * ordenada en preorden: primero se realiza el corte del bloque padre y
+     * después se procesan sus sub-bloques de izquierda a derecha / arriba abajo.
+     *
+     * Los nodos tipo "bloque" indican que el árbol no encontró una división
+     * guillotina completa para esa zona; se reportan como pendientes de revisión.
+     */
+    private function generarListaCortesOrdenada(array $bloquesRecursivos): array
+    {
+        $resultado = [];
+
+        foreach ($bloquesRecursivos as $bloqueHoja) {
+            $cortes = [];
+            $bloquesPendientes = [];
+            $contador = 0;
+
+            $recorrer = function (
+                array $nodo,
+                string $ruta = 'Tablero'
+            ) use (&$recorrer, &$cortes, &$bloquesPendientes, &$contador) {
+                $tipo = $nodo['tipo'] ?? '';
+
+                if ($tipo === 'corte_vertical' || $tipo === 'corte_horizontal') {
+                    $contador++;
+
+                    $direccion = $nodo['corte']['direccion'] ?? (
+                        $tipo === 'corte_vertical' ? 'vertical' : 'horizontal'
+                    );
+
+                    $posicion = (float) ($nodo['corte']['posicion'] ?? 0);
+                    $origenX = (float) ($nodo['x'] ?? 0);
+                    $origenY = (float) ($nodo['y'] ?? 0);
+                    $largoBloque = (float) ($nodo['largo'] ?? 0);
+                    $anchoBloque = (float) ($nodo['ancho'] ?? 0);
+                    $longitud = (float) ($nodo['corte']['longitud'] ?? (
+                        $direccion === 'vertical' ? $anchoBloque : $largoBloque
+                    ));
+
+                    $cortes[] = [
+                        'orden' => $contador,
+                        'ruta' => $ruta,
+                        'tipo' => $direccion,
+                        'descripcion' => $direccion === 'vertical'
+                            ? 'Corte vertical (a lo ancho del tablero)'
+                            : 'Corte horizontal (a lo largo del tablero)',
+                        // Coordenada absoluta desde la esquina inferior/izquierda
+                        // del tablero, y distancia desde el borde del bloque actual.
+                        'posicion' => round($posicion, 2),
+                        'distancia_borde_bloque' => round(
+                            $direccion === 'vertical'
+                                ? $posicion - $origenX
+                                : $posicion - $origenY,
+                            2
+                        ),
+                        'desde_x' => round(
+                            $direccion === 'vertical' ? $posicion : $origenX,
+                            2
+                        ),
+                        'desde_y' => round(
+                            $direccion === 'vertical' ? $origenY : $posicion,
+                            2
+                        ),
+                        'hasta_x' => round(
+                            $direccion === 'vertical' ? $posicion : $origenX + $largoBloque,
+                            2
+                        ),
+                        'hasta_y' => round(
+                            $direccion === 'vertical' ? $origenY + $anchoBloque : $posicion,
+                            2
+                        ),
+                        'longitud' => round($longitud, 2),
+                        'kerf' => round((float) ($nodo['corte']['kerf'] ?? 0), 2),
+                        'bloque' => [
+                            'x' => round($origenX, 2),
+                            'y' => round($origenY, 2),
+                            'largo' => round($largoBloque, 2),
+                            'ancho' => round($anchoBloque, 2),
+                        ],
+                    ];
+
+                    // El orden físico es: corte padre, sub-bloque izquierdo/superior,
+                    // y después sub-bloque derecho/inferior.
+                    foreach (['izquierda', 'arriba', 'derecha', 'abajo'] as $rama) {
+                        if (isset($nodo[$rama]) && is_array($nodo[$rama])) {
+                            $nombreRama = [
+                                'izquierda' => 'lado izquierdo',
+                                'derecha' => 'lado derecho',
+                                'arriba' => 'parte superior',
+                                'abajo' => 'parte inferior',
+                            ][$rama];
+
+                            $recorrer($nodo[$rama], $ruta . ' > ' . $nombreRama);
+                        }
+                    }
+
+                    return;
+                }
+
+                if ($tipo === 'bloque') {
+                    $piezas = $nodo['piezas'] ?? [];
+                    $bloquesPendientes[] = [
+                        'ruta' => $ruta,
+                        'x' => round((float) ($nodo['x'] ?? 0), 2),
+                        'y' => round((float) ($nodo['y'] ?? 0), 2),
+                        'largo' => round((float) ($nodo['largo'] ?? 0), 2),
+                        'ancho' => round((float) ($nodo['ancho'] ?? 0), 2),
+                        'cantidad_piezas' => count($piezas),
+                        'motivo' => 'El algoritmo no encontró una división guillotina completa para este bloque.',
+                    ];
+                }
+            };
+
+            if (isset($bloqueHoja['arbol']) && is_array($bloqueHoja['arbol'])) {
+                $recorrer($bloqueHoja['arbol']);
+            }
+
+            $resultado[] = [
+                'hoja_id' => $bloqueHoja['hoja_id'] ?? null,
+                'hoja_numero' => $bloqueHoja['hoja_numero'] ?? null,
+                'cantidad_cortes' => count($cortes),
+                'cortes' => $cortes,
+                'lista_completa' => count($bloquesPendientes) === 0,
+                'bloques_pendientes_revision' => $bloquesPendientes,
+            ];
+        }
+
+        return $resultado;
+    }
+
     private function detectarBloquesRecursivos(
         array $colocadas,
         float $x,
@@ -3861,6 +4714,7 @@ class CutListOptimizer
                             'direccion' => 'vertical',
                             'posicion' => $posicionX,
                             'longitud' => $ancho,
+                            'kerf' => $kerf,
                         ],
 
                         'izquierda' =>
@@ -3963,6 +4817,7 @@ class CutListOptimizer
                             'direccion' => 'horizontal',
                             'posicion' => $posicionY,
                             'longitud' => $largo,
+                            'kerf' => $kerf,
                         ],
 
                         'arriba' =>

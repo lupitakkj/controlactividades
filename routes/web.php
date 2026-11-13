@@ -22,6 +22,9 @@ use App\Http\Controllers\PedidosTerminadosController;
 use App\Http\Controllers\ProduccionProductoController;
 use App\Http\Controllers\ProveedorController;
 use App\Http\Controllers\ReporteEntradasController;
+use App\Http\Controllers\ResumenSemanalController;
+use App\Http\Controllers\RutaClaveController;
+use App\Http\Controllers\RutaFabricacionController;
 use App\Http\Controllers\TicketCalidadController;
 use App\Models\Partida;
 use Illuminate\Support\Facades\DB;
@@ -29,6 +32,11 @@ use Illuminate\Support\Facades\DB;
 Route::redirect('/', '/login');
 
 Route::middleware('auth')->group(function () {
+    Route::get('/resumen-semanal', [ResumenSemanalController::class, 'show'])
+        ->name('resumen-semanal.show');
+    Route::post('/resumen-semanal/visto', [ResumenSemanalController::class, 'visto'])
+        ->name('resumen-semanal.visto');
+
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
@@ -124,6 +132,10 @@ Route::middleware('auth')->group(function () {
         ControlOperativoController::class,
         'index'
     ])->name('control.operativo');
+    Route::post('/control-operativo/exportar', [
+        ControlOperativoController::class,
+        'exportar'
+    ])->name('control-operativo.exportar');
 
     Route::get('/prueba-despiece', function () {
 
@@ -159,6 +171,10 @@ Route::middleware('auth')->group(function () {
         DespieceController::class,
         'guardarProceso'
     ])->name('despiece.proceso.guardar');
+    Route::get(
+        '/despiece/exportar',
+        [DespieceController::class, 'exportar']
+    )->name('despiece.exportar');
 
     Route::get('/prueba-avance-pedido/{pedido}', function ($pedidoNo) {
 
@@ -182,6 +198,11 @@ Route::middleware('auth')->group(function () {
         PedidosTerminadosController::class,
         'index'
     ])->name('pedidos.terminados');
+
+    Route::get('/pedidos-terminados/{pedido}', [
+        PedidosTerminadosController::class,
+        'show'
+    ])->name('pedidos.terminados.show');
 
 
     Route::patch('/control-operativo/{pedido}/fecha-produccion', [
@@ -226,6 +247,11 @@ Route::middleware('auth')->group(function () {
         ControlOperativoController::class,
         'actualizarPrioridad'
     ])->name('control-operativo.prioridad');
+
+    Route::patch('/control-operativo/{pedido}/abastecimiento', [
+        ControlOperativoController::class,
+        'actualizarAbastecimiento'
+    ])->name('control-operativo.abastecimiento');
 
     Route::patch('/control-operativo/{pedido}/estado', [
         ControlOperativoController::class,
@@ -370,7 +396,39 @@ Route::middleware('auth')->group(function () {
     Route::patch('/control-operativo/{pedido}/resultado-entrega', [ControlOperativoController::class, 'actualizarResultadoEntrega'])
         ->name('control-operativo.resultado-entrega');
     Route::post('/salidas-almacen/{salida}/entregar', [AlmacenSalidaController::class, 'confirmarEntrega'])
-    ->name('almacen-salidas.entregar');
+        ->name('almacen-salidas.entregar');
+
+
+    Route::prefix('rutas-fabricacion')->name('rutas-fabricacion.')->group(function () {
+        Route::get('/', [RutaFabricacionController::class, 'index'])->name('index');
+        Route::get('/crear', [RutaFabricacionController::class, 'create'])->name('create');
+        Route::post('/', [RutaFabricacionController::class, 'store'])->name('store');
+
+        // Seguimiento: declarar antes de las rutas dinámicas.
+        Route::get('/seguimiento', [RutaClaveController::class, 'seguimientoIndex'])
+            ->name('seguimiento');
+
+        Route::get('/seguimiento/{ruta}', [RutaClaveController::class, 'seguimientoRuta'])
+            ->name('seguimiento.detalle');
+
+        Route::get('/claves', [RutaClaveController::class, 'index'])->name('claves');
+        Route::post('/claves', [RutaClaveController::class, 'guardarClave'])->name('claves.guardar');
+        Route::delete('/claves/{regla}', [RutaClaveController::class, 'eliminarClave'])->name('claves.eliminar');
+
+        Route::post('/claves/previsualizar', [RutaClaveController::class, 'previsualizarClave'])
+            ->name('claves.previsualizar');
+        Route::post('/claves/confirmar', [RutaClaveController::class, 'confirmarSincronizacion'])
+            ->name('claves.confirmar');
+
+        Route::get('/asignar', [RutaClaveController::class, 'asignarIndex'])->name('asignar');
+        Route::post('/asignar/{partida}', [RutaClaveController::class, 'asignarManual'])
+            ->name('asignar.guardar');
+
+        Route::get('/{ruta}/editar', [RutaFabricacionController::class, 'edit'])->name('edit');
+        Route::put('/{ruta}', [RutaFabricacionController::class, 'update'])->name('update');
+        Route::post('/{ruta}/duplicar', [RutaFabricacionController::class, 'duplicate'])->name('duplicate');
+        Route::patch('/{ruta}/estado', [RutaFabricacionController::class, 'toggle'])->name('toggle');
+    });
 });
 
 require __DIR__ . '/auth.php';
@@ -552,4 +610,14 @@ Route::get('/prueba-archivos-ticket/{ticketId}', function ($ticketId) {
             'mensaje' => $e->getMessage(),
         ], 500);
     }
+});
+
+Route::get('/diagnostico-despiece-ruta', function () {
+    return response()->json([
+        'ruta_exportar' => collect(
+            app('router')->getRoutes()
+        )->contains(function ($route) {
+            return $route->getName() === 'despiece.exportar';
+        }),
+    ]);
 });

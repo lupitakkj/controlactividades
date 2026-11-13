@@ -580,7 +580,8 @@
                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
 
                     {{-- PLANEACIÓN SEMANAL --}}
-                    <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                    @fragment('planeacion-semanal')
+                    <div id="planeacion-semanal" class="flex flex-col scroll-mt-4 bg-white rounded-xl shadow-sm border border-gray-200 p-6">
 
                         <div class="flex items-center justify-between mb-5">
                             <div>
@@ -588,8 +589,14 @@
                                     Planeación semanal
                                 </h2>
 
-                                <p class="text-sm text-gray-500 mt-1">
-                                    Meta semanal según fecha de producción
+                                <p class="inline-block mt-1 rounded-md bg-blue-50 px-2 py-1 text-xs text-blue-800">
+                                    <strong>{{ match ($offsetSemana) {
+                                        -1 => 'Semana anterior',
+                                        0 => 'Semana actual',
+                                        1 => 'Semana siguiente',
+                                        default => 'Semana ' . $inicioSemanaPlaneacion->isoWeek,
+                                    } }}</strong>
+                                    · {{ $inicioSemanaPlaneacion->format('d/m/Y') }} al {{ $finSemanaPlaneacion->format('d/m/Y') }}
                                 </p>
                             </div>
 
@@ -621,11 +628,31 @@
                                     </span>
                                 </div>
 
-                                <div class="w-full bg-gray-100 rounded-full h-3">
-                                    <div
-                                        class="bg-blue-500 h-3 rounded-full"
-                                        style="width: {{ min($porcentajeSemanal, 100) }}%">
-                                    </div>
+                                <div class="w-full bg-gray-100 rounded-full h-3 overflow-hidden flex"
+                                     title="Porcentajes de la meta semanal">
+                                    @if($porcentajeMetaTerminadaSemanal > 0)
+                                        <div
+                                            class="bg-green-500 h-3 shrink-0"
+                                            style="width: {{ min(100, $porcentajeMetaTerminadaSemanal) }}%">
+                                        </div>
+                                    @endif
+                                    @if($porcentajeMetaPendienteSemanal > 0)
+                                        <div
+                                            class="bg-blue-500 h-3 shrink-0"
+                                            style="width: {{ min(max(0, 100 - $porcentajeMetaTerminadaSemanal), $porcentajeMetaPendienteSemanal) }}%">
+                                        </div>
+                                    @endif
+                                </div>
+                                <div class="flex flex-wrap justify-between gap-2 text-xs mt-2">
+                                    <span class="text-green-600">
+                                        Terminado: {{ number_format($porcentajeMetaTerminadaSemanal, 1) }}%
+                                    </span>
+                                    <span class="text-blue-600">
+                                        Pendiente: {{ number_format($porcentajeMetaPendienteSemanal, 1) }}%
+                                    </span>
+                                    <span class="text-gray-600">
+                                        Sin programar: {{ number_format($porcentajeMetaSinProgramarSemanal, 1) }}%
+                                    </span>
                                 </div>
                             </div>
 
@@ -633,33 +660,63 @@
 
                                 <div>
                                     <p class="text-xs text-gray-500">
-                                        Faltante
+                                        Pendiente de terminar
                                     </p>
 
                                     <p class="text-lg font-bold text-gray-800">
-                                        ${{ number_format($faltanteSemanal, 2) }}
+                                        ${{ number_format($pendienteEntregaSemanal, 2) }}
                                     </p>
                                 </div>
 
                                 <div class="text-right">
                                     <p class="text-xs text-gray-500">
-                                        Cumplimiento
+                                        Meta alcanzada
                                     </p>
 
-                                    <p class="text-lg font-bold text-blue-600">
-                                        {{ number_format($porcentajeSemanal, 1) }}%
+                                    <p class="text-lg font-bold text-green-600">
+                                        {{ number_format($porcentajeMetaTerminadaSemanal, 1) }}%
+                                    </p>
+                                    <p class="mt-1 text-xs text-gray-500">
+                                        Programado terminado: {{ number_format($porcentajeEntregadoSemanal, 1) }}%
                                     </p>
                                 </div>
 
                             </div>
 
+                            <div class="text-xs text-gray-500 border-t border-gray-100 pt-3">
+                                Falta programar para la meta:
+                                <span class="font-semibold text-blue-600">
+                                    ${{ number_format($faltanteSemanal, 2) }}
+                                </span>
+                            </div>
+
                         </div>
 
+                        <nav aria-label="Navegación de planeación semanal" class="mt-auto flex flex-wrap gap-2 pt-5">
+                            @foreach (['Semana anterior' => $offsetSemana - 1, 'Semana actual' => 0, 'Semana siguiente' => $offsetSemana + 1] as $etiqueta => $desplazamiento)
+                                <a href="{{ request()->fullUrlWithQuery(['offset_semana' => $desplazamiento]) }}#planeacion-semanal" data-periodo="offset_semana" data-offset="{{ $desplazamiento }}"
+                                   class="rounded-lg border border-gray-200 px-3 py-2 text-xs font-medium text-gray-700 hover:bg-gray-50 focus-visible:outline focus-visible:outline-blue-600">
+                                    {{ $etiqueta }}
+                                </a>
+                            @endforeach
+                        </nav>
+                        <p role="status" data-estado-periodo class="text-xs text-gray-600"></p>
+
                     </div>
+                    @endfragment
 
 
                     {{-- PLANEACIÓN MENSUAL --}}
-                    <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                    @fragment('planeacion-mensual')
+                    <div id="planeacion-mensual"
+                         data-periodo="{{ $inicioMes->locale('es')->translatedFormat('F Y') }}"
+                         data-pedidos="{{ $pedidosTerminadosMes->map(fn ($pedido) => [
+                             'pedido_no' => $pedido->pedido_no,
+                             'cliente' => $pedido->cliente,
+                             'importe' => (float) $pedido->importe_total,
+                             'fecha_terminado' => $pedido->fecha_terminado->format('d/m/Y'),
+                         ])->toJson() }}"
+                         class="flex flex-col scroll-mt-4 bg-white rounded-xl shadow-sm border border-gray-200 p-6">
 
                         <div class="flex items-center justify-between mb-5">
                             <div>
@@ -667,11 +724,18 @@
                                     Meta de venta mensual
                                 </p>
 
-                                <p class="text-xs text-gray-800 mt-1">
-                                    Periodo: {{ $inicioSemana->locale('es')->translatedFormat('F Y') }}
+                                <p class="inline-block mt-1 rounded-md bg-blue-50 px-2 py-1 text-xs text-blue-800">
+                                    @if (abs($offsetMes) <= 1)
+                                        <strong>{{ match ($offsetMes) {
+                                            -1 => 'Mes anterior',
+                                            0 => 'Mes actual',
+                                            1 => 'Mes siguiente',
+                                        } }}</strong> ·
+                                    @endif
+                                    {{ $inicioMes->locale('es')->translatedFormat('F Y') }}
                                 </p>
                                 <p class="text-xs text-gray-500 mt-1">
-                                    Programado según fecha de producción
+                                    {{ $mesCerrado ? 'Mes cerrado · por fecha de terminación' : 'Programado según fecha de producción' }}
                                 </p>
                             </div>
 
@@ -695,7 +759,7 @@
                             <div>
                                 <div class="flex justify-between items-center mb-1">
                                     <span class="text-xs text-gray-500">
-                                        Programado
+                                        {{ $mesCerrado ? 'Realizado al cierre' : 'Programado' }}
                                     </span>
 
                                     <span class="text-sm font-semibold text-gray-700">
@@ -703,19 +767,52 @@
                                     </span>
                                 </div>
 
-                                <div class="w-full bg-gray-100 rounded-full h-3">
+                                <div
+                                    class="w-full bg-gray-100 rounded-full h-3 overflow-hidden flex"
+                                    title="Entregado: ${{ number_format($entregadoMensual, 2) }}@unless($mesCerrado) · Pendiente programado: ${{ number_format($pendienteProgramadoMensual, 2) }}@endunless">
+                                    @if($porcentajeEntregadoMensual > 0)
                                     <div
-                                        class="bg-blue-500 h-3 rounded-full"
-                                        style="width: {{ min($porcentajeMensual, 100) }}%">
+                                        class="bg-green-500 h-3"
+                                        style="width: {{ min($porcentajeEntregadoMensual, 100) }}%">
                                     </div>
+                                    @endif
+                                    @if($porcentajePendienteProgramadoMensual > 0)
+                                    <div
+                                        class="bg-blue-500 h-3"
+                                        style="width: {{ min($porcentajePendienteProgramadoMensual, max(0, 100 - min($porcentajeEntregadoMensual, 100))) }}%">
+                                    </div>
+                                    @endif
+                                </div>
+                                <div class="mt-1 flex justify-between text-[10px] text-gray-500">
+                                    <span><span class="text-green-600">■</span> Entregado</span>
+                                    @unless($mesCerrado)
+                                    <span><span class="text-blue-600">■</span> Pendiente</span>
+                                    @endunless
                                 </div>
                             </div>
+
+                            <button type="button" aria-haspopup="dialog" aria-controls="modalPedidosProyeccion"
+                                onclick="abrirModalPedidos('entregados', 'mes')"
+                                class="w-full flex justify-between items-center rounded-lg border border-green-100 bg-green-50 px-3 py-2 text-left hover:bg-green-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-green-700">
+                                <span>
+                                    <span class="block text-xs text-green-700">
+                                        {{ $offsetMes === 0 ? 'Entregado este mes' : 'Entregado en el mes' }}
+                                    </span>
+                                    <span class="block text-lg font-bold text-green-700">
+                                        ${{ number_format($entregadoMensual, 2) }}
+                                    </span>
+                                </span>
+                                <span class="text-sm font-semibold text-green-700 text-right">
+                                    {{ number_format($porcentajeEntregadoMensual, 1) }}% entregado de la meta
+                                    <span class="block text-xs underline">Ver pedidos</span>
+                                </span>
+                            </button>
 
                             <div class="flex justify-between items-center pt-2">
 
                                 <div>
                                     <p class="text-xs text-gray-500">
-                                        Faltante
+                                        {{ $mesCerrado ? 'Faltante al cierre' : 'Faltante' }}
                                     </p>
 
                                     <p class="text-lg font-bold text-gray-800">
@@ -725,7 +822,7 @@
 
                                 <div class="text-right">
                                     <p class="text-xs text-gray-500">
-                                        Cumplimiento
+                                        {{ $mesCerrado ? 'Realizado de la meta al cierre' : 'Programado de la meta' }}
                                     </p>
 
                                     <p class="text-lg font-bold text-blue-600">
@@ -737,7 +834,18 @@
 
                         </div>
 
+                        <nav aria-label="Navegación de planeación mensual" class="mt-auto flex flex-wrap gap-2 pt-5">
+                            @foreach (['Mes anterior' => $offsetMes - 1, 'Mes actual' => 0, 'Mes siguiente' => $offsetMes + 1] as $etiqueta => $desplazamiento)
+                                <a href="{{ request()->fullUrlWithQuery(['offset_mes' => $desplazamiento]) }}#planeacion-mensual" data-periodo="offset_mes" data-offset="{{ $desplazamiento }}"
+                                   class="rounded-lg border border-gray-200 px-3 py-2 text-xs font-medium text-gray-700 hover:bg-gray-50 focus-visible:outline focus-visible:outline-blue-600">
+                                    {{ $etiqueta }}
+                                </a>
+                            @endforeach
+                        </nav>
+                        <p role="status" data-estado-periodo class="text-xs text-gray-600"></p>
+
                     </div>
+                    @endfragment
 
                 </div>
 
@@ -755,7 +863,21 @@
             PROYECCIÓN DE LA SEMANA ACTUAL + 3 SEMANAS
         ====================================================== --}}
 
-        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-5 mt-6">
+        @fragment('proyeccion-semanal')
+    @php
+    $datosModalProyeccion = [];
+
+    foreach ($proyeccionSemanas as $semanaModal) {
+    $numeroSemanaModal = (string) $semanaModal['semana'];
+
+    $datosModalProyeccion[$numeroSemanaModal] = [
+    'entregados' => $semanaModal['pedidos_entregados'] ?? [],
+    'pendientes' => $semanaModal['pedidos_pendientes'] ?? [],
+    ];
+    }
+    @endphp
+        <div id="proyeccion-semanal" data-pedidos="{{ json_encode($datosModalProyeccion, JSON_THROW_ON_ERROR) }}"
+            class="bg-white rounded-xl shadow-sm border border-gray-200 p-5 mt-6">
 
             <h2 class="text-lg font-bold text-gray-800">
                 Proyección de la semana actual y próximas 3 semanas
@@ -782,19 +904,24 @@
                                 ? 'text-gray-700 bg-white border-gray-300 hover:bg-gray-50'
                                 : 'text-gray-300 bg-gray-50 border-gray-200 pointer-events-none' }}"
                     aria-label="Semana anterior"
+                    @if($puedeRetrocederProyeccion)
+                        data-periodo="offset_proyeccion" data-offset="{{ $offsetProyeccion - 1 }}"
+                    @else
+                        aria-disabled="true" tabindex="-1"
+                    @endif
                 >
                     <span class="text-lg leading-none">‹</span>
                     Semana anterior
                 </a>
 
 
-                <div class="text-xs text-gray-500 font-medium">
-                    {{ $offsetProyeccion === 0
-                        ? 'Semana actual'
-                        : ($offsetProyeccion < 0
-                            ? 'Semanas anteriores'
-                            : 'Semanas siguientes') }}
-                </div>
+                <a href="{{ request()->fullUrlWithQuery(['offset_proyeccion' => 0]) }}#proyeccion-semanal"
+                    data-periodo="offset_proyeccion" data-offset="0"
+                    @if($offsetProyeccion === 0) aria-current="true" @endif
+                    class="inline-flex items-center px-3 py-2 rounded-lg text-sm font-medium border transition
+                           {{ $offsetProyeccion === 0 ? 'text-blue-700 bg-blue-50 border-blue-200' : 'text-gray-700 bg-white border-gray-300 hover:bg-gray-50' }}">
+                    Semana actual
+                </a>
 
 
                 <a
@@ -809,6 +936,11 @@
                                 ? 'text-gray-700 bg-white border-gray-300 hover:bg-gray-50'
                                 : 'text-gray-300 bg-gray-50 border-gray-200 pointer-events-none' }}"
                     aria-label="Semana siguiente"
+                    @if($puedeAvanzarProyeccion)
+                        data-periodo="offset_proyeccion" data-offset="{{ $offsetProyeccion + 1 }}"
+                    @else
+                        aria-disabled="true" tabindex="-1"
+                    @endif
                 >
                     Semana siguiente
                     <span class="text-lg leading-none">›</span>
@@ -816,6 +948,8 @@
 
             </div>
 
+
+            <p role="status" data-estado-periodo class="text-xs text-gray-600"></p>
 
             {{-- 2 COLUMNAS --}}
             <div
@@ -1089,6 +1223,7 @@
             </div>
 
         </div>
+        @endfragment
 
         {{-- =====================================================
             PEDIDOS QUE REQUIEREN ATENCIÓN
@@ -2031,22 +2166,9 @@
          MODAL DE PEDIDOS ENTREGADOS / PENDIENTES
     ====================================================== --}}
 
-    @php
-    $datosModalProyeccion = [];
-
-    foreach ($proyeccionSemanas as $semanaModal) {
-    $numeroSemanaModal = (string) $semanaModal['semana'];
-
-    $datosModalProyeccion[$numeroSemanaModal] = [
-    'entregados' => $semanaModal['pedidos_entregados'] ?? [],
-    'pendientes' => $semanaModal['pedidos_pendientes'] ?? [],
-    ];
-    }
-    @endphp
-
 
     <div
-        id="modalPedidosProyeccion"
+        id="modalPedidosProyeccion" role="dialog" aria-modal="true" aria-labelledby="modalPedidosTitulo" tabindex="-1"
         class="fixed inset-0 z-[100] hidden items-center justify-center bg-black/60 p-4"
         onclick="cerrarModalPedidos(event)">
 
@@ -2191,23 +2313,57 @@
     </div>
 
 
-    @php
-    $datosModalProyeccion = [];
-
-    foreach ($proyeccionSemanas as $semanaModal) {
-    $numeroSemanaModal = (string) $semanaModal['semana'];
-
-    $datosModalProyeccion[$numeroSemanaModal] = [
-    'entregados' => $semanaModal['pedidos_entregados'] ?? [],
-    'pendientes' => $semanaModal['pedidos_pendientes'] ?? [],
-    ];
-    }
-    @endphp
-
     <script>
-        const datosModalProyeccion =
-            @json($datosModalProyeccion);
+        document.addEventListener('click', async (event) => {
+            const enlace = event.target.closest('a[data-periodo][data-offset]');
+            if (!enlace || event.defaultPrevented || event.button !== 0 ||
+                event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
 
+            event.preventDefault();
+            const tarjeta = enlace.closest('#planeacion-semanal, #planeacion-mensual, #proyeccion-semanal');
+            if (!tarjeta || tarjeta.getAttribute('aria-busy') === 'true') return;
+
+            const estado = tarjeta.querySelector('[data-estado-periodo]');
+            const destino = new URL(window.location.href);
+            const { periodo, offset } = enlace.dataset;
+            destino.searchParams.set(periodo, offset);
+            tarjeta.setAttribute('aria-busy', 'true');
+            estado.textContent = 'Cargando periodo…';
+
+            try {
+                const respuesta = await fetch(destino, {
+                    headers: { 'X-Planeacion-Tarjeta': tarjeta.id },
+                });
+                if (!respuesta.ok) throw new Error('No se pudo cargar el periodo');
+
+                const documento = new DOMParser().parseFromString(await respuesta.text(), 'text/html');
+                const actualizada = documento.getElementById(tarjeta.id);
+                if (!actualizada) throw new Error('No se recibió la tarjeta');
+
+                const enfocado = document.activeElement === enlace;
+                tarjeta.replaceWith(actualizada);
+
+                const urlActual = new URL(window.location.href);
+                urlActual.searchParams.set(periodo, offset);
+                window.history.replaceState(window.history.state, '', urlActual);
+
+                for (const boton of document.querySelectorAll('a[data-periodo][data-offset]')) {
+                    const urlBoton = new URL(urlActual);
+                    urlBoton.searchParams.set(boton.dataset.periodo, boton.dataset.offset);
+                    urlBoton.hash = boton.closest('#planeacion-semanal, #planeacion-mensual, #proyeccion-semanal').id;
+                    boton.href = urlBoton;
+                }
+                if (enfocado) {
+                    const enlacesNuevos = Array.from(actualizada.querySelectorAll('a[data-offset]'));
+                    enlacesNuevos.find(boton => boton.textContent.trim() === enlace.textContent.trim())
+                        ?.focus({ preventScroll: true });
+                }
+            } catch {
+                estado.textContent = 'No se pudo cargar el periodo. Intenta de nuevo.';
+            } finally {
+                tarjeta.removeAttribute('aria-busy');
+            }
+        });
 
         function abrirModalPedidos(tipo, semana) {
 
@@ -2237,14 +2393,14 @@
 
 
             const datosSemana =
-                datosModalProyeccion[String(semana)] || {
+                (semana !== 'mes' ? JSON.parse(document.getElementById('proyeccion-semanal').dataset.pedidos)[String(semana)] : null) || {
                     entregados: [],
                     pendientes: []
                 };
 
 
             const pedidos =
-                tipo === 'entregados' ?
+                semana === 'mes' ? JSON.parse(document.getElementById('planeacion-mensual').dataset.pedidos) : tipo === 'entregados' ?
                 datosSemana.entregados :
                 datosSemana.pendientes;
 
@@ -2254,13 +2410,13 @@
 
 
             titulo.textContent =
-                esEntregado ?
+                semana === 'mes' ? 'Pedidos terminados del mes' : esEntregado ?
                 'Pedidos entregados' :
                 'Pedidos pendientes';
 
 
             subtitulo.textContent =
-                'Semana ' + semana;
+                semana === 'mes' ? document.getElementById('planeacion-mensual').dataset.periodo : 'Semana ' + semana;
 
 
             encabezadoFecha.textContent =
@@ -2330,28 +2486,16 @@
                         );
 
 
-                    fila.innerHTML = `
-
-                        <td class="px-5 py-2.5">
-                            <span class="font-semibold text-gray-700">
-                                ${pedido.pedido_no ?? '—'}
-                            </span>
-                        </td>
-
-                        <td class="px-5 py-2.5 text-gray-600">
-                            ${pedido.cliente ?? '—'}
-                        </td>
-
-                        <td class="px-5 py-2.5 text-gray-500">
-                            ${fecha ?? '—'}
-                        </td>
-
-                        <td class="px-5 py-2.5 text-right font-semibold">
-                            ${importe}
-                        </td>
-
-                    `;
-
+                    [
+                        [pedido.pedido_no ?? '—', 'font-semibold text-gray-700'],
+                        [pedido.cliente ?? '—', 'text-gray-600'],
+                        [fecha, 'text-gray-500'],
+                        [importe, 'text-right font-semibold'],
+                    ].forEach(([valor, clases]) => {
+                        const celda = fila.insertCell();
+                        celda.className = 'px-5 py-2.5 ' + clases;
+                        celda.textContent = valor;
+                    });
 
                     lista.appendChild(fila);
 
@@ -2362,6 +2506,7 @@
 
             modal.classList.remove('hidden');
             modal.classList.add('flex');
+            modal.focus();
 
             document.body.classList.add('overflow-hidden');
         }

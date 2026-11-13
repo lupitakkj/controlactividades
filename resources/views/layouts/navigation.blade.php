@@ -1,3 +1,50 @@
+
+<style>
+    .app-sidebar {
+        background: #020617;
+        border-color: #1e293b;
+        box-shadow: 4px 0 24px rgb(0 0 0 / 20%);
+        color: #cbd5e1;
+    }
+    .app-sidebar > .h-20 { border-color: #1e293b; }
+    .sidebar-links { scrollbar-width: thin; scrollbar-color: #334155 transparent; }
+    .sidebar-links .sidebar-link {
+        min-height: 42px;
+        gap: 12px;
+        border: 1px solid transparent;
+        border-radius: 10px;
+        color: #cbd5e1;
+        position: relative;
+    }
+    .sidebar-link > span { color: inherit; font-size: 13px; font-weight: 500; }
+    .sidebar-link > i { color: #94a3b8; font-size: 15px; flex-shrink: 0; }
+    .sidebar-links .sidebar-link:hover { background: #1e293b; color: #fff; }
+    .sidebar-links .sidebar-link:hover > i { color: #60a5fa; }
+    .sidebar-links .sidebar-link.is-active {
+        background: #2563eb;
+        border-color: #2563eb;
+        color: #fff;
+    }
+    .sidebar-link.is-active > span { font-weight: 600; }
+    .sidebar-link.is-active > i { color: #fff; }
+    .sidebar-link:focus-visible, .sidebar-user button:focus-visible,
+    .sidebar-toggle button:focus-visible {
+        outline: 2px solid #2563eb;
+        outline-offset: 2px;
+    }
+    .sidebar-user { border-color: #1e293b; background: #020617; }
+    .sidebar-user > button:hover { background: #1e293b; }
+    .sidebar-user .text-white.truncate { color: #fff; }
+    .sidebar-user .text-xs.uppercase { font-size: 10px; letter-spacing: .08em; }
+    .sidebar-toggle button {
+        background: #020617;
+        border-color: #1e293b;
+        color: #94a3b8;
+        box-shadow: 0 2px 8px rgb(15 23 42 / 8%);
+    }
+    .sidebar-toggle button:hover { background: #2563eb; color: #fff; }
+</style>
+
 <style>
     [x-cloak] {
 
@@ -148,7 +195,8 @@
 
 <nav
 
-    class="fixed inset-y-0 left-0 z-50
+    aria-label="Navegación principal"
+    class="app-sidebar fixed inset-y-0 left-0 z-50
 
            bg-slate-950 border-r border-slate-800
 
@@ -218,7 +266,18 @@
 
     ========================================================== --}}
 
-    <div class="flex-1 overflow-y-auto px-3 py-5">
+    <div class="sidebar-links flex-1 overflow-y-auto px-3 py-5">
+        @hasanyrole(\App\Http\Controllers\ResumenSemanalController::ROLES)
+            <button type="button"
+                class="sidebar-link flex w-full items-center px-3 py-2.5 mb-1 rounded-lg"
+                x-bind:class="sidebarOpen ? 'gap-3' : 'justify-center'"
+                x-on:click="$dispatch('abrir-resumen-semanal')"
+                aria-label="Resumen semanal"
+                title="Resumen semanal">
+                <i class="fa-solid fa-calendar-week w-5 text-center" aria-hidden="true"></i>
+                <span x-show="sidebarOpen">Resumen semanal</span>
+            </button>
+        @endhasanyrole
 
 
 
@@ -276,15 +335,12 @@
 
             href="{{ route('dashboard') }}"
 
-            class="group flex items-center px-3 py-2.5 mb-1 rounded-lg transition-all duration-200"
+            class="sidebar-link group flex items-center px-3 py-2.5 mb-1 rounded-lg transition-all duration-200 {{ request()->routeIs('dashboard')
 
-            x-bind:class="sidebarOpen ? 'gap-3' : 'justify-center'"
+                            ? 'is-active'
 
-            {{ request()->routeIs('dashboard')
-
-                            ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/30'
-
-                            : 'text-slate-300 hover:bg-slate-800 hover:text-white' }}">
+                            : '' }}"
+            x-bind:class="sidebarOpen ? 'gap-3' : 'justify-center'">
 
 
 
@@ -338,15 +394,12 @@
 
             href="{{ route('importaciones.index') }}"
 
-            class="group flex items-center px-3 py-2.5 mb-1 rounded-lg transition-all duration-200"
+            class="sidebar-link group flex items-center px-3 py-2.5 mb-1 rounded-lg transition-all duration-200 {{ request()->routeIs('importaciones.*')
 
-            x-bind:class="sidebarOpen ? 'gap-3' : 'justify-center'"
+                            ? 'is-active'
 
-            {{ request()->routeIs('importaciones.*')
-
-                            ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/30'
-
-                            : 'text-slate-300 hover:bg-slate-800 hover:text-white' }}">
+                            : '' }}"
+            x-bind:class="sidebarOpen ? 'gap-3' : 'justify-center'">
 
 
 
@@ -380,15 +433,12 @@
 
             href="{{ route('dashboard.produccion') }}"
 
-            class="group flex items-center px-3 py-2.5 mb-1 rounded-lg transition-all duration-200"
+            class="sidebar-link group flex items-center px-3 py-2.5 mb-1 rounded-lg transition-all duration-200 {{ request()->routeIs('dashboard.produccion')
 
-            x-bind:class="sidebarOpen ? 'gap-3' : 'justify-center'"
+                            ? 'is-active'
 
-            {{ request()->routeIs('dashboard.produccion')
-
-                            ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/30'
-
-                            : 'text-slate-300 hover:bg-slate-800 hover:text-white' }}">
+                            : '' }}"
+            x-bind:class="sidebarOpen ? 'gap-3' : 'justify-center'">
 
 
 
@@ -457,15 +507,12 @@
 
             href="{{ route('dashboard.produccion') }}"
 
-            class="group flex items-center px-3 py-2.5 mb-1 rounded-lg transition-all duration-200"
+            class="sidebar-link group flex items-center px-3 py-2.5 mb-1 rounded-lg transition-all duration-200 {{ request()->routeIs('dashboard.produccion')
 
-            x-bind:class="sidebarOpen ? 'gap-3' : 'justify-center'"
+                            ? 'is-active'
 
-            {{ request()->routeIs('dashboard.produccion')
-
-                            ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/30'
-
-                            : 'text-slate-300 hover:bg-slate-800 hover:text-white' }}">
+                            : '' }}"
+            x-bind:class="sidebarOpen ? 'gap-3' : 'justify-center'">
 
 
 
@@ -510,7 +557,8 @@
         @if(auth()->user()->hasAnyRole([
 
         'Administrador',
-
+        'Supervisor',
+        'Producción',
         'Gerente Producción'
 
         ]))
@@ -521,15 +569,12 @@
 
             href="{{ route('dashboard.direccion') }}"
 
-            class="group flex items-center px-3 py-2.5 mb-1 rounded-lg transition-all duration-200"
+            class="sidebar-link group flex items-center px-3 py-2.5 mb-1 rounded-lg transition-all duration-200 {{ request()->routeIs('dashboard.direccion')
 
-            x-bind:class="sidebarOpen ? 'gap-3' : 'justify-center'"
+                            ? 'is-active'
 
-            {{ request()->routeIs('dashboard.direccion')
-
-                            ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/30'
-
-                            : 'text-slate-300 hover:bg-slate-800 hover:text-white' }}">
+                            : '' }}"
+            x-bind:class="sidebarOpen ? 'gap-3' : 'justify-center'">
 
 
 
@@ -573,11 +618,10 @@
 
         <a
             href="{{ route('produccion.producto') }}"
-            class="group flex items-center px-3 py-2.5 mb-1 rounded-lg transition-all duration-200"
-            x-bind:class="sidebarOpen ? 'gap-3' : 'justify-center'"
-            {{ request()->routeIs('produccion.producto')
-                            ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/30'
-                            : 'text-slate-300 hover:bg-slate-800 hover:text-white' }}>
+            class="sidebar-link group flex items-center px-3 py-2.5 mb-1 rounded-lg transition-all duration-200 {{ request()->routeIs('produccion.producto')
+                            ? 'is-active'
+                            : '' }}"
+            x-bind:class="sidebarOpen ? 'gap-3' : 'justify-center'">
 
             <i class="fa-solid fa-boxes-stacked w-5 text-center
                     {{ request()->routeIs('produccion.producto')
@@ -609,11 +653,10 @@
         )
         <a
             href="{{ route('control.operativo') }}"
-            class="group flex items-center px-3 py-2.5 mb-1 rounded-lg transition-all duration-200"
-            x-bind:class="sidebarOpen ? 'gap-3' : 'justify-center'"
-            {{ request()->routeIs('control.operativo')
-                ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/30'
-                : 'text-slate-300 hover:bg-slate-800 hover:text-white' }}>
+            class="sidebar-link group flex items-center px-3 py-2.5 mb-1 rounded-lg transition-all duration-200 {{ request()->routeIs('control.operativo')
+                ? 'is-active'
+                : '' }}"
+            x-bind:class="sidebarOpen ? 'gap-3' : 'justify-center'">
             <i class="fa-solid fa-list-check w-5 text-center
                 {{ request()->routeIs('control.operativo')
                     ? 'text-white'
@@ -669,15 +712,12 @@
 
             href="{{ route('despiece.index') }}"
 
-            class="group flex items-center px-3 py-2.5 mb-1 rounded-lg transition-all duration-200"
+            class="sidebar-link group flex items-center px-3 py-2.5 mb-1 rounded-lg transition-all duration-200 {{ request()->routeIs('despiece.*')
 
-            x-bind:class="sidebarOpen ? 'gap-3' : 'justify-center'"
+                        ? 'is-active'
 
-            {{ request()->routeIs('despiece.*')
-
-                        ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/30'
-
-                        : 'text-slate-300 hover:bg-slate-800 hover:text-white' }}">
+                        : '' }}"
+            x-bind:class="sidebarOpen ? 'gap-3' : 'justify-center'">
 
 
 
@@ -725,11 +765,10 @@
 
         <a
             href="{{ route('tickets-calidad.index') }}"
-            class="group flex items-center px-3 py-2.5 mb-1 rounded-lg transition-all duration-200"
-            x-bind:class="sidebarOpen ? 'gap-3' : 'justify-center'"
-            {{ request()->routeIs('tickets-calidad.*')
-                    ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/30'
-                    : 'text-slate-300 hover:bg-slate-800 hover:text-white' }}>
+            class="sidebar-link group flex items-center px-3 py-2.5 mb-1 rounded-lg transition-all duration-200 {{ request()->routeIs('tickets-calidad.*')
+                    ? 'is-active'
+                    : '' }}"
+            x-bind:class="sidebarOpen ? 'gap-3' : 'justify-center'">
 
             <i class="fa-solid fa-ticket w-5 text-center
             {{ request()->routeIs('tickets-calidad.*')
@@ -752,7 +791,7 @@
 
 
 
-        @if(!auth()->user()->hasAnyRole(['Almacén', 'Compras']))
+        @if(!auth()->user()->hasAnyRole(['Almacén', 'Compras', 'Operador de producción']))
 
         {{-- =====================================================
 
@@ -764,15 +803,12 @@
 
             href="{{ route('pedidos.terminados') }}"
 
-            class="group flex items-center px-3 py-2.5 mb-1 rounded-lg transition-all duration-200"
+            class="sidebar-link group flex items-center px-3 py-2.5 mb-1 rounded-lg transition-all duration-200 {{ request()->routeIs('pedidos.terminados')
 
-            x-bind:class="sidebarOpen ? 'gap-3' : 'justify-center'"
+                        ? 'is-active'
 
-            {{ request()->routeIs('pedidos.terminados')
-
-                        ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/30'
-
-                        : 'text-slate-300 hover:bg-slate-800 hover:text-white' }}">
+                        : '' }}"
+            x-bind:class="sidebarOpen ? 'gap-3' : 'justify-center'">
 
 
 
@@ -806,10 +842,10 @@
         {{-- PROVEEDORES --}}
         @if(auth()->user()->hasAnyRole(['Administrador', 'Compras']))
         <a href="{{ route('compras.proveedores.index') }}"
-            class="group flex items-center px-3 py-2.5 mb-1 rounded-lg transition-all duration-200
+            class="sidebar-link group flex items-center px-3 py-2.5 mb-1 rounded-lg transition-all duration-200
        {{ request()->routeIs('compras.proveedores.*')
-            ? 'bg-blue-600 text-white'
-            : 'text-slate-300 hover:bg-slate-800 hover:text-white' }}"
+            ? 'is-active'
+            : '' }}"
             x-bind:class="sidebarOpen ? 'gap-3' : 'justify-center'">
 
             <i class="fa-solid fa-building w-5 text-center"></i>
@@ -824,10 +860,10 @@
         {{-- ALMACENES --}}
         @if(auth()->user()->hasAnyRole(['Administrador', 'Compras', 'Almacén']))
         <a href="{{ route('compras.almacenes.index') }}"
-            class="group flex items-center px-3 py-2.5 mb-1 rounded-lg transition-all duration-200
+            class="sidebar-link group flex items-center px-3 py-2.5 mb-1 rounded-lg transition-all duration-200
        {{ request()->routeIs('compras.almacenes.*')
-            ? 'bg-blue-600 text-white'
-            : 'text-slate-300 hover:bg-slate-800 hover:text-white' }}"
+            ? 'is-active'
+            : '' }}"
             x-bind:class="sidebarOpen ? 'gap-3' : 'justify-center'">
 
             <i class="fa-solid fa-warehouse w-5 text-center"></i>
@@ -842,10 +878,10 @@
         {{-- ÓRDENES DE COMPRA --}}
         @if(auth()->user()->hasAnyRole(['Administrador', 'Compras', 'Almacén']))
         <a href="{{ route('compras.ordenes.index') }}"
-            class="group flex items-center px-3 py-2.5 mb-1 rounded-lg transition-all duration-200
+            class="sidebar-link group flex items-center px-3 py-2.5 mb-1 rounded-lg transition-all duration-200
        {{ request()->routeIs('compras.ordenes.*')
-            ? 'bg-blue-600 text-white'
-            : 'text-slate-300 hover:bg-slate-800 hover:text-white' }}"
+            ? 'is-active'
+            : '' }}"
             x-bind:class="sidebarOpen ? 'gap-3' : 'justify-center'">
 
             <i class="fa-solid fa-file-invoice-dollar w-5 text-center"></i>
@@ -860,10 +896,10 @@
         {{-- REPORTE DE ENTRADAS: SOLO COMPRAS Y ADMINISTRADOR --}}
         @if(auth()->user()->hasAnyRole(['Administrador', 'Compras']))
         <a href="{{ url('/compras/reportes/entradas') }}"
-            class="group flex items-center px-3 py-2.5 mb-1 rounded-lg transition-all duration-200
+            class="sidebar-link group flex items-center px-3 py-2.5 mb-1 rounded-lg transition-all duration-200
             {{ request()->is('compras/reportes/entradas*')
-                ? 'bg-blue-600 text-white'
-                : 'text-slate-300 hover:bg-slate-800 hover:text-white' }}"
+                ? 'is-active'
+                : '' }}"
             x-bind:class="sidebarOpen ? 'gap-3' : 'justify-center'">
 
             <i class="fa-solid fa-file-excel w-5 text-center"></i>
@@ -880,8 +916,8 @@
 
         @if(auth()->user()->hasAnyRole(['Almacén', 'Compras', 'Administrador']))
         <a href="{{ route('almacen-salidas.index') }}"
-            class="group flex items-center px-3 py-2.5 mb-1 rounded-lg transition-all duration-200
-       {{ request()->routeIs('almacen-salidas.*') ? 'bg-blue-600 text-white' : 'text-slate-300 hover:bg-slate-800 hover:text-white' }}">
+            class="sidebar-link group flex items-center px-3 py-2.5 mb-1 rounded-lg transition-all duration-200
+       {{ request()->routeIs('almacen-salidas.*') ? 'is-active' : '' }}">
             <i class="fa-solid fa-dolly w-5 text-center"></i>
             <span x-show="sidebarOpen" x-transition.opacity class="text-sm font-medium whitespace-nowrap">Salidas de almacén</span>
         </a>
@@ -894,19 +930,17 @@
 
         ====================================================== --}}
 
+        @unless(auth()->user()->hasRole('Operador de producción'))
         <a
 
             href="{{ route('agenda.index') }}"
 
-            class="group flex items-center px-3 py-2.5 mb-1 rounded-lg transition-all duration-200"
+            class="sidebar-link group flex items-center px-3 py-2.5 mb-1 rounded-lg transition-all duration-200 {{ request()->routeIs('agenda.*')
 
-            x-bind:class="sidebarOpen ? 'gap-3' : 'justify-center'"
+                        ? 'is-active'
 
-            {{ request()->routeIs('agenda.*')
-
-                        ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/30'
-
-                        : 'text-slate-300 hover:bg-slate-800 hover:text-white' }}">
+                        : '' }}"
+            x-bind:class="sidebarOpen ? 'gap-3' : 'justify-center'">
 
 
 
@@ -933,6 +967,7 @@
         </a>
 
 
+        @endunless
 
     </div>
 
@@ -1012,7 +1047,7 @@
 
     <div
 
-        class="border-t border-slate-800 p-3 relative"
+        class="sidebar-user border-t border-slate-800 p-3 relative"
 
         x-data="{ userMenuOpen: false }"
 
@@ -1218,7 +1253,7 @@
 
     <div
 
-        class="absolute top-5 -right-3 z-10"
+        class="sidebar-toggle absolute top-5 -right-3 z-10"
 
         x-show="window.innerWidth > 768">
 
@@ -1242,7 +1277,9 @@
 
                    shadow-lg transition-all duration-200"
 
-            x-bind:title="sidebarOpen ? 'Contraer menú' : 'Expandir menú'">
+            x-bind:title="sidebarOpen ? 'Contraer menú' : 'Expandir menú'"
+            x-bind:aria-expanded="sidebarOpen.toString()"
+            aria-label="Contraer o expandir menú">
 
 
 

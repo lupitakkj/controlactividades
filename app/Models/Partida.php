@@ -5,10 +5,22 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use App\Services\AsignarRutaPorClave;
 
 class Partida extends Model
 {
     protected $table = 'partidas';
+
+    /**
+     * Al crear una partida importada o capturada, asignar la ruta predeterminada
+     * si existe una regla para su clave. No modifica Despiece.
+     */
+    protected static function booted(): void
+    {
+        static::created(function (Partida $partida): void {
+            app(AsignarRutaPorClave::class)->aplicarPredeterminada($partida);
+        });
+    }
 
     protected $fillable = [
         'pedido_id',
@@ -34,6 +46,16 @@ class Partida extends Model
             DespieceProceso::class,
             'partida_id'
         );
+    }
+
+    public function rutaAsignada()
+    {
+        return $this->hasOne(PartidaRuta::class, 'partida_id');
+    }
+
+    public function reglaRutaClave()
+    {
+        return $this->belongsTo(RutaFabricacionClave::class, 'clave', 'clave');
     }
 
     /**

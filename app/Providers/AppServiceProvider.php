@@ -19,6 +19,11 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        //
+        foreach (['created', 'updated', 'deleted'] as $evento) {
+            \Illuminate\Support\Facades\Event::listen('eloquent.'.$evento.': *',
+                function (string $nombre, array $datos) use ($evento) {
+                    app(\App\Services\AuditoriaSistema::class)->cambio($evento, $datos[0]);
+                });
+        }
     }
 }

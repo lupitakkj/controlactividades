@@ -14,7 +14,7 @@ class CutListController extends Controller
     CutListOptimizer $optimizer
 ) {
     $datos = $request->validate([
-        'kerf' => 'required|numeric|min:0',
+        'kerf' => 'required|numeric|min:0|max:5',
 
         'separar_materiales' =>
             'required|boolean',
@@ -62,7 +62,7 @@ class CutListController extends Controller
         'success' => true,
 
         'message' =>
-            'Motor de optimización ejecutado.',
+            'Motor de optimización ejecutado. Las dimensiones y el kerf se interpretan en centímetros (cm).',
 
         'resultado' => $resultado,
     ]);

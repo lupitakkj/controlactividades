@@ -3,13 +3,11 @@
 Los eventos se guardan en `auditoria_eventos`, sin agregar una pantalla pÃºblica.
 La bitÃ¡cora existente de actividades se conserva.
 
-## ActivaciÃ³n
+## Activación mediante SQL manual
 
-Ejecutar en cada entorno antes de utilizar la versiÃ³n nueva:
+Antes de habilitar la auditoría, confirma el entorno y selecciona en phpMyAdmin la base MySQL que usa ese entorno del Checador. Comprueba si existe `auditoria_eventos` y, si existe, revisa su estructura e índices frente al [script de auditoría vigente](../database/sql/2026_11_10_bitacora_interna.sql).
 
-```sh
-php artisan migrate --path=database/migrations/2026_11_10_150000_create_auditoria_eventos_table.php --force
-```
+Si la tabla falta, aplica el script desde la pestaña SQL o Importar de phpMyAdmin. En producción, solo el usuario ejecuta el script. Después, comprueba que `auditoria_eventos` existe y que sus columnas e índices coinciden con el script. `CREATE TABLE IF NOT EXISTS` conserva una tabla existente y deja intacta cualquier diferencia de estructura. Si hay diferencias, revísalas antes de habilitar la auditoría.
 
 ## InformaciÃ³n registrada
 

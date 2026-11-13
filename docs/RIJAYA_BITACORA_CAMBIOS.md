@@ -8,7 +8,7 @@ El historial anterior se encuentra en `RIJAYA_HISTORIAL_MAESTRO.md`.
 
 ## Reglas
 
-- Agregar nuevas entradas al final.
+- Agregar al final una entrada por intervención con cambios. Omitir las consultas de solo lectura.
 - No borrar cambios anteriores.
 - No registrar despliegues sin evidencia.
 - Separar propuestas de modificaciones realizadas.
@@ -82,3 +82,12 @@ El historial anterior se encuentra en `RIJAYA_HISTORIAL_MAESTRO.md`.
 **Despliegue a producción:** No realizado.
 
 **Pendiente:** Confirmar la configuración efectiva de InfinityFree cuando una intervención dependa de ella.
+
+### 2026-11-13 12:51 (Ciudad de México) — SLICE 0 — Corrección de configuración y documentación de RIJAYA
+
+**Módulo y estado:** Coordinación y configuración local · implementación del slice autorizado.
+**Solicitud y solución:** Retirar dos llamadas automáticas a migraciones de Composer, documentar la activación manual de auditoría y alinear el alcance de los slices y las reglas de registro.
+**Archivos:** `composer.json`, `AGENTS.md`, `docs/bitacora-interna.md`, `docs/RIJAYA_HISTORIAL_MAESTRO.md`, `docs/especialidades/FRONTEND.md` y `docs/RIJAYA_BITACORA_CAMBIOS.md`.
+**Pruebas y evidencia:** Comprobación estática del JSON, de los comandos conservados, del enlace SQL, de las reglas documentales, del alcance y de la preservación de cambios previos. Captura `rijaya-slice-0-verificacion.png` adjunta al cierre del chat de Coordinación.
+**Git, SQL y producción:** Rama desarrollo, base c86149f. Cambios locales sin commit. Se referenció el SQL existente de auditoría; no se generó ni ejecutó SQL. Sin push ni despliegue.
+**Riesgo y pendiente:** Una instalación nueva requiere aprovisionar manualmente su esquema. Pendiente de revisión por el usuario.

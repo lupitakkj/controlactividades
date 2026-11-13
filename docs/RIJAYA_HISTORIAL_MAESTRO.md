@@ -31,7 +31,7 @@ Antes de realizar cualquier modificación:
 
 ## Registro obligatorio
 
-Después de cada intervención, agregar un registro al final de `docs/RIJAYA_BITACORA_CAMBIOS.md`.
+Después de cada intervención con cambios, agrega un registro al final de `docs/RIJAYA_BITACORA_CAMBIOS.md`. Omite las consultas de solo lectura.
 
 Registrar:
 
@@ -80,3 +80,7 @@ Si no se puede escribir en los archivos, entregar el registro listo para copiar 
 - El avance se calcula en `app/Models/Pedido.php` y en puntos específicos como `app/Http/Controllers/DespieceController.php`, `app/Http/Controllers/RutaClaveController.php` y `app/Services/AsignarRutaPorClave.php`. Preservar estos cálculos al intervenir otros módulos.
 - `database/sql/` contiene scripts SQL manuales. `AGENTS.md` exige preparar el SQL para MySQL y solicitar autorización explícita para crear o ejecutar migraciones de Laravel.
 - InfinityFree es el alojamiento indicado en `AGENTS.md`. La configuración del alojamiento no se verificó en esta revisión. Cualquier cambio en producción requiere autorización explícita.
+
+### 2026-11-13 — Inicialización de Composer sin migraciones automáticas
+
+**Estado:** Decisión confirmada en SLICE 0. `composer.json` conserva los pasos de inicialización ajenos a las migraciones. La [guía de auditoría](bitacora-interna.md#activación-mediante-sql-manual) documenta el SQL manual vigente. La bitácora registra intervenciones con cambios y omite consultas de solo lectura.
